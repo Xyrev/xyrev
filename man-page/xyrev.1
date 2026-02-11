@@ -1,0 +1,27 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH xyrev 1  "xyrev 0.2.3" 
+.SH NAME
+xyrev \- A helpful utility designed to make xyrev effortless.
+.SH SYNOPSIS
+\fBxyrev\fR [\fB\-v\fR|\fB\-\-verbose\fR]... [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+A helpful utility designed to make xyrev effortless.
+.SH OPTIONS
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Use verbose output (\-vv very verbose/build.rs output)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+xyrev\-init(1)
+Create a new configuration folder or reinitialize the existing one
+.TP
+xyrev\-dotfile(1)
+.SH VERSION
+v0.2.3
