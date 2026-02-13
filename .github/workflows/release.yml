@@ -52,6 +52,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Install wget for Windows
+        if: matrix.job.os == 'windows-latest'
+        run: cargo install wget --no-progress
       - name: typos-action
         uses: crate-ci/typos@master
       - name: "`fmt` testing"
@@ -229,14 +232,6 @@ jobs:
           fi
         shell: bash
 
-      - name: Install cargo-deb
-        if: matrix.job.target == 'x86_64-unknown-linux-musl'
-        run: cargo install cargo-deb
-
-      - name: Build deb
-        if: matrix.job.target == 'x86_64-unknown-linux-musl'
-        run: cargo deb --no-build --target=${{ matrix.job.target }}
-
       - name: Test
         if: steps.vars.outputs.JOB_DO_TESTING
         run: |
@@ -246,13 +241,6 @@ jobs:
             cargo test --target=${{ matrix.job.target }} ${{ steps.vars.outputs.CARGO_TEST_OPTIONS}} ${{ matrix.job.cargo-options }} ${{ steps.vars.outputs.CARGO_FEATURES_OPTION }}
           fi
         shell: bash
-
-      - name: Archive deb artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.job.target == 'x86_64-unknown-linux-musl'
-        with:
-          name: ${{ env.PROJECT_NAME }}-${{ matrix.job.target }}-deb
-          path: target/${{ matrix.job.target }}/debian/*.deb
 
       - name: Package
         shell: bash
@@ -297,7 +285,7 @@ jobs:
         shell: bash
         run: |
           cd artifacts
-          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" \) -exec sha256sum {} \; | sed 's|  \./[^/]*/|  |' | sort -k2 > ../SHA256SUMS.txt
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec sha256sum {} \; | sed 's|  \./[^/]*/|  |' | sort -k2 > ../SHA256SUMS.txt
           cat ../SHA256SUMS.txt
 
       - name: Create Release
