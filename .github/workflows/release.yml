@@ -54,7 +54,7 @@ jobs:
           components: rustfmt, clippy
       - name: Install wget for Windows
         if: matrix.job.os == 'windows-latest'
-        run: cargo install wget --no-progress
+        run: choco install wget --no-progress
       - name: typos-action
         uses: crate-ci/typos@master
       - name: "`fmt` testing"
