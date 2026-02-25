@@ -14,11 +14,12 @@ use termcolor::{Color, ColorChoice as TermColorChoice, ColorSpec, StandardStream
 #[macro_export]
 macro_rules! infolog {
     ($($arg:tt)*) => {
-        $crate::common::log::log(
-            $crate::common::log::LogLevel::Info,
-            0,
-            &format!($($arg)*),
-        ).expect("日志输出失败")
+        $crate::common::log::log_rich(&[
+            $crate::common::log::Span::new("[INFO] ")
+                .color(termcolor::Color::Green)
+                .bold(),
+            $crate::common::log::Span::new(format!($($arg)*)),
+        ]).expect("日志输出失败")
     };
 }
 
@@ -72,32 +73,6 @@ impl Span {
         self.bold = true;
         self
     }
-}
-
-/// Log a simple single-color message.
-///
-/// # Examples
-///
-/// ```
-/// use xyrev::common::log::{log, LogLevel};
-///
-/// log(LogLevel::Info, 0, "服务启动成功").unwrap();
-/// log(LogLevel::Debug, 1, "正在加载配置文件").unwrap();
-/// ```
-#[allow(dead_code)]
-pub fn log(level: LogLevel, _verbose: u8, message: &str) -> std::io::Result<()> {
-    let (prefix, color, bold) = match level {
-        LogLevel::Info => ("[INFO]", Color::Green, true),
-        LogLevel::Debug => ("[DEBUG]", Color::Blue, false),
-        LogLevel::Trace => ("[TRACE]", Color::Magenta, false),
-    };
-
-    let mut prefix_span = Span::new(format!("{} ", prefix)).color(color);
-    if bold {
-        prefix_span = prefix_span.bold();
-    }
-
-    log_rich(&[prefix_span, Span::new(message)])
 }
 
 /// Log a line composed of multiple colored spans.

@@ -15,9 +15,11 @@ fn main() {
     //     _ => log::LogLevel::Trace,
     // };
 
+    infolog!("asdasdad");
+
     log_rich(&[
-        Span::new("[OK] ").color(Color::Green).bold(),
-        Span::new("编译完成，耗时 "),
+        Span::new("==> ").color(Color::Green).bold(),
+        Span::new("编译完成，耗时 ").bold(),
         Span::new("1.23s").color(Color::Cyan),
     ])
     .unwrap();
