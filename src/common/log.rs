@@ -9,6 +9,22 @@ pub enum LogLevel {
 }
 
 /// A text segment with optional color and bold styling.
+///
+/// # Examples
+///
+/// ```
+/// use xyrev::common::log::Span;
+/// use termcolor::Color;
+///
+/// // Plain text (default color)
+/// let plain = Span::new("hello");
+///
+/// // Colored text
+/// let colored = Span::new("world").color(Color::Green);
+///
+/// // Colored and bold
+/// let bold = Span::new("important").color(Color::Red).bold();
+/// ```
 #[allow(dead_code)]
 pub struct Span {
     pub text: String,
@@ -38,6 +54,15 @@ impl Span {
 }
 
 /// Log a simple single-color message.
+///
+/// # Examples
+///
+/// ```
+/// use xyrev::common::log::{log, LogLevel};
+///
+/// log(LogLevel::Info, 0, "服务启动成功").unwrap();
+/// log(LogLevel::Debug, 1, "正在加载配置文件").unwrap();
+/// ```
 #[allow(dead_code)]
 pub fn log(level: LogLevel, _verbose: u8, message: &str) -> std::io::Result<()> {
     let (prefix, color, bold) = match level {
@@ -55,6 +80,28 @@ pub fn log(level: LogLevel, _verbose: u8, message: &str) -> std::io::Result<()> 
 }
 
 /// Log a line composed of multiple colored spans.
+///
+/// # Examples
+///
+/// ```
+/// use xyrev::common::log::{log_rich, Span};
+/// use termcolor::Color;
+///
+/// // Multi-color output in a single line
+/// log_rich(&[
+///     Span::new("已安装 ").color(Color::Green),
+///     Span::new("xyrev v0.2.3").color(Color::Cyan).bold(),
+///     Span::new(" 到 "),
+///     Span::new("/usr/local/bin").color(Color::Yellow),
+/// ]).unwrap();
+///
+/// // Mix plain and colored text
+/// log_rich(&[
+///     Span::new("[OK] ").color(Color::Green).bold(),
+///     Span::new("编译完成，耗时 "),
+///     Span::new("1.23s").color(Color::Cyan),
+/// ]).unwrap();
+/// ```
 #[allow(dead_code)]
 pub fn log_rich(spans: &[Span]) -> std::io::Result<()> {
     let mut stdout = StandardStream::stdout(TermColorChoice::Auto);
