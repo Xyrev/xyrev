@@ -1,6 +1,27 @@
 use std::io::Write;
 use termcolor::{Color, ColorChoice as TermColorChoice, ColorSpec, StandardStream, WriteColor};
 
+/// 快捷输出 Info 级别日志的宏，支持 `format!` 风格的参数。
+///
+/// # Examples
+///
+/// ```
+/// use xyrev::infolog;
+///
+/// infolog!("服务启动成功");
+/// infolog!("监听端口: {}", 8080);
+/// ```
+#[macro_export]
+macro_rules! infolog {
+    ($($arg:tt)*) => {
+        $crate::common::log::log(
+            $crate::common::log::LogLevel::Info,
+            0,
+            &format!($($arg)*),
+        ).expect("日志输出失败")
+    };
+}
+
 #[allow(dead_code)]
 pub enum LogLevel {
     Info,
