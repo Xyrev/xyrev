@@ -7,8 +7,8 @@ pub struct InitCommand {
 }
 
 impl InitCommand {
-    pub fn run(&self, verbose: u8) {
-        if verbose > 0 {
+    pub fn run(&self, verbose: bool) {
+        if verbose {
             println!("[VERBOSE] Initializing agent: {}", self.name);
         }
 

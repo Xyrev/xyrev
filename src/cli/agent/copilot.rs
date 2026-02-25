@@ -21,10 +21,10 @@ pub struct CopilotCommand {
 }
 
 impl CopilotCommand {
-    pub fn run(&self, verbose: u8) {
+    pub fn run(&self, verbose: bool) {
         // If Copilot CLI is already installed, invoke it directly
         if self.command_exists("copilot") {
-            if verbose > 0 {
+            if verbose {
                 println!("[VERBOSE] GitHub Copilot CLI is already installed, invoking directly...");
             }
             let status = Command::new("copilot").status().unwrap_or_else(|e| {
@@ -34,7 +34,7 @@ impl CopilotCommand {
             std::process::exit(status.code().unwrap_or(1));
         }
 
-        if verbose > 0 {
+        if verbose {
             println!("[VERBOSE] Installing GitHub Copilot CLI...");
         }
 
@@ -51,10 +51,10 @@ impl CopilotCommand {
         }
     }
 
-    fn install(&self, verbose: u8) -> Result<(), String> {
+    fn install(&self, verbose: bool) -> Result<(), String> {
         let method = self.detect_install_method()?;
 
-        if verbose > 0 {
+        if verbose {
             println!("[VERBOSE] Using installation method: {}", method);
         }
 
@@ -106,7 +106,7 @@ impl CopilotCommand {
         Command::new(cmd).arg("--version").output().is_ok()
     }
 
-    fn install_with_brew(&self, verbose: u8) -> Result<(), String> {
+    fn install_with_brew(&self, verbose: bool) -> Result<(), String> {
         println!("📦 Installing with Homebrew...");
 
         let package = if self.prerelease {
@@ -115,7 +115,7 @@ impl CopilotCommand {
             "copilot-cli"
         };
 
-        if verbose >= 2 {
+        if verbose {
             println!("[DEBUG] Running: brew install {}", package);
         }
 
@@ -133,7 +133,7 @@ impl CopilotCommand {
         }
     }
 
-    fn install_with_npm(&self, verbose: u8) -> Result<(), String> {
+    fn install_with_npm(&self, verbose: bool) -> Result<(), String> {
         println!("📦 Installing with npm...");
 
         let package = if let Some(version) = &self.version {
@@ -144,7 +144,7 @@ impl CopilotCommand {
             "@github/copilot".to_string()
         };
 
-        if verbose >= 2 {
+        if verbose {
             println!("[DEBUG] Running: npm install -g {}", package);
         }
 
@@ -163,7 +163,7 @@ impl CopilotCommand {
         }
     }
 
-    fn install_with_winget(&self, verbose: u8) -> Result<(), String> {
+    fn install_with_winget(&self, verbose: bool) -> Result<(), String> {
         println!("📦 Installing with WinGet...");
 
         let package = if self.prerelease {
@@ -172,7 +172,7 @@ impl CopilotCommand {
             "GitHub.Copilot"
         };
 
-        if verbose >= 2 {
+        if verbose {
             println!("[DEBUG] Running: winget install {}", package);
         }
 
@@ -190,7 +190,7 @@ impl CopilotCommand {
         }
     }
 
-    fn install_with_script(&self, verbose: u8) -> Result<(), String> {
+    fn install_with_script(&self, verbose: bool) -> Result<(), String> {
         println!("📦 Installing with install script...");
 
         let install_url = "https://gh.io/copilot-install";
@@ -215,7 +215,7 @@ impl CopilotCommand {
             return Err("Neither curl nor wget found. Please install one of them.".to_string());
         };
 
-        if verbose >= 2 {
+        if verbose {
             println!(
                 "[DEBUG] Download command: {} {}",
                 download_cmd,

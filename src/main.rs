@@ -9,12 +9,6 @@ use termcolor::Color;
 fn main() {
     let cli = Cli::parse();
 
-    // let log_level = match cli.verbose {
-    //     0 => log::LogLevel::Info,
-    //     1 => log::LogLevel::Debug,
-    //     _ => log::LogLevel::Trace,
-    // };
-
     infolog!("asdasdad");
 
     log_rich(&[

@@ -17,7 +17,7 @@ pub struct AgentCommand {
 }
 
 impl AgentCommand {
-    pub fn run(&self, verbose: u8) {
+    pub fn run(&self, verbose: bool) {
         match &self.command {
             Commands::Init(cmd) => cmd.run(verbose),
             Commands::Copilot(cmd) => cmd.run(verbose),

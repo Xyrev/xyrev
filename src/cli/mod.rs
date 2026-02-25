@@ -20,10 +20,10 @@ pub struct Cli {
         short,
         long,
         global = true,
-        action = clap::ArgAction::Count,
+        action = clap::ArgAction::SetTrue,
         help = "Show more debugging information"
     )]
-    pub verbose: u8,
+    pub verbose: bool,
 
     #[command(subcommand)]
     pub command: Commands,

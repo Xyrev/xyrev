@@ -20,22 +20,22 @@ pub struct InitCommand {
 }
 
 impl InitCommand {
-    pub fn run(&self, verbose: u8) {
-        if verbose > 0 {
-            println!("[VERBOSE] Initializing with verbose level: {}", verbose);
+    pub fn run(&self, verbose: bool) {
+        if verbose {
+            println!("[VERBOSE] Initializing with verbose mode enabled");
         }
 
         println!("===> 正在初始化项目...");
 
         if let Ok(home_dir) = env::var("HOME").or_else(|_| env::var("USERPROFILE")) {
-            if verbose > 0 {
+            if verbose {
                 println!("[VERBOSE] 用户主目录: {}", home_dir);
             }
 
             let xyrev_dir = std::path::Path::new(&home_dir).join(".xyrev");
             println!(".xyrev 配置路径: {}", xyrev_dir.display());
 
-            if verbose >= 2 {
+            if verbose {
                 println!("[DEBUG] Force: {}", self.force);
                 println!("[DEBUG] Clean: {}", self.clean);
             }

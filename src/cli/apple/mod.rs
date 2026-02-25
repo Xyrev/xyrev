@@ -7,10 +7,10 @@ cfg_if::cfg_if! {
             #[arg(
                 short,
                 long,
-                action = clap::ArgAction::Count,
-                help = "Use verbose output (-vv for very verbose)"
+                action = clap::ArgAction::SetTrue,
+                help = "Use verbose output"
             )]
-            verbose: u8,
+            verbose: bool,
 
             #[arg(help = "Dotfile name")]
             pub name: String,
