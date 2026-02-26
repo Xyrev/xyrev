@@ -31,10 +31,6 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    #[command(
-        about = "Create a new configuration folder or reinitialize the existing one",
-        after_help = "For example:\n  xyrev build --release"
-    )]
     Init(init::InitCommand),
 
     Agent(agent::AgentCommand),

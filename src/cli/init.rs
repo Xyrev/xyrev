@@ -3,6 +3,10 @@ use std::env;
 use std::fs;
 
 #[derive(Args, Debug)]
+#[command(
+    about = "Create a new configuration folder or reinitialize the existing one",
+    after_help = "For example:\n  xyrev build --release"
+)]
 pub struct InitCommand {
     #[arg(
         short,
