@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(
     name = "xyrev",
-    about = "A helpful utility designed to make xyrev effortless.",
+    about = "A helpful utility designed to make xyrev effortless",
     version,
     disable_help_subcommand = false,
     color = clap::ColorChoice::Always,
