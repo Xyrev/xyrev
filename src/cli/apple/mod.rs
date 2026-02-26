@@ -4,14 +4,6 @@ cfg_if::cfg_if! {
 
         #[derive(Args, Debug)]
         pub struct AppleCommand {
-            #[arg(
-                short,
-                long,
-                action = clap::ArgAction::SetTrue,
-                help = "Use verbose output"
-            )]
-            verbose: bool,
-
             #[arg(help = "Dotfile name")]
             pub name: String,
         }
