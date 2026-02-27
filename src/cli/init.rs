@@ -29,8 +29,6 @@ impl InitCommand {
             println!("[VERBOSE] Initializing with verbose mode enabled");
         }
 
-        println!("===> 正在初始化项目...");
-
         if let Ok(home_dir) = env::var("HOME").or_else(|_| env::var("USERPROFILE")) {
             if verbose {
                 println!("[VERBOSE] 用户主目录: {}", home_dir);
