@@ -1,3 +1,4 @@
+use crate::common::constants::ROOT_DIR;
 use clap::Args;
 use std::env;
 use std::fs;
@@ -34,7 +35,7 @@ impl InitCommand {
                 println!("[VERBOSE] 用户主目录: {}", home_dir);
             }
 
-            let xyrev_dir = std::path::Path::new(&home_dir).join(".xyrev");
+            let xyrev_dir = std::path::Path::new(&home_dir).join(ROOT_DIR);
             println!(".xyrev 配置路径: {}", xyrev_dir.display());
 
             if verbose {
@@ -51,7 +52,7 @@ impl InitCommand {
         println!("===> 正在初始化项目...");
 
         // 获取用户家目录
-        let home_dir = env::var("HOME11").or_else(|_| env::var("USERPROFILE"))?;
+        let home_dir = env::var("HOME").or_else(|_| env::var("USERPROFILE"))?;
 
         let xyrev_dir = std::path::Path::new(&home_dir).join(".xyrev");
 
