@@ -31,10 +31,6 @@ impl InitCommand {
         }
 
         if let Ok(home_dir) = env::var("HOME").or_else(|_| env::var("USERPROFILE")) {
-            if verbose {
-                println!("[VERBOSE] 用户主目录: {}", home_dir);
-            }
-
             let xyrev_dir = std::path::Path::new(&home_dir).join(ROOT_DIR);
             println!(".xyrev 配置路径: {}", xyrev_dir.display());
 
