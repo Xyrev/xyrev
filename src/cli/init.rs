@@ -36,7 +36,6 @@ impl InitCommand {
 
             if verbose {
                 println!("[DEBUG] Force: {}", self.force);
-                println!("[DEBUG] Clean: {}", self.clean);
             }
         } else {
             println!("无法获取用户主目录");
