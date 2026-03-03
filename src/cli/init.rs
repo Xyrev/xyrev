@@ -55,7 +55,6 @@ impl InitCommand {
         if self.clean & xyrev_dir.exists() {
             println!("🗑️  清理现有配置: {}", xyrev_dir.display());
             fs::remove_dir_all(&xyrev_dir)?;
-            println!("✓ 已删除现有配置");
         }
 
         if xyrev_dir.exists() {
