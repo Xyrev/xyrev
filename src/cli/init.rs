@@ -59,7 +59,6 @@ impl InitCommand {
 
         if xyrev_dir.exists() {
             if self.force {
-                println!("⚠️  强制重新初始化: {}", xyrev_dir.display());
                 fs::remove_dir_all(&xyrev_dir)?;
                 fs::create_dir(&xyrev_dir)?;
                 println!("✓ 已强制重新创建 .xyrev 文件夹");
