@@ -69,7 +69,6 @@ impl InitCommand {
             }
         } else {
             fs::create_dir(&xyrev_dir)?;
-            println!("✓ 已创建 .xyrev 文件夹: {}", xyrev_dir.display());
         }
 
         Ok(())
