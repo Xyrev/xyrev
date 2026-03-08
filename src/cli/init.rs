@@ -62,7 +62,6 @@ impl InitCommand {
                 fs::create_dir(&xyrev_dir)?;
             } else if !self.clean {
                 println!("⚠️  .xyrev 文件夹已存在: {}", xyrev_dir.display());
-                println!("💡 使用 --force 强制重新初始化，或使用 --clean 清理后重新初始化");
                 return Ok(());
             }
         } else {
