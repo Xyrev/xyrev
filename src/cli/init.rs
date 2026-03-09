@@ -61,7 +61,6 @@ impl InitCommand {
                 fs::remove_dir_all(&xyrev_dir)?;
                 fs::create_dir(&xyrev_dir)?;
             } else if !self.clean {
-                println!("⚠️  .xyrev 文件夹已存在: {}", xyrev_dir.display());
                 return Ok(());
             }
         } else {
