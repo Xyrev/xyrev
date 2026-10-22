@@ -422,6 +422,23 @@ fn doctor_cd_prompt_and_runtime_documentation() {
             .unwrap(),
     );
     assert!(completion.contains("execute-template"));
+    for name in ["gpg", "add", "edit", "keygen"] {
+        assert!(completion.contains(&format!("xyrev__dotfile__{name}")));
+    }
+    for name in ["encrypt", "decrypt"] {
+        assert!(!completion.contains(&format!("xyrev__dotfile__{name}")));
+    }
+    let help = success(s.cli(&["--help"]));
+    let commands = help
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .collect::<Vec<_>>();
+    for name in ["gpg", "add", "edit", "keygen"] {
+        assert!(commands.contains(&name));
+    }
+    for name in ["encrypt", "decrypt"] {
+        assert!(!commands.contains(&name));
+    }
     let pages = s.root.join("man");
     success(
         Command::new(env!("CARGO_BIN_EXE_xyrev"))
@@ -430,7 +447,28 @@ fn doctor_cd_prompt_and_runtime_documentation() {
             .output()
             .unwrap(),
     );
-    assert!(pages.join("xyrev-dotfile-encrypt.1").is_file());
+    for name in ["gpg", "gpg-backup", "gpg-restore", "add", "edit", "keygen"] {
+        assert!(pages.join(format!("xyrev-dotfile-{name}.1")).is_file());
+    }
+    for name in ["encrypt", "decrypt"] {
+        assert!(!pages.join(format!("xyrev-dotfile-{name}.1")).exists());
+    }
+}
+
+#[test]
+fn removed_crypto_commands_are_rejected_before_creating_dotfile_directories() {
+    let sandbox = Sandbox::new(&[]);
+    let before = snapshot(&sandbox.root);
+    for name in ["encrypt", "decrypt"] {
+        failure(
+            sandbox.cli(&[name, "missing-input"]),
+            "unrecognized subcommand",
+        );
+        assert!(!sandbox.source.exists());
+        assert!(!sandbox.destination.exists());
+        assert!(!sandbox.control().exists());
+        assert_eq!(snapshot(&sandbox.root), before);
+    }
 }
 
 #[test]
@@ -488,7 +526,10 @@ fn lfs_and_gpg_external_tools_are_exercised_without_real_credentials() {
             "dot_lfs",
             "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 7\n",
         ),
-        (".xyrev.toml.tmpl", "[git]\nlfs=true\n"),
+        (
+            ".xyrev.toml.tmpl",
+            "[git]\nlfs=true\n[encryption]\nbackend='gpg'\ngpg_recipient='test'\n",
+        ),
     ]);
     let bin = s.root.join("bin");
     executable(&bin.join("git-lfs"),"#!/bin/sh\ncase \"$1\" in version) echo git-lfs-test;; pull) printf checked > dot_lfs;; *) exit 1;; esac\n");
@@ -512,30 +553,48 @@ fn lfs_and_gpg_external_tools_are_exercised_without_real_credentials() {
         fs::read_to_string(s.destination.join(".lfs")).unwrap(),
         "checked"
     );
-    let plain = s.root.join("plain");
-    write(&plain, "secret");
-    let cipher = s.root.join("cipher.asc");
+    write(&s.destination.join(".secret"), "secret");
     success(
         s.command()
             .env("PATH", &path)
-            .arg("encrypt")
-            .arg(&plain)
-            .args(["--backend", "gpg", "--recipient", "test", "--output"])
-            .arg(&cipher)
+            .args(["add", "--encrypt", ".secret"])
+            .output()
+            .unwrap(),
+    );
+    let cipher = s.source.join("encrypted_dot_secret.asc");
+    assert_eq!(fs::read_to_string(&cipher).unwrap(), "GPG:secret");
+    fs::remove_file(s.destination.join(".secret")).unwrap();
+    success(
+        s.command()
+            .env("PATH", &path)
+            .args(["apply", "--force"])
             .output()
             .unwrap(),
     );
     assert_eq!(
-        success(
-            s.command()
-                .env("PATH", &path)
-                .arg("decrypt")
-                .arg(&cipher)
-                .args(["--backend", "gpg"])
-                .output()
-                .unwrap()
-        ),
+        fs::read_to_string(s.destination.join(".secret")).unwrap(),
         "secret"
+    );
+    let editor = s.root.join("gpg-editor");
+    executable(
+        &editor,
+        "#!/bin/sh\nprintf 'edited GPG secret\\n' > \"$1\"\n",
+    );
+    success(
+        s.command()
+            .env("PATH", &path)
+            .env("EDITOR", &editor)
+            .args(["edit", "--apply", ".secret"])
+            .output()
+            .unwrap(),
+    );
+    assert_eq!(
+        fs::read_to_string(&cipher).unwrap(),
+        "GPG:edited GPG secret\n"
+    );
+    assert_eq!(
+        fs::read_to_string(s.destination.join(".secret")).unwrap(),
+        "edited GPG secret\n"
     );
 }
 

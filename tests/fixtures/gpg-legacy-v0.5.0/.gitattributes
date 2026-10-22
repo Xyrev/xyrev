@@ -1,0 +1,2 @@
+# Preserve ciphertext and SHA-256 fixture bytes on every Git checkout.
+** -text

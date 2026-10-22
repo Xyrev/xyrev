@@ -4,6 +4,7 @@ pub use std::fs;
 pub use std::path::{Path, PathBuf};
 pub use std::process::{Command, Output};
 use tempfile::TempDir;
+pub mod gpg;
 
 pub struct Sandbox {
     _temporary: TempDir,
@@ -156,6 +157,8 @@ impl Sandbox {
             )
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_ALLOW_PROTOCOL", "file")
+            .env_remove("XYREV_AGE_PASSPHRASE")
+            .env_remove("XYREV_AGE_PASSPHRASE_FILE")
             .arg("dotfile");
         command
     }
@@ -237,4 +240,37 @@ pub fn snapshot(root: &Path) -> BTreeMap<PathBuf, String> {
         walk(root, &mut map);
     }
     map
+}
+
+/// Construct encrypted fixture bytes without depending on a public crypto CLI.
+pub fn encrypt_age_fixture(password: &str, plain: &[u8]) -> Vec<u8> {
+    use std::io::Write;
+    let mut output = Vec::new();
+    let armor = age::armor::ArmoredWriter::wrap_output(&mut output, age::armor::Format::AsciiArmor)
+        .unwrap();
+    let mut writer =
+        age::Encryptor::with_user_passphrase(age::secrecy::SecretString::new(password.to_owned()))
+            .wrap_output(armor)
+            .unwrap();
+    writer.write_all(plain).unwrap();
+    writer.finish().unwrap().finish().unwrap();
+    output
+}
+
+/// Independently inspect password-encrypted native backup fixture contents.
+pub fn decrypt_age_fixture(password: &str, cipher: &[u8]) -> Vec<u8> {
+    use std::io::Read;
+    let reader = age::armor::ArmoredReader::new(cipher);
+    let decryptor = age::Decryptor::new(reader).unwrap();
+    let age::Decryptor::Passphrase(decryptor) = decryptor else {
+        panic!("Expected a passphrase-encrypted test fixture");
+    };
+    let password = age::secrecy::SecretString::new(password.to_owned());
+    let mut plain = Vec::new();
+    decryptor
+        .decrypt(&password, None)
+        .unwrap()
+        .read_to_end(&mut plain)
+        .unwrap();
+    plain
 }

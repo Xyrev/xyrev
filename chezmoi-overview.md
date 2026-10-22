@@ -1,6 +1,6 @@
 # chezmoi 概览与 xyrev 兼容对照
 
-> 本轮整理：2026-10-23；xyrev 对照版本：v0.5.0。本文是上游 `twpayne/chezmoi` 的研究概览，以及本仓库已采用能力的对照，不是完整复刻 chezmoi 的需求清单。上游资料链接可能随版本变化，不以未固定版本的 stars、代码行数或功能数量判断实现范围。
+> 本轮整理：2026-10-23；xyrev 已发布对照版本：v0.5.0；当前 develop 的后续未发布差异另见第 4 节。本文是上游 `twpayne/chezmoi` 的研究概览，以及本仓库已采用能力的对照，不是完整复刻 chezmoi 的需求清单。上游资料链接可能随版本变化，不以未固定版本的 stars、代码行数或功能数量判断实现范围。
 >
 > 当前 xyrev 的协议、验收与新机器操作以 [实现设计](chezmoi-rust-implementation.md)、[README](README.md) 和 `xyrev dotfile --help` 为准。更详细的上游技术分析及 Rust 模块映射见 [internals](chezmoi-internals.md)。
 
@@ -34,7 +34,7 @@
 
 单个可执行文件便于分发，但不能据此承诺任何仓库都没有运行时依赖。SSH 传输、GPG、密码管理器、子模块、LFS 和仓库自带的安装脚本，都可能需要外部程序、账户权限或管理员交互。内置 Git/age 后端的存在也不提供私有仓库凭据。
 
-## 4. xyrev v0.5.0 兼容对照
+## 4. xyrev 发布基线与 develop 兼容对照
 
 以下“已实现”描述本仓库能力，不表示上游相同名称的每个参数、模板函数和存储格式均兼容。
 
@@ -49,6 +49,8 @@
 | 外部资源与归档 | 已实现文件、归档、归档内文件、Git 资源、过滤、校验、缓存和 tar/tgz/zip 导出 | 按 xyrev 声明格式使用，不假定上游所有资源选项都等价 |
 | 冲突与平台 | 已实现三方比较、备份覆盖、原子文件替换、终端冲突确认及平台权限处理 | macOS/Linux/Windows 由项目测试和 CI 验证；链接、ACL、解释器等差异仍按平台说明使用 |
 | GPG 密钥备份与恢复 | v0.5.0 已提供原生命令及 `.xyrevgpg.toml[.tmpl]` 声明，兼容既有密码加密备份 | 这是 xyrev 的通用能力；不能用上游普通 `encrypted_` 文件流程替代选钥、完整性校验和恢复状态管理 |
+
+当前 develop 在 v0.5.0 之后移除了独立 `xyrev dotfile encrypt` / `xyrev dotfile decrypt` 子命令，尚未发布新版本；已发布 v0.5.0 的二进制仍保留当时行为。旧脚本升级前需要迁移：普通密文通过 `add --encrypt`、`edit`、`apply` 管理，密钥备份/恢复使用原生 `gpg` 命令；其他文件加解密使用相应工具。内部 age/GPG 能力及既有备份继续保留，见 [待发布兼容性说明](chezmoi-rust-implementation.md#13-待发布兼容性变更)。上游加密研究不因这项 CLI 调整而改写。
 
 “已实现”与“完全兼容”需要分别判断：路径命名可以沿用，模板语法和配置字段仍可能需要迁移。具体支持集合、CLI 和测试范围见 [实现设计](chezmoi-rust-implementation.md)及 [README](README.md)。
 

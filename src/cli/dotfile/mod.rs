@@ -47,10 +47,6 @@ pub enum Commands {
     ExecuteTemplate(TemplateArgs),
     /// Print merged template data as JSON
     Data,
-    /// Encrypt a file using configured age or gpg
-    Encrypt(CryptoArgs),
-    /// Decrypt a file using configured identities
-    Decrypt(CryptoArgs),
     /// Back up or restore GPG keys using encrypted dotfile storage
     Gpg(GpgArgs),
     /// Generate an age identity and print its public recipient
@@ -102,25 +98,6 @@ pub struct TemplateArgs {
     #[arg(long)]
     pub init: bool,
 }
-#[derive(Args, Debug)]
-pub struct CryptoArgs {
-    pub input: PathBuf,
-    #[arg(short, long)]
-    pub output: Option<PathBuf>,
-    #[arg(long, value_parser = ["age", "gpg"])]
-    pub backend: Option<String>,
-    #[arg(long)]
-    pub recipient: Vec<String>,
-    #[arg(long)]
-    pub identity: Vec<PathBuf>,
-    /// Use age passphrase encryption; read the password privately from the terminal
-    #[arg(long, conflicts_with_all = ["passphrase_file", "recipient", "identity"])]
-    pub passphrase: bool,
-    /// Read one passphrase line from a file or pipe (such as /dev/fd/3)
-    #[arg(long, value_name = "PATH", conflicts_with_all = ["recipient", "identity"])]
-    pub passphrase_file: Option<PathBuf>,
-}
-
 #[derive(Args, Debug)]
 pub struct InitArgs {
     /// HTTPS, SSH, or file:// Git URL

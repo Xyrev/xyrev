@@ -107,8 +107,6 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand archive 'Export rendered target files as tar, tar.gz, or zip'
             cand execute-template 'Evaluate a Jinja template using repository and local data'
             cand data 'Print merged template data as JSON'
-            cand encrypt 'Encrypt a file using configured age or gpg'
-            cand decrypt 'Decrypt a file using configured identities'
             cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
@@ -255,38 +253,6 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand -h 'Print help'
             cand --help 'Print help'
         }
-        &'xyrev;dotfile;encrypt'= {
-            cand -o 'o'
-            cand --output 'output'
-            cand --backend 'backend'
-            cand --recipient 'recipient'
-            cand --identity 'identity'
-            cand --passphrase-file 'Read one passphrase line from a file or pipe (such as /dev/fd/3)'
-            cand --source 'Local source repository (saved by init)'
-            cand --destination 'Destination directory (defaults to the user''s home)'
-            cand --data 'Override template data (key=value; JSON values are accepted)'
-            cand --passphrase 'Use age passphrase encryption; read the password privately from the terminal'
-            cand -v 'Show more debugging information'
-            cand --verbose 'Show more debugging information'
-            cand -h 'Print help'
-            cand --help 'Print help'
-        }
-        &'xyrev;dotfile;decrypt'= {
-            cand -o 'o'
-            cand --output 'output'
-            cand --backend 'backend'
-            cand --recipient 'recipient'
-            cand --identity 'identity'
-            cand --passphrase-file 'Read one passphrase line from a file or pipe (such as /dev/fd/3)'
-            cand --source 'Local source repository (saved by init)'
-            cand --destination 'Destination directory (defaults to the user''s home)'
-            cand --data 'Override template data (key=value; JSON values are accepted)'
-            cand --passphrase 'Use age passphrase encryption; read the password privately from the terminal'
-            cand -v 'Show more debugging information'
-            cand --verbose 'Show more debugging information'
-            cand -h 'Print help'
-            cand --help 'Print help'
-        }
         &'xyrev;dotfile;gpg'= {
             cand --source 'Local source repository (saved by init)'
             cand --destination 'Destination directory (defaults to the user''s home)'
@@ -372,8 +338,6 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand archive 'Export rendered target files as tar, tar.gz, or zip'
             cand execute-template 'Evaluate a Jinja template using repository and local data'
             cand data 'Print merged template data as JSON'
-            cand encrypt 'Encrypt a file using configured age or gpg'
-            cand decrypt 'Decrypt a file using configured identities'
             cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
@@ -406,10 +370,6 @@ set edit:completion:arg-completer[xyrev] = {|@words|
         &'xyrev;dotfile;help;execute-template'= {
         }
         &'xyrev;dotfile;help;data'= {
-        }
-        &'xyrev;dotfile;help;encrypt'= {
-        }
-        &'xyrev;dotfile;help;decrypt'= {
         }
         &'xyrev;dotfile;help;gpg'= {
             cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
@@ -474,8 +434,6 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand archive 'Export rendered target files as tar, tar.gz, or zip'
             cand execute-template 'Evaluate a Jinja template using repository and local data'
             cand data 'Print merged template data as JSON'
-            cand encrypt 'Encrypt a file using configured age or gpg'
-            cand decrypt 'Decrypt a file using configured identities'
             cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
@@ -507,10 +465,6 @@ set edit:completion:arg-completer[xyrev] = {|@words|
         &'xyrev;help;dotfile;execute-template'= {
         }
         &'xyrev;help;dotfile;data'= {
-        }
-        &'xyrev;help;dotfile;encrypt'= {
-        }
-        &'xyrev;help;dotfile;decrypt'= {
         }
         &'xyrev;help;dotfile;gpg'= {
             cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'

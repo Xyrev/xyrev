@@ -1,6 +1,6 @@
 # xyrev dotfile：实现规范、兼容边界与新机器流程
 
-> 校订日期：2026-10-23。产品与命令基线：xyrev v0.5.0。
+> 校订日期：2026-10-23。发布基线：xyrev v0.5.0；当前 develop 还包含该版本之后的未发布变更，命令清单按当前源码描述，兼容性变更见 §1.3。已发布 v0.5.0 的行为和安装地址不变。
 >
 > 本文记录当前实现、验收边界和后续规划。[chezmoi-overview.md](chezmoi-overview.md) 是上游功能研究，[chezmoi-internals.md](chezmoi-internals.md) 是上游架构研究；它们列出的能力不自动成为 xyrev 的兼容承诺。当前使用入口另见 [README](README.md)，命令选项以 `xyrev dotfile --help` 及子命令帮助为准。
 >
@@ -23,7 +23,7 @@ xyrev 在现有单一 Rust crate 中提供 `xyrev dotfile`：通过完整 Git UR
 | 模板和本机数据 | MiniJinja、include、严格缺失变量、嵌套数据覆盖、模板指令、初始化提示 | [template.rs](src/dotfile/template.rs)、[高级测试](tests/dotfile_advanced.rs) |
 | 维护与诊断 | add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](src/dotfile/maintenance.rs)、[tools.rs](src/dotfile/tools.rs) |
 | 脚本 | run/once/onchange、before/during/after 顺序；成功才持久化，失败可重试，onchange 的 A→B→A 再执行 | [scripts.rs](src/dotfile/scripts.rs)、[钩子测试](tests/dotfile_crypto_hooks.rs) |
-| 普通文件加密 | 内置 age；本机 GPG 子进程；加密导入、编辑、独立加解密与 age 密码模式 | [crypto.rs](src/dotfile/crypto.rs)、[密码测试](tests/dotfile_passphrase.rs) |
+| 普通文件加密 | 内置 age；本机 GPG 子进程；通过 add --encrypt 导入、edit 编辑、apply 解密部署；保留内部 age 密码处理 | [crypto.rs](src/dotfile/crypto.rs)、[加密文件测试](tests/dotfile_advanced.rs) |
 | GPG 密钥备份与恢复 | 多主密钥、age 密码/身份文件保护、清单校验、自动恢复与显式 restore、失败重试 | [gpg.rs](src/dotfile/gpg.rs)、[命令测试](tests/dotfile_gpg.rs)、[真实 GPG 测试](tests/test_gpg_native.py) |
 | 秘密提供器 | 1Password、Bitwarden、pass/gopass、Vault、Keyring、KeePassXC、LastPass、Doppler、AWS、Azure 及通用命令适配；进程内缓存 | [secrets.rs](src/dotfile/secrets.rs)、[高级测试](tests/dotfile_advanced.rs) |
 | 外部资源与归档 | 文件、归档、归档中单文件、Git 资源；TTL、SHA-256、过滤、路径保护；tar/tgz/zip 导出 | [external.rs](src/dotfile/external.rs)、[archive.rs](src/dotfile/archive.rs) |
@@ -49,8 +49,6 @@ xyrev dotfile archive --format tar|tgz|zip --output <file>
 xyrev dotfile execute-template <template>
 xyrev dotfile data
 xyrev dotfile cd [--print]
-xyrev dotfile encrypt <input> [options]
-xyrev dotfile decrypt <input> [options]
 xyrev dotfile keygen --output <identity-file>
 xyrev dotfile gpg backup --fingerprint <primary-fingerprint> [options]
 xyrev dotfile gpg restore [options]
@@ -68,6 +66,12 @@ xyrev dotfile gpg restore [options]
 | `state/scripts.redb` | 按同一配对隔离的脚本成功状态 |
 | `backups/` | 覆盖和删除前的备份、元数据 |
 | `cache/` | 部署时的外部资源缓存 |
+
+### 1.3 待发布兼容性变更
+
+当前 develop 已移除独立 `xyrev dotfile encrypt` / `xyrev dotfile decrypt` 子命令，尚未发布新版本。这个变化不追溯修改已发布 v0.5.0 的命令；本文保留的 v0.5.0 安装示例仍取得原发行包。
+
+旧脚本需要在升级前迁移：普通 dotfile 用 `add --encrypt`、`edit` 和 `apply` 管理密文及部署；GPG 密钥生命周期使用原生 `gpg backup` / `gpg restore` 和 `.xyrevgpg.toml[.tmpl]`；其他文件加解密交给相应工具，不再调用这两个已移除的 xyrev 子命令。内部 age/GPG 实现、密码处理、既有密文、`keygen` 及上述导入/编辑/部署行为继续保留，GPG 备份无需重加密。
 
 ## 2. 兼容协议与明确边界
 
@@ -103,7 +107,7 @@ xyrev dotfile gpg restore [options]
 
 ### 2.2 与 chezmoi 的兼容范围
 
-| 领域 | xyrev v0.5.0 | 不应推导出的承诺 |
+| 领域 | 当前行为（v0.5.0 基线与 §1.3 待发布变更） | 不应推导出的承诺 |
 |---|---|---|
 | 命名 | 实现上表所列 chezmoi 风格属性及控制项别名 | 所有上游属性、组合和未来扩展均兼容 |
 | 模板 | MiniJinja；内置 `xyrev.*` 数据、初始化提示和当前注册函数 | 直接执行 Go Template、sprig 或完整 `chezmoi.*` 函数集 |
@@ -302,7 +306,7 @@ GitHub 仓库首次 clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.t
 
 ### 5.4 加密、秘密与原生 GPG
 
-普通文件 age/GPG 加解密通过内存与进程管道；加密编辑为编辑器在私有临时目录中生成明文，结束后重新加密。内置 age 支持 X25519、多接收方、密码保护和 armor；普通加密 source 保留 `XYREV_AGE_PASSPHRASE` 兼容路径，秘密提供器也复用各自已认证 CLI 和进程凭据。不能把原生 GPG 的安全约束泛化为全部第三方后端。
+普通文件由 `add --encrypt`、`edit` 和 `apply` 调用内部 age/GPG 实现，通过内存与进程管道处理；独立加解密子命令的待发布移除不影响这些流程。加密编辑为编辑器在私有临时目录中生成明文，结束后重新加密。内置 age 支持 X25519、多接收方、密码保护和 armor；普通加密 source 保留 `XYREV_AGE_PASSPHRASE` 兼容路径，秘密提供器也复用各自已认证 CLI 和进程凭据。不能把原生 GPG 的安全约束泛化为全部第三方后端。
 
 原生 GPG 密钥备份格式保持四文件兼容：
 

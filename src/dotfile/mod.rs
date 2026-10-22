@@ -25,23 +25,6 @@ pub fn run(command: &DotfileCommand, verbose: bool) -> Result<()> {
         return Ok(());
     }
     let initial = storage::Paths::load(command.source.as_deref(), command.destination.as_deref())?;
-    // Standalone transforms only read a configuration snapshot and operate on
-    // explicit input/output. Hooks can stream their output while apply holds
-    // the deployment lock; they never update deployment state or run hooks.
-    if let Commands::Encrypt(args) | Commands::Decrypt(args) = &command.command {
-        if verbose {
-            eprintln!(
-                "Source: {}\nDestination: {}",
-                initial.source.display(),
-                initial.destination.display()
-            );
-        }
-        return tools::crypt(
-            &initial,
-            args,
-            matches!(&command.command, Commands::Decrypt(_)),
-        );
-    }
     if let Commands::Cd { print } = &command.command {
         return tools::cd(&initial, *print);
     }

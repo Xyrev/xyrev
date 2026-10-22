@@ -120,8 +120,6 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('archive', 'archive', [CompletionResultType]::ParameterValue, 'Export rendered target files as tar, tar.gz, or zip')
             [CompletionResult]::new('execute-template', 'execute-template', [CompletionResultType]::ParameterValue, 'Evaluate a Jinja template using repository and local data')
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
-            [CompletionResult]::new('encrypt', 'encrypt', [CompletionResultType]::ParameterValue, 'Encrypt a file using configured age or gpg')
-            [CompletionResult]::new('decrypt', 'decrypt', [CompletionResultType]::ParameterValue, 'Decrypt a file using configured identities')
             [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
@@ -283,40 +281,6 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
-        'xyrev;dotfile;encrypt' {
-            [CompletionResult]::new('-o', '-o', [CompletionResultType]::ParameterName, 'o')
-            [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'output')
-            [CompletionResult]::new('--backend', '--backend', [CompletionResultType]::ParameterName, 'backend')
-            [CompletionResult]::new('--recipient', '--recipient', [CompletionResultType]::ParameterName, 'recipient')
-            [CompletionResult]::new('--identity', '--identity', [CompletionResultType]::ParameterName, 'identity')
-            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read one passphrase line from a file or pipe (such as /dev/fd/3)')
-            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
-            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
-            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
-            [CompletionResult]::new('--passphrase', '--passphrase', [CompletionResultType]::ParameterName, 'Use age passphrase encryption; read the password privately from the terminal')
-            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
-            break
-        }
-        'xyrev;dotfile;decrypt' {
-            [CompletionResult]::new('-o', '-o', [CompletionResultType]::ParameterName, 'o')
-            [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'output')
-            [CompletionResult]::new('--backend', '--backend', [CompletionResultType]::ParameterName, 'backend')
-            [CompletionResult]::new('--recipient', '--recipient', [CompletionResultType]::ParameterName, 'recipient')
-            [CompletionResult]::new('--identity', '--identity', [CompletionResultType]::ParameterName, 'identity')
-            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read one passphrase line from a file or pipe (such as /dev/fd/3)')
-            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
-            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
-            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
-            [CompletionResult]::new('--passphrase', '--passphrase', [CompletionResultType]::ParameterName, 'Use age passphrase encryption; read the password privately from the terminal')
-            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
-            break
-        }
         'xyrev;dotfile;gpg' {
             [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
             [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
@@ -411,8 +375,6 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('archive', 'archive', [CompletionResultType]::ParameterValue, 'Export rendered target files as tar, tar.gz, or zip')
             [CompletionResult]::new('execute-template', 'execute-template', [CompletionResultType]::ParameterValue, 'Evaluate a Jinja template using repository and local data')
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
-            [CompletionResult]::new('encrypt', 'encrypt', [CompletionResultType]::ParameterValue, 'Encrypt a file using configured age or gpg')
-            [CompletionResult]::new('decrypt', 'decrypt', [CompletionResultType]::ParameterValue, 'Decrypt a file using configured identities')
             [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
@@ -459,12 +421,6 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             break
         }
         'xyrev;dotfile;help;data' {
-            break
-        }
-        'xyrev;dotfile;help;encrypt' {
-            break
-        }
-        'xyrev;dotfile;help;decrypt' {
             break
         }
         'xyrev;dotfile;help;gpg' {
@@ -544,8 +500,6 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('archive', 'archive', [CompletionResultType]::ParameterValue, 'Export rendered target files as tar, tar.gz, or zip')
             [CompletionResult]::new('execute-template', 'execute-template', [CompletionResultType]::ParameterValue, 'Evaluate a Jinja template using repository and local data')
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
-            [CompletionResult]::new('encrypt', 'encrypt', [CompletionResultType]::ParameterValue, 'Encrypt a file using configured age or gpg')
-            [CompletionResult]::new('decrypt', 'decrypt', [CompletionResultType]::ParameterValue, 'Decrypt a file using configured identities')
             [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
@@ -591,12 +545,6 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             break
         }
         'xyrev;help;dotfile;data' {
-            break
-        }
-        'xyrev;help;dotfile;encrypt' {
-            break
-        }
-        'xyrev;help;dotfile;decrypt' {
             break
         }
         'xyrev;help;dotfile;gpg' {

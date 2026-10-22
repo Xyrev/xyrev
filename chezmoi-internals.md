@@ -1,6 +1,6 @@
 # chezmoi 技术研究与 xyrev 实现映射
 
-> 本轮整理：2026-10-23；xyrev 对照版本：v0.5.0。本文保留上游 chezmoi 的架构研究，用于解释设计来源；Go 类型、`internal/chezmoi` 和 `internal/cmd` 路径均属于 `twpayne/chezmoi`，不是本仓库 Rust 路径。
+> 本轮整理：2026-10-23；xyrev 已发布对照版本：v0.5.0，另记录当前 develop 的后续未发布 CLI 差异。本文保留上游 chezmoi 的架构研究，用于解释设计来源；Go 类型、`internal/chezmoi` 和 `internal/cmd` 路径均属于 `twpayne/chezmoi`，不是本仓库 Rust 路径。
 >
 > 本文不提供未固定版本的源码行号或规模断言。上游链接指向官方源码/文档，后续可能变化；伪代码只表达控制关系，省略参数、错误处理和版本差异，不是逐字摘录，也不是可直接编译的当前源码。xyrev 的实际能力以 [实现设计](chezmoi-rust-implementation.md)、[README](README.md) 和 CLI 帮助为准。
 
@@ -70,9 +70,11 @@ xyrev 使用 MiniJinja，并保留严格缺失变量、include、初始化提示
 
 上游 [gpgencryption.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/gpgencryption.go) 中的 GPG 加解密流程会在私有临时目录组织输入/输出文件，再执行配置的 gpg。这里描述的是该上游实现选择，**不是 GPG 不能使用 stdin/stdout 的限制**。
 
+当前 develop 已在 v0.5.0 之后移除独立 `xyrev dotfile encrypt` / `xyrev dotfile decrypt` 子命令，尚未发布新版本；已发布 v0.5.0 仍保留当时接口。旧脚本应迁移到 dotfile 导入/编辑/部署或原生 GPG 密钥命令，其他文件加解密改用相应工具。该变更不删除内部加密，也不改变本节的上游研究，详见 [待发布兼容性说明](chezmoi-rust-implementation.md#13-待发布兼容性变更)。
+
 xyrev 当前实现应分别理解：
 
-- [crypto.rs](src/dotfile/crypto.rs) 内置 age；普通 GPG 加解密使用子进程管道，不照搬上述临时文件流程。
+- [crypto.rs](src/dotfile/crypto.rs) 内置 age，供 `add --encrypt`、`edit` 和 `apply` 等流程调用；普通 GPG 加解密使用子进程管道，不照搬上述临时文件流程。
 - [gpg.rs](src/dotfile/gpg.rs) 提供 GPG 密钥备份和恢复。私钥与 ownertrust 的明文在内存和 GPG 管道间流转，密码不写入参数、环境变量、日志或状态。
 - 已加密文件的 `edit` 为编辑器提供私有临时工作文件；这是交互编辑功能，不能与 GPG 密钥备份/恢复的明文处理承诺混为一谈。
 

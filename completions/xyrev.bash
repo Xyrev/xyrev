@@ -70,9 +70,6 @@ _xyrev() {
             xyrev__dotfile,data)
                 cmd="xyrev__dotfile__data"
                 ;;
-            xyrev__dotfile,decrypt)
-                cmd="xyrev__dotfile__decrypt"
-                ;;
             xyrev__dotfile,diff)
                 cmd="xyrev__dotfile__diff"
                 ;;
@@ -81,9 +78,6 @@ _xyrev() {
                 ;;
             xyrev__dotfile,edit)
                 cmd="xyrev__dotfile__edit"
-                ;;
-            xyrev__dotfile,encrypt)
-                cmd="xyrev__dotfile__encrypt"
                 ;;
             xyrev__dotfile,execute-template)
                 cmd="xyrev__dotfile__execute__template"
@@ -148,9 +142,6 @@ _xyrev() {
             xyrev__dotfile__help,data)
                 cmd="xyrev__dotfile__help__data"
                 ;;
-            xyrev__dotfile__help,decrypt)
-                cmd="xyrev__dotfile__help__decrypt"
-                ;;
             xyrev__dotfile__help,diff)
                 cmd="xyrev__dotfile__help__diff"
                 ;;
@@ -159,9 +150,6 @@ _xyrev() {
                 ;;
             xyrev__dotfile__help,edit)
                 cmd="xyrev__dotfile__help__edit"
-                ;;
-            xyrev__dotfile__help,encrypt)
-                cmd="xyrev__dotfile__help__encrypt"
                 ;;
             xyrev__dotfile__help,execute-template)
                 cmd="xyrev__dotfile__help__execute__template"
@@ -241,9 +229,6 @@ _xyrev() {
             xyrev__help__dotfile,data)
                 cmd="xyrev__help__dotfile__data"
                 ;;
-            xyrev__help__dotfile,decrypt)
-                cmd="xyrev__help__dotfile__decrypt"
-                ;;
             xyrev__help__dotfile,diff)
                 cmd="xyrev__help__dotfile__diff"
                 ;;
@@ -252,9 +237,6 @@ _xyrev() {
                 ;;
             xyrev__help__dotfile,edit)
                 cmd="xyrev__help__dotfile__edit"
-                ;;
-            xyrev__help__dotfile,encrypt)
-                cmd="xyrev__help__dotfile__encrypt"
                 ;;
             xyrev__help__dotfile,execute-template)
                 cmd="xyrev__help__dotfile__execute__template"
@@ -452,7 +434,7 @@ _xyrev() {
             return 0
             ;;
         xyrev__dotfile)
-            opts="-v -h --source --destination --data --verbose --help init diff status apply update managed add edit unmanaged verify doctor archive execute-template data encrypt decrypt gpg keygen cd help"
+            opts="-v -h --source --destination --data --verbose --help init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -623,56 +605,6 @@ _xyrev() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        xyrev__dotfile__decrypt)
-            opts="-o -v -h --output --backend --recipient --identity --passphrase --passphrase-file --source --destination --data --verbose --help <INPUT>"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --output)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -o)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --backend)
-                    COMPREPLY=($(compgen -W "age gpg" -- "${cur}"))
-                    return 0
-                    ;;
-                --recipient)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --identity)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --passphrase-file)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --source)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --destination)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --data)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         xyrev__dotfile__diff)
             opts="-v -h --source --destination --data --verbose --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -732,56 +664,6 @@ _xyrev() {
                 return 0
             fi
             case "${prev}" in
-                --source)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --destination)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --data)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        xyrev__dotfile__encrypt)
-            opts="-o -v -h --output --backend --recipient --identity --passphrase --passphrase-file --source --destination --data --verbose --help <INPUT>"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --output)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -o)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --backend)
-                    COMPREPLY=($(compgen -W "age gpg" -- "${cur}"))
-                    return 0
-                    ;;
-                --recipient)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --identity)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --passphrase-file)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
                 --source)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
@@ -1002,7 +884,7 @@ _xyrev() {
             return 0
             ;;
         xyrev__dotfile__help)
-            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data encrypt decrypt gpg keygen cd help"
+            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1085,20 +967,6 @@ _xyrev() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        xyrev__dotfile__help__decrypt)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         xyrev__dotfile__help__diff)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
@@ -1128,20 +996,6 @@ _xyrev() {
             return 0
             ;;
         xyrev__dotfile__help__edit)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        xyrev__dotfile__help__encrypt)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -1598,7 +1452,7 @@ _xyrev() {
             return 0
             ;;
         xyrev__help__dotfile)
-            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data encrypt decrypt gpg keygen cd"
+            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1681,20 +1535,6 @@ _xyrev() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        xyrev__help__dotfile__decrypt)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         xyrev__help__dotfile__diff)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
@@ -1724,20 +1564,6 @@ _xyrev() {
             return 0
             ;;
         xyrev__help__dotfile__edit)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        xyrev__help__dotfile__encrypt)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )

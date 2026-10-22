@@ -1,3 +1,11 @@
+# 未发布：当前 develop（v0.5.0 之后）
+
+移除独立子命令 `xyrev dotfile encrypt` 和 `xyrev dotfile decrypt`，并同步帮助、补全和 man pages。这是 v0.5.0 之后的兼容性变更，尚未发布新版本；已发布版本的二进制、tag 和安装命令保持原样。
+
+- 旧脚本若调用这两个子命令，需要在升级前迁移。普通 dotfile 继续使用 `add --encrypt`、`edit` 和 `apply`；GPG 密钥继续使用原生 `gpg backup` / `gpg restore` 或自动恢复声明；其他文件加解密交给相应工具。
+- 保留内部 age/GPG 加密、密码处理、`keygen`、既有密文及 GPG 备份兼容。删除 CLI 入口不要求重新备份或重新加密。
+- 下方 v0.5.0 及更早版本是已发布历史，不能据其历史说明推断当前 develop 仍提供独立加解密入口。旧 GPG Shell 钩子应迁移到 v0.5.0 的原生恢复声明，不再调用独立加解密子命令。
+
 # xyrev v0.5.0
 
 GPG 密钥备份、校验和恢复统一迁入 xyrev，不再依赖 dotfiles 仓库中的备份/恢复脚本。兼容已提交的个人和 Work 密码加密备份，现有密文无需重新生成。
@@ -30,7 +38,7 @@ xyrev dotfile verify
 
 支持在新机器上用密码恢复 GPG 备份，无需单独保存 age 身份文件。私钥和 ownertrust 通过 age 密码加密，恢复时经管道导入 GPG；密码不写入参数、环境变量或仓库。
 
-- 新增 `dotfile encrypt/decrypt --passphrase`，在本机终端隐藏输入；加密时二次确认。脚本可使用 `--passphrase-file` 读取文件或管道描述符。
+- v0.4.1 当时新增独立的密码加解密入口，支持终端隐藏输入和二次确认，以及外部密码文件或管道描述符；当前 develop 已移除这些入口，迁移方式见本文开头。
 - 修复部署钩子内独立加解密的锁冲突，保留其他写操作的互斥保护。
 - 钩子获得当前运行程序的绝对路径 `XYREV_EXECUTABLE`，避免误调用 PATH 中旧版 xyrev。
 - dotfiles 恢复钩子校验密文摘要和私钥内容，密码错误、备份损坏或导入失败时可修复后重试；重复部署不重复导入。

@@ -1,24 +1,30 @@
 #![cfg(unix)]
 
+mod common;
+use common::gpg::{fake_gpg, private_write};
+use common::{decrypt_age_fixture, Sandbox};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, RawFd};
 use std::os::unix::process::CommandExt;
-use std::path::Path;
 use std::process::{Child, Command, ExitStatus, Output, Stdio};
 use std::time::{Duration, Instant};
 
-fn command(root: &Path, operation: &str) -> Command {
-    let home = root.join("home");
-    fs::create_dir_all(&home).unwrap();
-    let mut command = Command::new(env!("CARGO_BIN_EXE_xyrev"));
+const PERSONAL: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+fn command(sandbox: &Sandbox, operation: &str) -> Command {
+    let mut command = sandbox.command();
     command
-        .current_dir(root)
-        .env("HOME", &home)
-        .env("USERPROFILE", &home)
-        .env_remove("XYREV_AGE_PASSPHRASE")
-        .env_remove("XYREV_AGE_PASSPHRASE_FILE")
-        .args(["dotfile", operation]);
+        .arg("--source")
+        .arg(&sandbox.work)
+        .arg("--destination")
+        .arg(&sandbox.home)
+        .args(["gpg", operation, "--gpg-program"])
+        .arg(fake_gpg())
+        .env("XYREV_TEST_GPG_ROOT", &sandbox.root);
+    if operation == "backup" {
+        command.args(["--fingerprint", PERSONAL]);
+    }
     command
 }
 
@@ -90,7 +96,7 @@ fn terminal(mut command: Command, answers: &[&str]) -> TerminalOutput {
     }
     command
         // Password input must use the controlling terminal, independently of
-        // stdin, which may hold plaintext/ciphertext or be disconnected.
+        // stdin, which may be disconnected during GPG recovery.
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::from(slave.try_clone().unwrap()));
@@ -111,7 +117,7 @@ fn terminal(mut command: Command, answers: &[&str]) -> TerminalOutput {
         if answered < answers.len()
             && String::from_utf8_lossy(&transcript[cursor..])
                 .to_ascii_lowercase()
-                .contains("passphrase")
+                .contains("password")
             && termios(master.as_raw_fd(), "while waiting for a prompt").c_lflag & libc::ECHO == 0
         {
             // Only send an answer once the terminal itself has disabled echo.
@@ -135,7 +141,7 @@ fn terminal(mut command: Command, answers: &[&str]) -> TerminalOutput {
     assert_eq!(
         answered,
         answers.len(),
-        "Missing passphrase prompt: {}",
+        "Missing GPG backup password prompt: {}",
         String::from_utf8_lossy(&transcript)
     );
     assert_eq!(
@@ -161,60 +167,37 @@ fn terminal(mut command: Command, answers: &[&str]) -> TerminalOutput {
 }
 
 #[test]
-fn passphrase_terminal_input_is_hidden_confirmed_and_decrypts_without_confirmation() {
-    let temp = tempfile::tempdir().unwrap();
-    let input = temp.path().join("plaintext");
-    let cipher = temp.path().join("ciphertext.age");
-    let restored = temp.path().join("restored");
-    let plain = b"fixture-only private configuration\0\n";
-    fs::write(&input, plain).unwrap();
-    let passphrase = "fixture-terminal-passphrase-42";
-    let mut encrypt = command(temp.path(), "encrypt");
-    encrypt
-        .arg(&input)
-        .args(["--passphrase", "--output"])
-        .arg(&cipher);
-    let encrypted = terminal(encrypt, &[passphrase, passphrase]);
-    assert!(encrypted.status.success(), "{}", encrypted.transcript);
-    assert!(encrypted.stdout.is_empty());
-    assert!(!encrypted.transcript.contains(passphrase));
-    assert!(!fs::read(&cipher)
-        .unwrap()
-        .windows(plain.len())
-        .any(|part| part == plain));
-
-    let mut decrypt = command(temp.path(), "decrypt");
-    decrypt
-        .arg(&cipher)
-        .args(["--passphrase", "--output"])
-        .arg(&restored);
-    let decrypted = terminal(decrypt, &[passphrase]);
-    assert!(decrypted.status.success(), "{}", decrypted.transcript);
-    assert!(decrypted.stdout.is_empty());
-    assert!(!decrypted.transcript.contains(passphrase));
-    assert!(!decrypted
-        .transcript
-        .to_ascii_lowercase()
-        .contains("confirm"));
-    assert_eq!(fs::read(restored).unwrap(), plain);
+fn gpg_password_terminal_input_is_hidden_confirmed_and_restore_prompts_once() {
+    let sandbox = Sandbox::new(&[("dot_seed", "seed")]);
+    let password = "fixture-terminal-password-42";
+    let backed_up = terminal(command(&sandbox, "backup"), &[password, password]);
+    assert!(backed_up.status.success(), "{}", backed_up.transcript);
+    assert!(!backed_up.transcript.contains(password));
+    assert!(!String::from_utf8_lossy(&backed_up.stdout).contains(password));
+    let secret = fs::read(sandbox.work.join(".xyrevtemplates/gpg/secret.asc.age")).unwrap();
+    assert!(!String::from_utf8_lossy(&secret).contains("XYREV-FAKE-SECRET"));
+    let restored = terminal(command(&sandbox, "restore"), &[password]);
+    assert!(restored.status.success(), "{}", restored.transcript);
+    assert!(!restored.transcript.contains(password));
+    assert!(!String::from_utf8_lossy(&restored.stdout).contains(password));
+    assert!(!restored.transcript.to_ascii_lowercase().contains("confirm"));
+    assert_eq!(
+        fs::read_to_string(sandbox.root.join("imports"))
+            .unwrap()
+            .lines()
+            .count(),
+        3
+    );
 }
 
 #[test]
-fn passphrase_confirmation_mismatch_does_not_create_ciphertext_or_echo_answers() {
-    let temp = tempfile::tempdir().unwrap();
-    let input = temp.path().join("plaintext");
-    let cipher = temp.path().join("not-created/ciphertext.age");
-    fs::write(&input, "fixture-only private configuration").unwrap();
-    let mut encrypt = command(temp.path(), "encrypt");
-    encrypt
-        .arg(&input)
-        .args(["--passphrase", "--output"])
-        .arg(&cipher);
-    let answers = [
-        "fixture-first-passphrase-42",
-        "fixture-different-passphrase-43",
-    ];
-    let output = terminal(encrypt, &answers);
+fn gpg_password_confirmation_mismatch_creates_no_backup_or_echoed_answers() {
+    let sandbox = Sandbox::new(&[("dot_seed", "seed")]);
+    let directory = sandbox.root.join("not-created/backup");
+    let mut backup = command(&sandbox, "backup");
+    backup.arg("--output").arg(&directory);
+    let answers = ["fixture-first-password-42", "fixture-different-password-43"];
+    let output = terminal(backup, &answers);
     assert!(!output.status.success());
     assert!(output.stdout.is_empty());
     assert!(output.transcript.to_ascii_lowercase().contains("match"));
@@ -222,10 +205,11 @@ fn passphrase_confirmation_mismatch_does_not_create_ciphertext_or_echo_answers()
     for answer in answers {
         assert!(!output.transcript.contains(answer));
     }
-    assert!(!cipher.parent().unwrap().exists());
+    assert!(!directory.parent().unwrap().exists());
+    assert!(!sandbox.root.join("imports").exists());
 }
 
-fn piped_passphrase(mut command: Command) -> Output {
+fn piped_password(mut command: Command, password: &str) -> Output {
     unsafe {
         command.pre_exec(|| {
             if libc::setsid() < 0 {
@@ -235,46 +219,56 @@ fn piped_passphrase(mut command: Command) -> Output {
         });
     }
     let mut child = command
-        .args(["--passphrase-file", "/dev/stdin"])
+        .args(["--passphrase-file", "/dev/fd/0"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(b"fixture-only-pipe-passphrase-42\n")
-        .unwrap();
+    let mut input = child.stdin.take().unwrap();
+    input.write_all(password.as_bytes()).unwrap();
+    input.write_all(b"\n").unwrap();
+    drop(input);
     child.wait_with_output().unwrap()
 }
 
 #[test]
-fn passphrase_file_accepts_a_pipe_without_a_terminal_or_prompt() {
-    let temp = tempfile::tempdir().unwrap();
-    let input = temp.path().join("plaintext");
-    let cipher = temp.path().join("ciphertext.age");
-    let plain = b"fixture-only piped passphrase content\0\n";
-    fs::write(&input, plain).unwrap();
-    let mut encrypt = command(temp.path(), "encrypt");
-    encrypt.arg(&input).arg("--output").arg(&cipher);
-    let encrypted = piped_passphrase(encrypt);
+fn gpg_backup_accepts_a_password_pipe_without_a_terminal_or_prompt() {
+    let sandbox = Sandbox::new(&[("dot_seed", "seed")]);
+    let password = "fixture-only-pipe-password-42";
+    let backed_up = piped_password(command(&sandbox, "backup"), password);
     assert!(
-        encrypted.status.success(),
+        backed_up.status.success(),
         "{}",
-        String::from_utf8_lossy(&encrypted.stderr)
+        String::from_utf8_lossy(&backed_up.stderr)
     );
-    assert!(encrypted.stdout.is_empty());
-    assert!(encrypted.stderr.is_empty());
-    let mut decrypt = command(temp.path(), "decrypt");
-    decrypt.arg(&cipher);
-    let decrypted = piped_passphrase(decrypt);
+    assert!(backed_up.stderr.is_empty());
+    assert!(!String::from_utf8_lossy(&backed_up.stdout).contains(password));
+    let cipher = fs::read(sandbox.work.join(".xyrevtemplates/gpg/secret.asc.age")).unwrap();
+    assert_eq!(
+        decrypt_age_fixture(password, &cipher),
+        format!("XYREV-FAKE-SECRET\n{PERSONAL}\n").as_bytes()
+    );
+    // Explicit restore requires a private regular file rather than a pipe.
+    let password_file = sandbox.root.join("private password");
+    private_write(&password_file, password.as_bytes());
+    let restored = command(&sandbox, "restore")
+        .arg("--passphrase-file")
+        .arg(password_file)
+        .output()
+        .unwrap();
     assert!(
-        decrypted.status.success(),
+        restored.status.success(),
         "{}",
-        String::from_utf8_lossy(&decrypted.stderr)
+        String::from_utf8_lossy(&restored.stderr)
     );
-    assert!(decrypted.stderr.is_empty());
-    assert_eq!(decrypted.stdout, plain);
+    assert!(restored.stderr.is_empty());
+    assert!(!String::from_utf8_lossy(&restored.stdout).contains(password));
+    assert_eq!(
+        fs::read_to_string(sandbox.root.join("imports"))
+            .unwrap()
+            .lines()
+            .count(),
+        3
+    );
 }

@@ -313,44 +313,6 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 && ret=0
 ;;
-(encrypt)
-_arguments "${_arguments_options[@]}" : \
-'-o+[]:OUTPUT:_files' \
-'--output=[]:OUTPUT:_files' \
-'--backend=[]:BACKEND:(age gpg)' \
-'*--recipient=[]:RECIPIENT:_default' \
-'*--identity=[]:IDENTITY:_files' \
-'(--recipient --identity)--passphrase-file=[Read one passphrase line from a file or pipe (such as /dev/fd/3)]:PATH:_files' \
-'--source=[Local source repository (saved by init)]:SOURCE:_files' \
-'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
-'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
-'(--passphrase-file --recipient --identity)--passphrase[Use age passphrase encryption; read the password privately from the terminal]' \
-'-v[Show more debugging information]' \
-'--verbose[Show more debugging information]' \
-'-h[Print help]' \
-'--help[Print help]' \
-':input:_files' \
-&& ret=0
-;;
-(decrypt)
-_arguments "${_arguments_options[@]}" : \
-'-o+[]:OUTPUT:_files' \
-'--output=[]:OUTPUT:_files' \
-'--backend=[]:BACKEND:(age gpg)' \
-'*--recipient=[]:RECIPIENT:_default' \
-'*--identity=[]:IDENTITY:_files' \
-'(--recipient --identity)--passphrase-file=[Read one passphrase line from a file or pipe (such as /dev/fd/3)]:PATH:_files' \
-'--source=[Local source repository (saved by init)]:SOURCE:_files' \
-'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
-'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
-'(--passphrase-file --recipient --identity)--passphrase[Use age passphrase encryption; read the password privately from the terminal]' \
-'-v[Show more debugging information]' \
-'--verbose[Show more debugging information]' \
-'-h[Print help]' \
-'--help[Print help]' \
-':input:_files' \
-&& ret=0
-;;
 (gpg)
 _arguments "${_arguments_options[@]}" : \
 '--source=[Local source repository (saved by init)]:SOURCE:_files' \
@@ -522,14 +484,6 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (data)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(encrypt)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(decrypt)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -707,14 +661,6 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(encrypt)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(decrypt)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
 (gpg)
 _arguments "${_arguments_options[@]}" : \
 ":: :_xyrev__help__dotfile__gpg_commands" \
@@ -855,8 +801,6 @@ _xyrev__dotfile_commands() {
 'archive:Export rendered target files as tar, tar.gz, or zip' \
 'execute-template:Evaluate a Jinja template using repository and local data' \
 'data:Print merged template data as JSON' \
-'encrypt:Encrypt a file using configured age or gpg' \
-'decrypt:Decrypt a file using configured identities' \
 'gpg:Back up or restore GPG keys using encrypted dotfile storage' \
 'keygen:Generate an age identity and print its public recipient' \
 'cd:Start a shell in the source repository, or print its path' \
@@ -889,11 +833,6 @@ _xyrev__dotfile__data_commands() {
     local commands; commands=()
     _describe -t commands 'xyrev dotfile data commands' commands "$@"
 }
-(( $+functions[_xyrev__dotfile__decrypt_commands] )) ||
-_xyrev__dotfile__decrypt_commands() {
-    local commands; commands=()
-    _describe -t commands 'xyrev dotfile decrypt commands' commands "$@"
-}
 (( $+functions[_xyrev__dotfile__diff_commands] )) ||
 _xyrev__dotfile__diff_commands() {
     local commands; commands=()
@@ -908,11 +847,6 @@ _xyrev__dotfile__doctor_commands() {
 _xyrev__dotfile__edit_commands() {
     local commands; commands=()
     _describe -t commands 'xyrev dotfile edit commands' commands "$@"
-}
-(( $+functions[_xyrev__dotfile__encrypt_commands] )) ||
-_xyrev__dotfile__encrypt_commands() {
-    local commands; commands=()
-    _describe -t commands 'xyrev dotfile encrypt commands' commands "$@"
 }
 (( $+functions[_xyrev__dotfile__execute-template_commands] )) ||
 _xyrev__dotfile__execute-template_commands() {
@@ -979,8 +913,6 @@ _xyrev__dotfile__help_commands() {
 'archive:Export rendered target files as tar, tar.gz, or zip' \
 'execute-template:Evaluate a Jinja template using repository and local data' \
 'data:Print merged template data as JSON' \
-'encrypt:Encrypt a file using configured age or gpg' \
-'decrypt:Decrypt a file using configured identities' \
 'gpg:Back up or restore GPG keys using encrypted dotfile storage' \
 'keygen:Generate an age identity and print its public recipient' \
 'cd:Start a shell in the source repository, or print its path' \
@@ -1013,11 +945,6 @@ _xyrev__dotfile__help__data_commands() {
     local commands; commands=()
     _describe -t commands 'xyrev dotfile help data commands' commands "$@"
 }
-(( $+functions[_xyrev__dotfile__help__decrypt_commands] )) ||
-_xyrev__dotfile__help__decrypt_commands() {
-    local commands; commands=()
-    _describe -t commands 'xyrev dotfile help decrypt commands' commands "$@"
-}
 (( $+functions[_xyrev__dotfile__help__diff_commands] )) ||
 _xyrev__dotfile__help__diff_commands() {
     local commands; commands=()
@@ -1032,11 +959,6 @@ _xyrev__dotfile__help__doctor_commands() {
 _xyrev__dotfile__help__edit_commands() {
     local commands; commands=()
     _describe -t commands 'xyrev dotfile help edit commands' commands "$@"
-}
-(( $+functions[_xyrev__dotfile__help__encrypt_commands] )) ||
-_xyrev__dotfile__help__encrypt_commands() {
-    local commands; commands=()
-    _describe -t commands 'xyrev dotfile help encrypt commands' commands "$@"
 }
 (( $+functions[_xyrev__dotfile__help__execute-template_commands] )) ||
 _xyrev__dotfile__help__execute-template_commands() {
@@ -1194,8 +1116,6 @@ _xyrev__help__dotfile_commands() {
 'archive:Export rendered target files as tar, tar.gz, or zip' \
 'execute-template:Evaluate a Jinja template using repository and local data' \
 'data:Print merged template data as JSON' \
-'encrypt:Encrypt a file using configured age or gpg' \
-'decrypt:Decrypt a file using configured identities' \
 'gpg:Back up or restore GPG keys using encrypted dotfile storage' \
 'keygen:Generate an age identity and print its public recipient' \
 'cd:Start a shell in the source repository, or print its path' \
@@ -1227,11 +1147,6 @@ _xyrev__help__dotfile__data_commands() {
     local commands; commands=()
     _describe -t commands 'xyrev help dotfile data commands' commands "$@"
 }
-(( $+functions[_xyrev__help__dotfile__decrypt_commands] )) ||
-_xyrev__help__dotfile__decrypt_commands() {
-    local commands; commands=()
-    _describe -t commands 'xyrev help dotfile decrypt commands' commands "$@"
-}
 (( $+functions[_xyrev__help__dotfile__diff_commands] )) ||
 _xyrev__help__dotfile__diff_commands() {
     local commands; commands=()
@@ -1246,11 +1161,6 @@ _xyrev__help__dotfile__doctor_commands() {
 _xyrev__help__dotfile__edit_commands() {
     local commands; commands=()
     _describe -t commands 'xyrev help dotfile edit commands' commands "$@"
-}
-(( $+functions[_xyrev__help__dotfile__encrypt_commands] )) ||
-_xyrev__help__dotfile__encrypt_commands() {
-    local commands; commands=()
-    _describe -t commands 'xyrev help dotfile encrypt commands' commands "$@"
 }
 (( $+functions[_xyrev__help__dotfile__execute-template_commands] )) ||
 _xyrev__help__dotfile__execute-template_commands() {

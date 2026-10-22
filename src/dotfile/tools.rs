@@ -1,107 +1,11 @@
 use super::storage::Paths;
-use super::{crypto, git, scripts, storage, template};
-use crate::cli::dotfile::{CryptoArgs, TemplateArgs};
-use age::secrecy::{ExposeSecret, SecretString};
+use super::{git, scripts, storage, template};
+use crate::cli::dotfile::TemplateArgs;
+use age::secrecy::SecretString;
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::Path;
 use std::process::Command;
-
-pub fn crypt(paths: &Paths, args: &CryptoArgs, decrypt: bool) -> Result<()> {
-    let mut settings = paths.encryption();
-    if let Some(backend) = &args.backend {
-        settings.backend = backend.clone();
-    }
-    if !args.recipient.is_empty() {
-        settings.recipients = args.recipient.clone();
-        settings.gpg_recipient = args.recipient.first().cloned();
-    }
-    if !args.identity.is_empty() {
-        settings.identities = args.identity.clone();
-    }
-    let passphrase = if args.passphrase || args.passphrase_file.is_some() {
-        if args.backend.as_deref() == Some("gpg") {
-            bail!("Passphrase options require the age backend");
-        }
-        settings.backend = "age".into();
-        Some(read_passphrase(paths, args, decrypt)?)
-    } else {
-        None
-    };
-    let bytes = if args.input == Path::new("-") {
-        let mut bytes = Vec::new();
-        io::stdin().read_to_end(&mut bytes)?;
-        bytes
-    } else {
-        fs::read(storage::expand_home(&args.input, &paths.home))?
-    };
-    let output = if let Some(passphrase) = passphrase {
-        if decrypt {
-            crypto::decrypt_with_passphrase(&passphrase, &bytes)?
-        } else {
-            crypto::encrypt_with_passphrase(passphrase, &bytes)?
-        }
-    } else if decrypt {
-        let extension = args
-            .input
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or(&settings.backend);
-        crypto::decrypt(&settings, &paths.home, &bytes, extension)?
-    } else {
-        crypto::encrypt(&settings, &bytes)?
-    };
-    if let Some(file) = &args.output {
-        let file = storage::expand_home(file, &paths.home);
-        if let Some(parent) = file
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-        {
-            fs::create_dir_all(parent)?;
-        }
-        storage::atomic_write(&file, &output, 0o600)?;
-    } else {
-        io::stdout().write_all(&output)?;
-    }
-    Ok(())
-}
-
-fn read_passphrase(paths: &Paths, args: &CryptoArgs, decrypt: bool) -> Result<SecretString> {
-    let passphrase = if let Some(path) = &args.passphrase_file {
-        let path = storage::expand_home(path, &paths.home);
-        let mut text = fs::read_to_string(&path)
-            .with_context(|| format!("Read passphrase file {}", path.display()))?;
-        if text.ends_with('\n') {
-            text.pop();
-            if text.ends_with('\r') {
-                text.pop();
-            }
-        }
-        SecretString::new(text)
-    } else {
-        prompt_passphrase("Enter passphrase: ").context(
-            "Read passphrase privately from the terminal; use --passphrase-file for a pipe",
-        )?
-    };
-    if passphrase.expose_secret().is_empty() {
-        bail!("Passphrase must not be empty");
-    }
-    if passphrase.expose_secret().contains(['\r', '\n']) {
-        bail!("Passphrase must contain exactly one line");
-    }
-    if passphrase.expose_secret().contains('\0') {
-        bail!("Passphrase must not contain NUL bytes");
-    }
-    if args.passphrase && !decrypt {
-        let confirmation = prompt_passphrase("Confirm passphrase: ")
-            .context("Confirm passphrase privately from the terminal")?;
-        if passphrase.expose_secret() != confirmation.expose_secret() {
-            bail!("Passphrases do not match");
-        }
-    }
-    Ok(passphrase)
-}
 
 #[cfg(not(windows))]
 pub(super) fn prompt_passphrase(prompt: &str) -> io::Result<SecretString> {
