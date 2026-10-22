@@ -61,6 +61,8 @@ fn passphrase_files_roundtrip_under_deployment_lock_without_saving_credentials()
         sandbox.cli(&["apply"]),
         "Another dotfile command is running",
     );
+    // Unlike Unix flock, a Windows byte-range lock prevents snapshot's read.
+    drop(lock);
     assert_eq!(snapshot(&sandbox.control()), before);
     assert_eq!(snapshot(&sandbox.source), source_before);
     assert!(!sandbox.destination.exists());

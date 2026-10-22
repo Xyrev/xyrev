@@ -64,6 +64,9 @@ fn standalone_crypto_works_under_deployment_lock_but_writers_remain_locked() {
         sandbox.cli(&["add", ".seed"]),
         "Another dotfile command is running",
     );
+    // Windows byte-range locks also prevent reading the lock file through a
+    // different handle. Inspect the unchanged control files after unlocking.
+    drop(lock);
     assert_eq!(snapshot(&sandbox.control()), before);
     assert_eq!(snapshot(&sandbox.source), source_before);
     assert!(!sandbox.destination.exists());
