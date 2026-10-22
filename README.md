@@ -1,8 +1,10 @@
 # xyrev
 
-开发环境命令行工具。`xyrev dotfile` 通过 Git URL 初始化、预览、部署、维护和更新 dotfiles，采用 chezmoi 风格路径属性、MiniJinja 模板及统一变更计划。
+开发环境命令行工具。`xyrev dotfile` 通过 Git URL 初始化、预览、部署、维护和更新 dotfiles，采用 xyrev 路径协议、MiniJinja 模板及统一变更计划。
 
 ## 当前 develop 的待发布变更
+
+当前 develop 只识别 `.xyrev*` 控制项和 `xyrev:template:` 模板指令，不自动读取旧命名。升级前手动调整 source 名称及引用，检查数据、模板和外部资源路径；工具不会自动改写远端仓库。这项变化尚未发布，已发布 v0.5.0 行为保持原样。
 
 v0.5.0 之后的当前 develop 已移除两个独立子命令 `xyrev dotfile encrypt` 和 `xyrev dotfile decrypt`，尚未发布新版本；已发布 v0.5.0 的二进制行为保持原样，下面的安装命令仍安装 v0.5.0。旧脚本若调用这两个命令，升级到包含此变更的版本前需要迁移：dotfile 内容通过 `add --encrypt`、`edit` 和 `apply` 管理，GPG 密钥备份/恢复通过 `gpg backup` / `gpg restore` 或原生恢复声明管理；其他文件加解密脚本改用相应加密工具。内部 age/GPG 加密能力、既有密文和 `keygen` 保留。
 
@@ -22,7 +24,7 @@ xyrev --version
 
 ## 新 Mac 初始化私有 dotfiles
 
-`Xyrev/xyrev` 和发行包保持公开，以上安装命令可匿名使用；`szwathub/dotfiles` 是私有仓库，初始化前需要有仓库访问权的 GitHub 账户。Git 认证用于下载仓库，GPG 备份密码用于解密密钥，两者独立。`init` 发生在软件安装之前，不能依赖后续 `apply` 安装的 Homebrew、GitHub CLI 或 GPG 来完成首次 Git 认证。首次推荐 HTTPS，SSH 作为可选方式；完整步骤、密码用途和恢复边界见[新 Mac 流程](chezmoi-rust-implementation.md#3-新-mac从公开安装到私有仓库恢复)。
+`Xyrev/xyrev` 和发行包保持公开，以上安装命令可匿名使用；`szwathub/dotfiles` 是私有仓库，初始化前需要有仓库访问权的 GitHub 账户。Git 认证用于下载仓库，GPG 备份密码用于解密密钥，两者独立。`init` 发生在软件安装之前，不能依赖后续 `apply` 安装的 Homebrew、GitHub CLI 或 GPG 来完成首次 Git 认证。首次推荐 HTTPS，SSH 作为可选方式；完整步骤、密码用途和恢复边界见[新 Mac 流程](docs/dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
 
 ### 准备 Git
 
@@ -134,6 +136,8 @@ Rust 最低版本为 1.74。默认使用系统 Git；`init --builtin` 使用内�
 
 ## 日常命令
 
+详细说明见[产品概览](docs/dotfile-overview.md)、[实现说明](docs/dotfile-internals.md)和[设计文档](docs/dotfile-design.md)。
+
 ```bash
 xyrev dotfile init <git-url> --apply
 xyrev dotfile status
@@ -201,7 +205,7 @@ dotfiles/
 
 Unix 默认文件 0644、目录/可执行文件 0755。Windows 使用 DACL 实现私有和只读属性，文件执行位归一化；创建符号链接需要开发者模式或相应权限。无 shebang 的 Windows 脚本由 PowerShell 执行，Unix 使用 sh。
 
-普通隐藏 source 条目和 Git 元数据跳过。受支持的控制文件统一使用 `.xyrev*`，同时接受对应的 `.chezmoi*` 迁移别名：
+普通隐藏 source 条目和 Git 元数据跳过。当前 develop 的受支持控制文件仅使用 `.xyrev*`，不自动读取旧命名：
 
 - `ignore[.tmpl]`：按目标相对路径匹配 `*`、`?`、`**`、字符组、`!` 例外；所有例外优先于忽略项。支持目录内局部规则，`folder/` 仅匹配目录条目。
 - `remove[.tmpl]`：每行一个目标相对 glob，显式递归删除匹配项并备份；拒绝越界及控制目录。
@@ -211,11 +215,11 @@ Unix 默认文件 0644、目录/可执行文件 0755。Windows 使用 DACL 实�
 - `.xyrev.toml.tmpl`：初始化本机配置。
 - `external.{toml,json,yaml,yml}[.tmpl]` / `externals/`：外部资源定义。
 
-现有模块目录和 `*.symlink` 仓库需先迁移。原 `szwathub/dotfiles` 的迁移示例见[设计文档](chezmoi-rust-implementation.md)；本项目不会自动修改远端仓库。
+现有模块目录和 `*.symlink` 仓库需先迁移。`szwathub/dotfiles` 的当前配置见[设计文档](docs/dotfile-design.md)；本项目不会自动修改远端仓库。
 
 ## 模板与本机配置
 
-模板使用 **Jinja 语法**，Go Template 需要迁移。例如 `{{ .chezmoi.os }}` 改为 `{{ xyrev.os }}`；条件使用 `{% if xyrev.os == 'macos' %}...{% endif %}`，include 使用 `{% include 'shared' %}`。默认缺失变量报错。
+模板使用 **MiniJinja 语法**，机器数据使用 `{{ xyrev.os }}` 等字段；条件使用 `{% if xyrev.os == 'macos' %}...{% endif %}`，include 使用 `{% include 'shared' %}`。默认缺失变量报错。
 
 `xyrev` 内置数据包括 `os`、`arch`、`hostname`、`username`、`home_dir`、`source_dir`、`dest_dir`、`cache_dir`、`config_file`、`version`、`path_separator`。数据覆盖顺序为仓库数据、本机 `[data]`、`--data key=value`（值可为 JSON，点分路径支持嵌套）；`xyrev` 命名空间保留。
 

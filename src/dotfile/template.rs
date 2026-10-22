@@ -31,43 +31,38 @@ pub fn merge(target: &mut Value, overlay: Value) {
 
 pub fn source_root(paths: &Paths) -> Result<PathBuf> {
     let mut root = paths.source.clone();
-    for name in [".xyrevroot", ".chezmoiroot"] {
-        let path = paths.source.join(name);
-        if path.exists() {
-            regular(&path)?;
-            let value = fs::read_to_string(path)?;
-            let value = value.trim();
-            if !value.is_empty() && value != "." {
-                root = paths.source.join(storage::relative_path(Path::new(value))?);
-                let resolved = fs::canonicalize(&root).context("Resolve source root")?;
-                if !resolved.starts_with(&paths.source) {
-                    bail!("Source root escapes the repository");
-                }
-                root = resolved;
+    let path = paths.source.join(".xyrevroot");
+    if path.exists() {
+        regular(&path)?;
+        let value = fs::read_to_string(path)?;
+        let value = value.trim();
+        if !value.is_empty() && value != "." {
+            root = paths.source.join(storage::relative_path(Path::new(value))?);
+            let resolved = fs::canonicalize(&root).context("Resolve source root")?;
+            if !resolved.starts_with(&paths.source) {
+                bail!("Source root escapes the repository");
             }
-            break;
+            root = resolved;
         }
     }
     if !root.is_dir() {
         bail!("Source root is not a directory: {}", root.display());
     }
     for version_root in [&paths.source, &root] {
-        for name in [".xyrevversion", ".chezmoiversion"] {
-            let path = version_root.join(name);
-            if path.exists() {
-                regular(&path)?;
-                let requirement = fs::read_to_string(path)?;
-                let current = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
-                let matches = match semver::Version::parse(requirement.trim()) {
-                    Ok(minimum) => current >= minimum,
-                    Err(_) => semver::VersionReq::parse(requirement.trim())?.matches(&current),
-                };
-                if !matches {
-                    bail!(
-                        "Repository requires xyrev {}, current version is {current}",
-                        requirement.trim()
-                    );
-                }
+        let path = version_root.join(".xyrevversion");
+        if path.exists() {
+            regular(&path)?;
+            let requirement = fs::read_to_string(path)?;
+            let current = semver::Version::parse(env!("CARGO_PKG_VERSION"))?;
+            let matches = match semver::Version::parse(requirement.trim()) {
+                Ok(minimum) => current >= minimum,
+                Err(_) => semver::VersionReq::parse(requirement.trim())?.matches(&current),
+            };
+            if !matches {
+                bail!(
+                    "Repository requires xyrev {}, current version is {current}",
+                    requirement.trim()
+                );
             }
         }
     }
@@ -88,23 +83,21 @@ impl Engine {
         let mut env = Environment::new();
         env.set_keep_trailing_newline(true);
         env.set_undefined_behavior(UndefinedBehavior::Strict);
-        let directories = vec![root.join(".xyrevtemplates"), root.join(".chezmoitemplates")];
+        let directory = root.join(".xyrevtemplates");
         let template_root = root.clone();
         env.set_loader(move |name| {
             let relative = storage::relative_path(Path::new(name)).map_err(error)?;
-            for directory in &directories {
-                let path = directory.join(&relative);
-                if path.exists() {
-                    let directory = fs::canonicalize(directory).map_err(error)?;
-                    if !directory.starts_with(&template_root) {
-                        return Err(error("Templates directory escapes source root"));
-                    }
-                    let resolved = fs::canonicalize(&path).map_err(error)?;
-                    if !resolved.starts_with(directory) {
-                        return Err(error("Template include escapes the templates directory"));
-                    }
-                    return fs::read_to_string(resolved).map(Some).map_err(error);
+            let path = directory.join(&relative);
+            if path.exists() {
+                let directory = fs::canonicalize(&directory).map_err(error)?;
+                if !directory.starts_with(&template_root) {
+                    return Err(error("Templates directory escapes source root"));
                 }
+                let resolved = fs::canonicalize(&path).map_err(error)?;
+                if !resolved.starts_with(directory) {
+                    return Err(error("Template include escapes the templates directory"));
+                }
+                return fs::read_to_string(resolved).map(Some).map_err(error);
             }
             Ok(None)
         });
@@ -257,19 +250,17 @@ impl Engine {
             data: json!({"xyrev": builtin.clone()}),
         };
         let mut data_files = Vec::new();
-        for prefix in [".chezmoidata", ".xyrevdata"] {
-            for extension in ["json", "yaml", "yml", "toml"] {
-                for suffix in ["", ".tmpl"] {
-                    let path = root.join(format!("{prefix}.{extension}{suffix}"));
-                    if path.exists() {
-                        data_files.push(path);
-                    }
+        for extension in ["json", "yaml", "yml", "toml"] {
+            for suffix in ["", ".tmpl"] {
+                let path = root.join(format!(".xyrevdata.{extension}{suffix}"));
+                if path.exists() {
+                    data_files.push(path);
                 }
             }
-            let directory = root.join(prefix);
-            if directory.exists() {
-                collect_data(&directory, &mut data_files)?;
-            }
+        }
+        let directory = root.join(".xyrevdata");
+        if directory.exists() {
+            collect_data(&directory, &mut data_files)?;
         }
         for path in data_files {
             regular(&path)?;
@@ -326,10 +317,7 @@ impl Engine {
         let mut source = String::new();
         let mut directives = std::collections::BTreeMap::new();
         for line in text.split_inclusive('\n') {
-            if let Some(index) = line
-                .find("xyrev:template:")
-                .or_else(|| line.find("chezmoi:template:"))
-            {
+            if let Some(index) = line.find("xyrev:template:") {
                 let tail = &line[index..];
                 let tail = tail
                     .split_once("template:")
@@ -475,36 +463,35 @@ pub fn initialize_config(paths: &Paths, overrides: &[String]) -> Result<bool> {
         editor: Option<String>,
     }
     let root = source_root(paths)?;
-    for name in [".xyrev.toml.tmpl", ".chezmoi.toml.tmpl"] {
-        let file = root.join(name);
-        if file.exists() {
-            regular(&file)?;
-            let engine = Engine::new(paths, overrides, true)?;
-            let rendered = engine.render(name, &fs::read(file)?)?;
-            let patch: Patch = toml::from_str(std::str::from_utf8(&rendered)?)
-                .context("Parse rendered init configuration")?;
-            let mut config: Config = paths
-                .config
-                .clone()
-                .context("Initialize Git configuration first")?;
-            if let Some(data) = patch.data {
-                if !data.is_object() {
-                    bail!("Init data must be an object");
-                }
-                merge(&mut config.data, data);
-            }
-            if let Some(encryption) = patch.encryption {
-                config.encryption = encryption;
-            }
-            if let Some(git) = patch.git {
-                config.git = git;
-            }
-            if patch.editor.is_some() {
-                config.editor = patch.editor;
-            }
-            paths.save_config(&config)?;
-            return Ok(true);
-        }
+    let name = ".xyrev.toml.tmpl";
+    let file = root.join(name);
+    if !file.exists() {
+        return Ok(false);
     }
-    Ok(false)
+    regular(&file)?;
+    let engine = Engine::new(paths, overrides, true)?;
+    let rendered = engine.render(name, &fs::read(file)?)?;
+    let patch: Patch = toml::from_str(std::str::from_utf8(&rendered)?)
+        .context("Parse rendered init configuration")?;
+    let mut config: Config = paths
+        .config
+        .clone()
+        .context("Initialize Git configuration first")?;
+    if let Some(data) = patch.data {
+        if !data.is_object() {
+            bail!("Init data must be an object");
+        }
+        merge(&mut config.data, data);
+    }
+    if let Some(encryption) = patch.encryption {
+        config.encryption = encryption;
+    }
+    if let Some(git) = patch.git {
+        config.git = git;
+    }
+    if patch.editor.is_some() {
+        config.editor = patch.editor;
+    }
+    paths.save_config(&config)?;
+    Ok(true)
 }

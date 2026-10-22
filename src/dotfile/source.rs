@@ -321,12 +321,7 @@ fn parse_rules(text: &str, base: &Path, label: &str) -> Result<Vec<Rule>> {
 }
 fn rules(directory: &Path, base: &Path, engine: &Engine) -> Result<Vec<Rule>> {
     let mut result = Vec::new();
-    for name in [
-        ".chezmoiignore",
-        ".chezmoiignore.tmpl",
-        ".xyrevignore",
-        ".xyrevignore.tmpl",
-    ] {
+    for name in [".xyrevignore", ".xyrevignore.tmpl"] {
         let path = directory.join(name);
         if path.exists() {
             template::regular(&path)?;
@@ -412,12 +407,7 @@ pub fn scan(paths: &Paths, engine: &Engine, materialize: bool) -> Result<Tree> {
         materialize,
         &mut tree,
     )?;
-    for name in [
-        ".xyrevremove",
-        ".xyrevremove.tmpl",
-        ".chezmoiremove",
-        ".chezmoiremove.tmpl",
-    ] {
+    for name in [".xyrevremove", ".xyrevremove.tmpl"] {
         let path = root.join(name);
         if path.exists() {
             template::regular(&path)?;
@@ -457,8 +447,8 @@ fn walk(
             .map_err(|_| anyhow::anyhow!("Non-UTF-8 source filename"))?;
         let source = child.path();
         let meta = fs::symlink_metadata(&source)?;
-        if raw.starts_with(".xyrev") || raw.starts_with(".chezmoi") {
-            if [".xyrevscripts", ".chezmoiscripts"].contains(&raw.as_str()) {
+        if raw.starts_with(".xyrev") {
+            if raw == ".xyrevscripts" {
                 if !meta.is_dir() || meta.file_type().is_symlink() {
                     bail!("Scripts directory must be a regular directory");
                 }
@@ -662,10 +652,9 @@ pub fn known_control(name: &str) -> bool {
     if [".xyrevgpg.toml", ".xyrevgpg.toml.tmpl"].contains(&name) {
         return true;
     }
-    let stripped = name
-        .strip_prefix(".xyrev")
-        .or_else(|| name.strip_prefix(".chezmoi"))
-        .unwrap_or(name);
+    let Some(stripped) = name.strip_prefix(".xyrev") else {
+        return false;
+    };
     matches!(
         stripped,
         "root" | "version" | "templates" | "data" | "scripts" | "externals"

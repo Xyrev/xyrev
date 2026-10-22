@@ -2,32 +2,32 @@
 
 > 校订日期：2026-10-23。发布基线：xyrev v0.5.0；当前 develop 还包含该版本之后的未发布变更，命令清单按当前源码描述，兼容性变更见 §1.3。已发布 v0.5.0 的行为和安装地址不变。
 >
-> 本文记录当前实现、验收边界和后续规划。[chezmoi-overview.md](chezmoi-overview.md) 是上游功能研究，[chezmoi-internals.md](chezmoi-internals.md) 是上游架构研究；它们列出的能力不自动成为 xyrev 的兼容承诺。当前使用入口另见 [README](README.md)，命令选项以 `xyrev dotfile --help` 及子命令帮助为准。
+> 本文记录 xyrev 的产品协议、新机器流程、实现证据与长期规划。[产品概览](dotfile-overview.md) 说明能力和边界，[实现说明](dotfile-internals.md) 说明当前 Rust 模块和状态处理。当前使用入口另见 [README](../README.md)，命令选项以 `xyrev dotfile --help` 及子命令帮助为准。
 >
 > 原设计中的 workspace、Vfs trait、类型化路径和异步实现草图已归入第 7 节。它们不是现有源码结构，也不是使用本版本的前置条件。
 
 ## 1. 产品目标与已实现功能
 
-xyrev 在现有单一 Rust crate 中提供 `xyrev dotfile`：通过完整 Git URL 获取 source，按 chezmoi 风格路径属性和 MiniJinja 模板计算目标，与 destination 及上次成功部署的基线比较，再执行变更。默认 destination 为当前用户 HOME。
+xyrev 在现有单一 Rust crate 中提供 `xyrev dotfile`：通过完整 Git URL 获取 source，按 xyrev 路径属性和 MiniJinja 模板计算目标，与 destination 及上次成功部署的基线比较，再执行变更。默认 destination 为当前用户 HOME。
 
 ### 1.1 已实现能力与证据入口
 
-下表表示已经接入的产品能力，不表示所有第三方账户、配置组合或上游扩展都已完成真实服务验收。
+下表表示已经接入的产品能力，不表示所有第三方账户、配置组合或未来扩展都已完成真实服务验收。
 
 | 能力 | 当前行为 | 实现与测试 |
 |---|---|---|
-| Git 初始化与更新 | 完整 URL、分支、子模块选项保存；重复 init 校验来源；update 拒绝脏工作树和分叉，仅允许快进 | [git.rs](src/dotfile/git.rs)、[prerequisites.rs](src/dotfile/prerequisites.rs)、[CLI 测试](tests/dotfile_cli.rs) |
-| 内置 Git | `--builtin` 使用 gix 克隆、选分支、检查状态和快进更新；子模块、LFS 按需回退系统工具 | [native_git.rs](src/dotfile/native_git.rs)、[高级测试](tests/dotfile_advanced.rs) |
-| 路径与文件属性 | 文件、目录、权限、模板、加密、显式链接、创建/转换/删除、exact、literal 与 external 子树 | [source.rs](src/dotfile/source.rs)、[属性与部署测试](tests/dotfile_advanced.rs) |
-| 统一变更计划 | source/target/actual 与上次基线比较；预检冲突；覆盖前备份；单文件原子替换、部分成功记录和重试 | [plan.rs](src/dotfile/plan.rs)、[CLI 测试](tests/dotfile_cli.rs) |
-| 模板和本机数据 | MiniJinja、include、严格缺失变量、嵌套数据覆盖、模板指令、初始化提示 | [template.rs](src/dotfile/template.rs)、[高级测试](tests/dotfile_advanced.rs) |
-| 维护与诊断 | add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](src/dotfile/maintenance.rs)、[tools.rs](src/dotfile/tools.rs) |
-| 脚本 | run/once/onchange、before/during/after 顺序；成功才持久化，失败可重试，onchange 的 A→B→A 再执行 | [scripts.rs](src/dotfile/scripts.rs)、[钩子测试](tests/dotfile_crypto_hooks.rs) |
-| 普通文件加密 | 内置 age；本机 GPG 子进程；通过 add --encrypt 导入、edit 编辑、apply 解密部署；保留内部 age 密码处理 | [crypto.rs](src/dotfile/crypto.rs)、[加密文件测试](tests/dotfile_advanced.rs) |
-| GPG 密钥备份与恢复 | 多主密钥、age 密码/身份文件保护、清单校验、自动恢复与显式 restore、失败重试 | [gpg.rs](src/dotfile/gpg.rs)、[命令测试](tests/dotfile_gpg.rs)、[真实 GPG 测试](tests/test_gpg_native.py) |
-| 秘密提供器 | 1Password、Bitwarden、pass/gopass、Vault、Keyring、KeePassXC、LastPass、Doppler、AWS、Azure 及通用命令适配；进程内缓存 | [secrets.rs](src/dotfile/secrets.rs)、[高级测试](tests/dotfile_advanced.rs) |
-| 外部资源与归档 | 文件、归档、归档中单文件、Git 资源；TTL、SHA-256、过滤、路径保护；tar/tgz/zip 导出 | [external.rs](src/dotfile/external.rs)、[archive.rs](src/dotfile/archive.rs) |
-| 终端和命令文档 | ratatui 冲突确认；由同一 clap 定义生成 shell 补全和递归 man pages | [ui.rs](src/dotfile/ui.rs)、[CLI 定义](src/cli/dotfile/mod.rs)、[生成脚本](scripts/generate-cli-assets.sh) |
+| Git 初始化与更新 | 完整 URL、分支、子模块选项保存；重复 init 校验来源；update 拒绝脏工作树和分叉，仅允许快进 | [git.rs](../src/dotfile/git.rs)、[prerequisites.rs](../src/dotfile/prerequisites.rs)、[CLI 测试](../tests/dotfile_cli.rs) |
+| 内置 Git | `--builtin` 使用 gix 克隆、选分支、检查状态和快进更新；子模块、LFS 按需回退系统工具 | [native_git.rs](../src/dotfile/native_git.rs)、[高级测试](../tests/dotfile_advanced.rs) |
+| 路径与文件属性 | 文件、目录、权限、模板、加密、显式链接、创建/转换/删除、exact、literal 与 external 子树 | [source.rs](../src/dotfile/source.rs)、[属性与部署测试](../tests/dotfile_advanced.rs) |
+| 统一变更计划 | source/target/actual 与上次基线比较；预检冲突；覆盖前备份；单文件原子替换、部分成功记录和重试 | [plan.rs](../src/dotfile/plan.rs)、[CLI 测试](../tests/dotfile_cli.rs) |
+| 模板和本机数据 | MiniJinja、include、严格缺失变量、嵌套数据覆盖、模板指令、初始化提示 | [template.rs](../src/dotfile/template.rs)、[高级测试](../tests/dotfile_advanced.rs) |
+| 维护与诊断 | add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs) |
+| 脚本 | run/once/onchange、before/during/after 顺序；成功才持久化，失败可重试，onchange 的 A→B→A 再执行 | [scripts.rs](../src/dotfile/scripts.rs)、[钩子测试](../tests/dotfile_crypto_hooks.rs) |
+| 普通文件加密 | 内置 age；本机 GPG 子进程；通过 add --encrypt 导入、edit 编辑、apply 解密部署；保留内部 age 密码处理 | [crypto.rs](../src/dotfile/crypto.rs)、[加密文件测试](../tests/dotfile_advanced.rs) |
+| GPG 密钥备份与恢复 | 多主密钥、age 密码/身份文件保护、清单校验、自动恢复与显式 restore、失败重试 | [gpg.rs](../src/dotfile/gpg.rs)、[命令测试](../tests/dotfile_gpg.rs)、[真实 GPG 测试](../tests/test_gpg_native.py) |
+| 秘密提供器 | 1Password、Bitwarden、pass/gopass、Vault、Keyring、KeePassXC、LastPass、Doppler、AWS、Azure 及通用命令适配；进程内缓存 | [secrets.rs](../src/dotfile/secrets.rs)、[高级测试](../tests/dotfile_advanced.rs) |
+| 外部资源与归档 | 文件、归档、归档中单文件、Git 资源；TTL、SHA-256、过滤、路径保护；tar/tgz/zip 导出 | [external.rs](../src/dotfile/external.rs)、[archive.rs](../src/dotfile/archive.rs) |
+| 终端和命令文档 | ratatui 冲突确认；由同一 clap 定义生成 shell 补全和递归 man pages | [ui.rs](../src/dotfile/ui.rs)、[CLI 定义](../src/cli/dotfile/mod.rs)、[生成脚本](../scripts/generate-cli-assets.sh) |
 
 源码组织与状态存储见第 5 节；运行环境和验收范围见第 6 节。产品命名统一为 `xyrev`，模块入口统一为 `dotfile`。
 
@@ -69,11 +69,13 @@ xyrev dotfile gpg restore [options]
 
 ### 1.3 待发布兼容性变更
 
+当前 develop 的 source 控制项和模板指令仅使用 xyrev 命名：`.xyrev*` 与 `xyrev:template:`。旧命名不再自动读取，工具不提供隐式别名或自动转换；升级前应在仓库中完成改名，并核对数据、include、资源和初始化模板引用。此变化尚未发布，不影响已发布 v0.5.0 的行为。
+
 当前 develop 已移除独立 `xyrev dotfile encrypt` / `xyrev dotfile decrypt` 子命令，尚未发布新版本。这个变化不追溯修改已发布 v0.5.0 的命令；本文保留的 v0.5.0 安装示例仍取得原发行包。
 
 旧脚本需要在升级前迁移：普通 dotfile 用 `add --encrypt`、`edit` 和 `apply` 管理密文及部署；GPG 密钥生命周期使用原生 `gpg backup` / `gpg restore` 和 `.xyrevgpg.toml[.tmpl]`；其他文件加解密交给相应工具，不再调用这两个已移除的 xyrev 子命令。内部 age/GPG 实现、密码处理、既有密文、`keygen` 及上述导入/编辑/部署行为继续保留，GPG 备份无需重加密。
 
-## 2. 兼容协议与明确边界
+## 2. xyrev 路径协议与明确边界
 
 ### 2.1 路径和控制文件
 
@@ -95,29 +97,23 @@ xyrev dotfile gpg restore [options]
 
 未带 `empty_` 的空普通 source 文件表示目标应不存在。移除 source 条目表示解除管理，保留目标。普通 source 原生符号链接被拒绝，应使用 `symlink_` 文件；literal 外部子树按其字面条目处理。旧 `*.symlink` 后缀没有特殊映射含义。
 
-受支持的控制项使用 `.xyrev*`，并对下列传统名称提供 `.chezmoi*` 迁移别名：
+当前 develop 只读取以下 `.xyrev*` 控制项；旧命名不自动加载：
 
 - `ignore[.tmpl]`、`remove[.tmpl]`：目标路径规则；ignore 支持局部规则、`**`、优先的 `!` 例外。
 - `data.{toml,json,yaml,yml}[.tmpl]`、`data/`：数据文件和目录。
 - `templates/`、`scripts/`、`externals/`、`external.{toml,json,yaml,yml}[.tmpl]`：模板、脚本与外部资源定义。
 - `root`、`version`：选择 source 子目录、校验最低版本或 semver 范围。
-- `.xyrev.toml.tmpl` / `.chezmoi.toml.tmpl`：初始化本机配置，仅允许设置 data、git、encryption、editor。
+- `.xyrev.toml.tmpl`：初始化本机配置，仅允许设置 data、git、encryption、editor。
 
-原生 GPG 声明只接受 `.xyrevgpg.toml` 或 `.xyrevgpg.toml.tmpl`，两者不能并存；没有 `.chezmoigpg` 别名。未知的保留控制项报错。Git 元数据不部署，普通非字面隐藏 source 项跳过。具体字段见 [README](README.md#仓库路径协议)。
+原生 GPG 声明只接受 `.xyrevgpg.toml` 或 `.xyrevgpg.toml.tmpl`，两者不能并存。未知的保留控制项报错。Git 元数据不部署，普通非字面隐藏 source 项跳过。具体字段见 [README](../README.md#仓库路径协议)。
 
-### 2.2 与 chezmoi 的兼容范围
+### 2.2 模板、来源与部署边界
 
-| 领域 | 当前行为（v0.5.0 基线与 §1.3 待发布变更） | 不应推导出的承诺 |
-|---|---|---|
-| 命名 | 实现上表所列 chezmoi 风格属性及控制项别名 | 所有上游属性、组合和未来扩展均兼容 |
-| 模板 | MiniJinja；内置 `xyrev.*` 数据、初始化提示和当前注册函数 | 直接执行 Go Template、sprig 或完整 `chezmoi.*` 函数集 |
-| 加密 | age、GPG；普通文件与原生密钥备份分开处理 | 内置 git-crypt/transcrypt 后端 |
-| Git 来源 | 完整 HTTPS、`ssh://`、`git@host:path`、绝对 `file://` URL | GitHub 用户名/`user/repo` 缩写和裸本地路径导入 |
-| bootstrap | 公开发布包安装与 dotfile 初始化分离；支持 `init --apply` | 内置 GitHub 登录、自动取得私库权限、上游 oneShot/purge 流程 |
-| 部署 | 单文件原子替换、覆盖前备份、逐项记录成功并重试 | 整次多文件部署或整个 GPG keyring 导入的事务回滚 |
-| 平台 | macOS/Linux/Windows 的实现与 CI，平台权限语义见第 6 节 | 所有 Unix、BSD、文件系统与第三方服务均已实际验收 |
+模板引擎为 MiniJinja，机器数据位于 `xyrev.*`，例如 `{{ xyrev.os }}`；条件使用 `{% if ... %}`，include 从 `.xyrevtemplates/` 加载。注册函数、字段与指令以 README 为准，不对其他模板语言提供自动转换。
 
-Go Template 必须迁移，例如 `{{ .chezmoi.os }}` 改为 `{{ xyrev.os }}`，条件改用 MiniJinja 的 `{% if ... %}`。控制文件名兼容不等于模板语言或函数兼容。
+Git 来源要求完整 HTTPS、`ssh://`、`git@host:path` 或绝对 `file://` URL，不接受用户名或 `user/repo` 猜测。公开发布包安装与仓库初始化相互独立，私有仓库必须先具备有效凭据。
+
+普通加密文件和 GPG 密钥备份分别管理；内部 age/GPG 供导入、编辑、部署及原生密钥命令调用。部署只承诺单文件原子替换、覆盖前备份和逐项成功记录，不承诺多文件部署或整个 keyring 导入的事务回滚。平台及工具限制见第 6 节。
 
 ## 3. 新 Mac：从公开安装到私有仓库恢复
 
@@ -243,25 +239,24 @@ Git 凭据过期时先重新完成交互预检；管理员权限过期时重新 
 
 独立 destination 用于隔离试运行，自动 GPG 恢复会跳过；示例私库的系统安装钩子也只在 macOS 且 destination 等于 HOME 时运行。不能用隔离部署成功来声称真实系统软件安装和密钥恢复已经完成。
 
-## 4. 示例仓库迁移现状
+## 4. 示例仓库当前配置
 
-`szwathub/dotfiles` 已完成迁移并作为私有仓库维护。旧路径只在下表保留历史对照，不是当前目录结构：
+`szwathub/dotfiles` 作为私有仓库维护，使用 xyrev 路径协议和 MiniJinja；不包含 SSH 登录私钥。
 
-| 历史路径或机制 | 当前 source / 处理方式 |
+| 当前 source | 部署或处理方式 |
 |---|---|
-| `git/.gitconfig.symlink` | `dot_gitconfig.tmpl`，按本机数据渲染 |
-| `git/.gitignore.symlink` | `dot_gitignore` |
-| `fish/config.fish.symlink` | `dot_config/fish/config.fish.tmpl` |
-| Fish functions 子模块 | `dot_config/fish/external_functions/`，固定提交的 HTTPS 子模块；初始化保留 `--recurse-submodules` |
-| `ssh/config.symlink` | `private_dot_ssh/private_config`，仅配置，不含 SSH 私钥 |
-| Vim 插件/Vundle | 已删除插件管理、声明与安装步骤；保留 `dot_vimrc` 和 Solarized 配色 |
-| 旧 bootstrap 与模块安装脚本 | 已迁为三个 xyrev 钩子：Homebrew 初始化、软件包安装、macOS 设置 |
-| 仓库内 GPG 备份/恢复脚本 | 已删除，改用 xyrev 原生命令和 `.xyrevgpg.toml.tmpl` 声明 |
-| 个人和 Work 的 GPG 备份 | 同目录保存公钥及 age 密文，沿用现有备份密码 |
+| `dot_gitconfig.tmpl`、`dot_gitignore` | Git 配置与忽略规则，按本机数据渲染 |
+| `dot_config/fish/config.fish.tmpl` | Fish 配置 |
+| `dot_config/fish/external_functions/` | 固定提交的 HTTPS 子模块，初始化保留 `--recurse-submodules` |
+| `private_dot_ssh/private_config` | SSH 连接配置及 IdentityFile 路径 |
+| `dot_vimrc`、`dot_vim/colors/solarized.vim` | 基础 Vim 与配色，不安装插件管理器或插件 |
+| `.xyrevtemplates/Brewfile` | 包含 GPG Suite，避免重复声明 gnupg/pinentry-mac |
+| `.xyrevgpg.toml.tmpl` | 声明原生 GPG 恢复 |
+| `.xyrevtemplates/gpg/` | 个人和 Work 公钥及 age 密文，沿用现有备份密码 |
 
-三个系统钩子是 `run_once_before_00-homebrew.sh.tmpl`、`run_onchange_before_10-packages.sh.tmpl`、`run_onchange_after_20-macos.sh.tmpl`。数字决定同阶段的排序；GPG 恢复在文件部署后、after 钩子前由 xyrev 执行，不再占一个仓库脚本编号。
+三个系统钩子是 `run_once_before_00-homebrew.sh.tmpl`、`run_onchange_before_10-packages.sh.tmpl`、`run_onchange_after_20-macos.sh.tmpl`。数字决定同阶段排序；GPG 恢复在文件部署后、after 钩子前由 xyrev 执行。
 
-GitHub 仓库首次 clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出的规则，设置仓库本地 `user.name`、`user.email`、`user.signingkey`。GitHub 使用个人数据，Gitee/工作域名使用 Work 配置；它不覆盖已有仓库身份，也不是每次操作实时重新选钥。HTTPS 和 SSH 的 URL 模式都在规则内。
+Git clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出的规则，设置仓库本地 `user.name`、`user.email`、`user.signingkey`。GitHub 使用个人数据，Gitee/工作域名使用 Work 配置；它不覆盖已有仓库身份，也不是每次操作实时重新选钥。HTTPS 和 SSH 的 URL 模式都在规则内。
 
 将仓库设为私有不会撤回过去已被下载、缓存或 fork 的副本；加密备份继续使用强、独立的密码，私有访问控制不替代加密。[GitHub 可见性说明](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility)
 
@@ -358,7 +353,7 @@ GitHub 仓库首次 clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.t
 - 已发布 v0.5.0 的 [发布检查](https://github.com/Xyrev/xyrev/actions/runs/39821731785)完成三系统检查、MSRV 和六平台构建。后续本机隔离验证跑通公开安装器以及通过既有 SSH 凭据读取私库的 init/diff/apply/verify/update；该 SSH 验证关闭了系统安装和真实 GPG 恢复，不能宣称所有新机已自动安装或所有 HTTPS 账户已验证。
 - 本轮文档校订以已有源码、发布证据与命令帮助为基线；固定的旧测试总数不再充当持续验收结论。
 
-当前测试策略使用 Rust 单元/集成测试及 Python 测试，不存在已经采用的 proptest/insta/txtar 框架。实际 CI 矩阵、工具链与条件见 [Check 工作流](.github/workflows/ci.yml)和 [Release 工作流](.github/workflows/release.yml)。
+当前测试策略使用 Rust 单元/集成测试及 Python 测试，不存在已经采用的 proptest/insta/txtar 框架。实际 CI 矩阵、工具链与条件见 [Check 工作流](../.github/workflows/ci.yml)和 [Release 工作流](../.github/workflows/release.yml)。
 
 维护代码时使用：
 
@@ -384,17 +379,17 @@ XYREV_BIN=target/debug/xyrev python3 -m unittest discover -s tests -p 'test_gpg_
 | 类型化路径/错误 | PathBuf、运行时校验、anyhow 上下文 | AbsPath/RelPath newtype、thiserror 分类及迁移兼容性 |
 | 并发渲染/秘密请求 | 同步执行、进程内缓存 | Rayon/Tokio 与限流；先定义顺序、提示、缓存和错误安全约束 |
 | 状态统一 | 文件/GPG JSON、脚本 redb | 有明确迁移需求时评估统一存储；保留恢复与兼容路径 |
-| 属性/模板与后端扩展 | 第 2 节明确的有限协议 | GitHub 缩写、更多上游语义或加密集成须单独立项与测试；Go Template 完整兼容不是既有承诺 |
+| 属性/模板与后端扩展 | 第 2 节明确的有限协议 | GitHub 来源简写、更多路径能力或加密集成须单独定义需求、迁移与测试 |
 | 测试工具 | 普通 Rust/Python 测试 | 有收益时增加 property、snapshot 或 txtar 驱动，不能将工具选型等同覆盖完成 |
 | 更顺畅的 GitHub 登录 | 系统 Git/凭据助手和用户先完成的认证 | 可评估 OAuth/device-flow/系统钥匙串引导；当前没有原生登录命令 |
 
 未列入当前能力的方向不应标为已完成，也不应阻塞已支持的 Git URL 初始化和部署。任何后续实现都应先明确兼容约束、状态迁移和可复现的验收条件。
 
-## 8. 资料与维护约定
+## 8. 文档与维护约定
 
-- [上游功能研究](chezmoi-overview.md)、[上游架构研究](chezmoi-internals.md)：解释参考来源，不表示 Rust 全量复刻。
-- [当前用户命令与配置](README.md)、[发布说明](RELEASE_NOTES.md)、[CLI 定义](src/cli/dotfile/mod.rs)：对照已发布使用方式。
-- [chezmoi 文件属性](https://www.chezmoi.io/reference/source-state-attributes/)、[chezmoi 模板](https://www.chezmoi.io/user-guide/templating/)：上游协议参考，版本变化需另行核对。
-- [私有示例仓库](https://github.com/szwathub/dotfiles)：登录授权后读取；匿名 404 属于预期，不应退回公开以绕过认证。
+- [产品概览](dotfile-overview.md)：能力、运行边界及当前 develop 的待发布变化。
+- [实现说明](dotfile-internals.md)：当前 Rust 模块、Plan、JSON/redb 和安全边界。
+- [用户命令与配置](../README.md)、[发布说明](../RELEASE_NOTES.md)、[CLI 定义](../src/cli/dotfile/mod.rs)：区分当前源码与已发布行为。
+- [私有示例仓库](https://github.com/szwathub/dotfiles)：登录授权后读取；匿名 404 属于预期。
 
-修改功能后同步本表、兼容边界和测试证据；修改推荐引导路径时同步 README 入口。保持研究、当前规范和长期规划三种状态清晰，不用未落地 Rust 伪代码代替实现证明。
+修改功能后同步协议、迁移说明和测试证据；修改推荐引导路径时同步 README。将当前能力、待发布变化和长期规划分别记录，不用未落地的结构草图代替实现证明。

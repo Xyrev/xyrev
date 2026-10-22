@@ -2,7 +2,7 @@ use clap::{Args, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
-#[command(about = "Manage dotfiles from a Git repository using chezmoi-style names")]
+#[command(about = "Manage dotfiles from a Git repository")]
 pub struct DotfileCommand {
     /// Local source repository (saved by init)
     #[arg(long, global = true)]

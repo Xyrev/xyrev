@@ -40,36 +40,32 @@ struct Cache {
 
 pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) -> Result<()> {
     let mut resources: BTreeMap<String, Resource> = BTreeMap::new();
-    for prefix in [".chezmoiexternal", ".xyrevexternal"] {
-        for extension in ["json", "yaml", "yml", "toml"] {
-            for suffix in ["", ".tmpl"] {
-                let name = format!("{prefix}.{extension}{suffix}");
-                let path = tree.root.join(&name);
-                if path.exists() {
-                    template::regular(&path)?;
-                    let rendered = engine.render(&name, &fs::read(path)?)?;
-                    let data = template::parse_data(&format!("external.{extension}"), &rendered)?;
-                    resources.extend(serde_json::from_value::<BTreeMap<String, Resource>>(data)?);
-                }
+    for extension in ["json", "yaml", "yml", "toml"] {
+        for suffix in ["", ".tmpl"] {
+            let name = format!(".xyrevexternal.{extension}{suffix}");
+            let path = tree.root.join(&name);
+            if path.exists() {
+                template::regular(&path)?;
+                let rendered = engine.render(&name, &fs::read(path)?)?;
+                let data = template::parse_data(&format!("external.{extension}"), &rendered)?;
+                resources.extend(serde_json::from_value::<BTreeMap<String, Resource>>(data)?);
             }
         }
     }
-    for directory_name in [".chezmoiexternals", ".xyrevexternals"] {
-        let directory = tree.root.join(directory_name);
-        if directory.exists() {
-            if fs::symlink_metadata(&directory)?.file_type().is_symlink() {
-                bail!("External definitions directory cannot be a symlink");
-            }
-            let mut files = fs::read_dir(directory)?.collect::<std::io::Result<Vec<_>>>()?;
-            files.sort_by_key(|entry| entry.file_name());
-            for file in files {
-                template::regular(&file.path())?;
-                let name = file.file_name().to_string_lossy().into_owned();
-                let rendered = engine.render(&name, &fs::read(file.path())?)?;
-                resources.extend(serde_json::from_value::<BTreeMap<String, Resource>>(
-                    template::parse_data(name.strip_suffix(".tmpl").unwrap_or(&name), &rendered)?,
-                )?);
-            }
+    let directory = tree.root.join(".xyrevexternals");
+    if directory.exists() {
+        if fs::symlink_metadata(&directory)?.file_type().is_symlink() {
+            bail!("External definitions directory cannot be a symlink");
+        }
+        let mut files = fs::read_dir(directory)?.collect::<std::io::Result<Vec<_>>>()?;
+        files.sort_by_key(|entry| entry.file_name());
+        for file in files {
+            template::regular(&file.path())?;
+            let name = file.file_name().to_string_lossy().into_owned();
+            let rendered = engine.render(&name, &fs::read(file.path())?)?;
+            resources.extend(serde_json::from_value::<BTreeMap<String, Resource>>(
+                template::parse_data(name.strip_suffix(".tmpl").unwrap_or(&name), &rendered)?,
+            )?);
         }
     }
     for (name, resource) in resources {

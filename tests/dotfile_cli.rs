@@ -6,7 +6,7 @@ fn git_url_init_preview_apply_update_and_idempotency() {
     let sandbox = Sandbox::new(&[
         ("dot_gitconfig", "[user]\nname = Test\n"),
         ("dot_config/fish/config.fish", "set -gx EDITOR vim\n"),
-        (".chezmoiignore", "README.md\n"),
+        (".xyrevignore", "README.md\n"),
         ("README.md", "repository documentation"),
     ]);
     success(sandbox.init(&[]));
@@ -154,13 +154,13 @@ fn malformed_features_and_duplicate_targets_fail_before_writing() {
 fn ignore_rules_use_target_paths_nested_rules_and_exception_priority() {
     let sandbox = Sandbox::new(&[
         (
-            ".chezmoiignore",
+            ".xyrevignore",
             "README.md # comment\n.cache/**\n!.cache/keep.txt\n.cache/*\n",
         ),
         ("README.md", "ignored\n"),
         ("dot_cache/drop.txt", "ignored\n"),
         ("dot_cache/keep.txt", "keep\n"),
-        ("dot_config/.chezmoiignore", "omit\n"),
+        ("dot_config/.xyrevignore", "omit\n"),
         ("dot_config/omit", "ignored\n"),
         ("dot_config/keep", "keep\n"),
         ("literal_dot_literal", "literal name\n"),
@@ -174,6 +174,37 @@ fn ignore_rules_use_target_paths_nested_rules_and_exception_priority() {
     assert!(sandbox.destination.join(".config/keep").exists());
     assert!(sandbox.destination.join("dot_literal").exists());
     assert_eq!(fs::read(sandbox.destination.join(".empty")).unwrap(), b"");
+}
+
+#[test]
+fn hidden_source_metadata_is_ignored_while_encoded_dotfiles_are_managed() {
+    let sandbox = Sandbox::new(&[
+        (".repository-notes.tmpl", "{{ missing_metadata_value }}"),
+        (".repository-cache/dot_accidental", "not a managed dotfile"),
+        ("dot_config/.editor-state", "local metadata"),
+        ("dot_config/dot_visible", "managed dotfile\n"),
+    ]);
+    success(sandbox.init(&[]));
+    let managed = success(sandbox.cli(&["managed"]));
+    assert!(managed.contains(
+        sandbox
+            .destination
+            .join(".config/.visible")
+            .to_str()
+            .unwrap()
+    ));
+    assert!(!managed.contains("repository-notes"));
+    assert!(!managed.contains("accidental"));
+    assert!(!managed.contains("editor-state"));
+    success(sandbox.cli(&["apply"]));
+    assert_eq!(
+        fs::read_to_string(sandbox.destination.join(".config/.visible")).unwrap(),
+        "managed dotfile\n"
+    );
+    assert!(!sandbox.destination.join(".repository-notes.tmpl").exists());
+    assert!(!sandbox.destination.join(".repository-cache").exists());
+    assert!(!sandbox.destination.join(".config/.editor-state").exists());
+    success(sandbox.cli(&["verify"]));
 }
 
 #[test]

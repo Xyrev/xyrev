@@ -30,7 +30,7 @@ complete -c xyrev -n "__fish_xyrev_needs_command" -s V -l version -d 'Print vers
 complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
 complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "agent"
 complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "apple"
-complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "dotfile" -d 'Manage dotfiles from a Git repository using chezmoi-style names'
+complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
 complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "completions" -d 'Generate shell completions from the current command definitions'
 complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "man" -d 'Render the manual, or write all command manuals to a directory'
 complete -c xyrev -n "__fish_xyrev_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
@@ -213,7 +213,7 @@ complete -c xyrev -n "__fish_xyrev_using_subcommand man" -s h -l help -d 'Print 
 complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
 complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "agent"
 complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "apple"
-complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "dotfile" -d 'Manage dotfiles from a Git repository using chezmoi-style names'
+complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
 complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "completions" -d 'Generate shell completions from the current command definitions'
 complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "man" -d 'Render the manual, or write all command manuals to a directory'
 complete -c xyrev -n "__fish_xyrev_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'

@@ -2,6 +2,8 @@
 
 移除独立子命令 `xyrev dotfile encrypt` 和 `xyrev dotfile decrypt`，并同步帮助、补全和 man pages。这是 v0.5.0 之后的兼容性变更，尚未发布新版本；已发布版本的二进制、tag 和安装命令保持原样。
 
+- 控制项和模板指令统一使用 `.xyrev*` 与 `xyrev:template:`，不再自动读取旧命名。升级前需手动改名并检查引用，具体协议见 [设计文档](docs/dotfile-design.md#21-路径和控制文件)。这是待发布变更，已发布 v0.5.0 的安装包和行为不变。
+- 三份 dotfile 文档统一放入 `docs/`：产品概览、实现说明与设计文档；内容以当前 Rust 实现为准。
 - 旧脚本若调用这两个子命令，需要在升级前迁移。普通 dotfile 继续使用 `add --encrypt`、`edit` 和 `apply`；GPG 密钥继续使用原生 `gpg backup` / `gpg restore` 或自动恢复声明；其他文件加解密交给相应工具。
 - 保留内部 age/GPG 加密、密码处理、`keygen`、既有密文及 GPG 备份兼容。删除 CLI 入口不要求重新备份或重新加密。
 - 下方 v0.5.0 及更早版本是已发布历史，不能据其历史说明推断当前 develop 仍提供独立加解密入口。旧 GPG Shell 钩子应迁移到 v0.5.0 的原生恢复声明，不再调用独立加解密子命令。
@@ -64,7 +66,7 @@ xyrev dotfile verify
 
 首次发布完整的 Git 驱动 dotfiles 管理流程：从 Git URL 初始化仓库，预览、部署、校验和更新配置，并在缺少 Git 时提供安装引导。
 
-- 支持 chezmoi 风格路径属性、MiniJinja 模板、本机数据和初始化提示。
+- 支持 xyrev 路径属性、MiniJinja 模板、本机数据和初始化提示。
 - 支持 before / after、once / onchange 脚本、外部资源与 SHA-256、子模块、内置 Git、备份和冲突处理。
 - 提供 add / edit、age / GPG 加密、秘密提供器、归档及诊断命令。
 - 修复安装脚本的仓库与包名，安装 xyrev 无需预装 Git、Rust 或 Homebrew；发布包校验成功后才替换已有程序。
