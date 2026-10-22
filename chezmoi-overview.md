@@ -1,127 +1,72 @@
-# chezmoi 仓库分析文档
+# chezmoi 概览与 xyrev 兼容对照
 
-## 1. 项目概览
+> 本轮整理：2026-10-23；xyrev 对照版本：v0.5.0。本文是上游 `twpayne/chezmoi` 的研究概览，以及本仓库已采用能力的对照，不是完整复刻 chezmoi 的需求清单。上游资料链接可能随版本变化，不以未固定版本的 stars、代码行数或功能数量判断实现范围。
+>
+> 当前 xyrev 的协议、验收与新机器操作以 [实现设计](chezmoi-rust-implementation.md)、[README](README.md) 和 `xyrev dotfile --help` 为准。更详细的上游技术分析及 Rust 模块映射见 [internals](chezmoi-internals.md)。
 
-**chezmoi**(法语"在我家"之意)是一个跨平台的 **dotfiles 管理工具**,目标是在多台异构机器上安全地管理个人配置文件(如 `~/.gitconfig`、`~/.zshrc` 等)。
+## 1. 上游项目定位
 
-- **仓库**: [twpayne/chezmoi](https://github.com/twpayne/chezmoi)
-- **语言**: Go (~95.6%),少量 Go Template / Shell / PowerShell / Python
-- **License**: MIT
-- **规模**: ~19k stars,623 forks,5,600+ commits,248+ releases — 成熟且活跃维护
-- **官方文档**: https://www.chezmoi.io
+[chezmoi](https://github.com/twpayne/chezmoi) 是以 Go 编写、采用 MIT 许可证的 dotfiles 管理工具。它用 source state 表达配置来源，按机器数据计算期望状态，再与实际目标比较并部署。它适合维护不同机器、操作系统或个人/工作身份之间既共享又存在差异的配置。参见 [上游项目说明](https://github.com/twpayne/chezmoi#readme)与[官方概念文档](https://www.chezmoi.io/reference/concepts/)。
 
----
+本文保留 `chezmoi`、`.chezmoi*` 和上游 Go 路径，是为了准确描述研究对象。xyrev 的命令入口是 `xyrev dotfile`，运行配置和模板数据使用 xyrev 命名。
 
-## 2. 解决的核心问题
+## 2. 核心模型
 
-传统 dotfiles 方案(裸 git、stow、symlink 脚本)在面对以下场景时通常会失效:
+| 概念 | 上游含义 | 对 xyrev 的启发 |
+|---|---|---|
+| Source state | 维护的文件、模板、密文、脚本和外部资源声明 | Git 仓库作为可追踪的配置来源 |
+| Target state | 根据数据、模板与解密结果计算出的期望状态 | 先生成统一计划，再决定目标变更 |
+| Actual state | destination 中现存的文件、权限及链接 | 比较实际状态、期望状态和上次成功基线 |
+| Attributes | `dot_`、`private_`、`encrypted_`、`run_`、`.tmpl` 等路径属性 | 路径编码映射与行为，避免逐文件目标清单 |
 
-- 同一份配置要部署到 **不同 OS / 不同主机名 / 不同身份(work vs personal)**
-- 配置中混入 **机密信息**(token、SSH key、密码)
-- 新机器需要 **一键 bootstrap**
-- 配置文件需要在不同位置 **小幅差异化**
+这种模型使配置内容与部署动作可以分别检查。文件权限属性与加密是不同能力：`private_` 限制目标权限，不会加密仓库内容。属性定义参见 [chezmoi source state attributes](https://www.chezmoi.io/reference/source-state-attributes/)。
 
-chezmoi 用 **声明式 source state → target state** 的模型 + 模板 + 加密 + 密码管理器集成,系统化地解决了这些问题。
+## 3. 上游能力与依赖
 
----
-
-## 3. 核心概念
-
-| 概念 | 含义 |
+| 上游能力 | 研究要点 |
 |---|---|
-| **Source state** | 仓库里维护的"事实源"(通常 `~/.local/share/chezmoi`),含模板、加密文件、脚本等 |
-| **Target state** | 在目标机器上 **应该呈现的状态**(由 source state 经过模板渲染、解密后计算得到) |
-| **Destination** | 实际写入的位置(通常是 `$HOME`) |
-| **Attributes** | 通过文件名前缀编码元数据,如 `private_`、`executable_`、`encrypted_`、`run_`、`dot_`(替代 `.`)、`.tmpl` 等 |
+| 模板 | 使用 Go `text/template` 和 Sprig，并提供机器数据及辅助函数；参见[模板文档](https://www.chezmoi.io/user-guide/templating/) |
+| 加密 | 提供 age、gpg 等配置；git-crypt/transcrypt 属于外部透明 Git 加密工具的集成，不应笼统写成内置加密实现；参见[加密](https://www.chezmoi.io/user-guide/encryption/)及[透明加密](https://www.chezmoi.io/user-guide/encryption/transparent/) |
+| 秘密服务 | 模板可调用 1Password、Bitwarden、pass 等服务；各提供器有自己的安装和登录要求；参见[密码管理器](https://www.chezmoi.io/user-guide/password-managers/) |
+| 脚本 | `run_`、`run_once_`、`run_onchange_` 表达执行条件，before/after 表达阶段；参见[脚本](https://www.chezmoi.io/user-guide/use-scripts-to-perform-actions/) |
+| 外部资源 | 用声明取得文件、归档或其他来源；参见[外部文件](https://www.chezmoi.io/user-guide/include-files-from-elsewhere/) |
+| 初始化 | 支持配置模板、仓库 URL 猜测、可选 apply 和 one-shot 等上游参数；参见[`init`](https://www.chezmoi.io/reference/commands/init/) |
 
-整个 `apply` 操作就是:**计算 target state,与 destination 对比,做最小变更**。
+单个可执行文件便于分发，但不能据此承诺任何仓库都没有运行时依赖。SSH 传输、GPG、密码管理器、子模块、LFS 和仓库自带的安装脚本，都可能需要外部程序、账户权限或管理员交互。内置 Git/age 后端的存在也不提供私有仓库凭据。
 
----
+## 4. xyrev v0.5.0 兼容对照
 
-## 4. 主要特性
+以下“已实现”描述本仓库能力，不表示上游相同名称的每个参数、模板函数和存储格式均兼容。
 
-- **Go Template 模板系统** — 按主机名/OS/架构/自定义变量产出差异化文件
-- **加密支持** — 原生集成 `age`、`gpg`、`git-crypt`、`transcrypt`
-- **密码管理器集成** — 1Password、Bitwarden、LastPass、pass、KeePassXC、Vault 等
-- **脚本执行** — `run_once_`、`run_onchange_` 前缀脚本,用于安装包、初始化环境
-- **归档导入** — 直接从 tar/zip 安装 vim/zsh 插件
-- **单二进制零依赖** — 静态链接,无需 root
-- **一键 bootstrap** — `sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply <github-user>`
-- **跨平台** — Linux / macOS / Windows / *BSD
+| 能力 | xyrev 当前状态 | 兼容边界 |
+|---|---|---|
+| Git URL 初始化与更新 | 已实现 HTTPS、SSH、绝对 `file://` URL、分支、子模块、快进更新与工作树保护 | 要求完整 URL；不提供上游用户名猜测、one-shot 或 purge 参数 |
+| 路径和控制文件 | 已实现主要路径属性、ignore/remove/data/templates/scripts/external、root/version 与初始化配置 | 首选 `.xyrev*`；接受文档列出的 `.chezmoi*` 别名，不代表未知控制文件或任意属性组合均受支持 |
+| 预览、部署和维护 | 已实现 diff/status/managed/apply/update、add/edit/unmanaged、verify/doctor/data/cd 等 | 命令参数以 xyrev 帮助为准，不接受任意上游命令的直接替换 |
+| 模板 | 已实现 MiniJinja、include、本机数据、初始化提示与编码/换行指令 | Go Template/Sprig 需要迁移；`{{ .chezmoi.os }}` 改为 `{{ xyrev.os }}`，不是自动转换 |
+| 脚本与状态 | 已实现 once/onchange、阶段顺序、成功后记录及失败重试 | 文件/GPG 基线为 JSON，脚本状态为 redb；不能直接读取上游 bbolt 状态 |
+| 加密文件与秘密服务 | 已实现 age、GPG 子进程、加密导入/编辑和 README 列出的服务适配 | 需要相应密钥或已认证的外部 CLI；不提供 git-crypt/transcrypt 透明加密模式，也未覆盖全部上游提供器及函数 |
+| 外部资源与归档 | 已实现文件、归档、归档内文件、Git 资源、过滤、校验、缓存和 tar/tgz/zip 导出 | 按 xyrev 声明格式使用，不假定上游所有资源选项都等价 |
+| 冲突与平台 | 已实现三方比较、备份覆盖、原子文件替换、终端冲突确认及平台权限处理 | macOS/Linux/Windows 由项目测试和 CI 验证；链接、ACL、解释器等差异仍按平台说明使用 |
+| GPG 密钥备份与恢复 | v0.5.0 已提供原生命令及 `.xyrevgpg.toml[.tmpl]` 声明，兼容既有密码加密备份 | 这是 xyrev 的通用能力；不能用上游普通 `encrypted_` 文件流程替代选钥、完整性校验和恢复状态管理 |
 
----
+“已实现”与“完全兼容”需要分别判断：路径命名可以沿用，模板语法和配置字段仍可能需要迁移。具体支持集合、CLI 和测试范围见 [实现设计](chezmoi-rust-implementation.md)及 [README](README.md)。
 
-## 5. 关键命令
+明确未支持的范围包括直接执行 Go Template、完整 Sprig/chezmoi 函数兼容、透明 Git 加密后端、上游用户名式 init 和 one-shot/purge，以及未列出的上游命令或提供器。它们没有因研究文档出现而自动成为当前产品承诺。
 
-| 命令 | 作用 |
-|---|---|
-| `chezmoi init [repo]` | 初始化 / clone 你的 dotfiles 仓库 |
-| `chezmoi add <file>` | 把现有文件纳入管理 |
-| `chezmoi edit <file>` | 编辑 source 中的对应文件 |
-| `chezmoi diff` | 预览将对 destination 做的变更 |
-| `chezmoi apply` | 把 target state 写入 destination |
-| `chezmoi status` | 查看哪些文件待变更 |
-| `chezmoi update` | `git pull` + `apply` |
-| `chezmoi managed` / `unmanaged` | 列出受/未受管理的文件 |
-| `chezmoi execute-template` | 调试模板渲染 |
-| `chezmoi cd` | 进入 source 目录子 shell |
+workspace 多 crate 拆分、统一 Vfs 装饰器层等属于长期可选结构；当前保持单 crate 和共享 `Plan`。结构重构不等于补齐用户功能，也不应把草图名称写成已存在的 Rust 模块。
 
----
+## 5. 本仓库的新机器流程
 
-## 6. 代码结构
+`Xyrev/xyrev` 的程序与发行包公开，`szwathub/dotfiles` 为私有仓库，现有 GPG 密文仍保存在该仓库内。新机器先安装公开 xyrev，准备 Git/Command Line Tools，并完成 Git 仓库认证，再初始化、预览和部署。当前推荐 HTTPS 凭据预缓存流程及 SSH 替代方案统一见 [新 Mac：从公开安装到私有仓库恢复](chezmoi-rust-implementation.md#3-新-mac从公开安装到私有仓库恢复)。
 
-```
-chezmoi/
-├── main.go / main_test.go     # 入口
-├── internal/
-│   ├── chezmoi/               # 核心库:source/target state、文件系统抽象、模板引擎
-│   ├── cmd/                   # CLI 命令实现(cobra 子命令)
-│   ├── cmds/                  # 命令辅助/生成
-│   ├── chezmoigit/            # Git 操作封装
-│   ├── chezmoibubbles/        # 基于 Bubble Tea 的 TUI 组件
-│   ├── chezmoierrors/         # 自定义错误类型
-│   ├── chezmoilog/            # 日志
-│   ├── chezmoiset/            # 通用 Set 数据结构
-│   ├── chezmoiassert/         # 测试断言辅助
-│   ├── chezmoitest/           # 测试夹具
-│   └── archivetest/           # 归档相关测试工具
-├── completions/               # 各 shell 补全脚本
-├── assets/                    # 品牌素材
-├── .config/                   # 项目自身配置(linter 等)
-└── .github/                   # CI/CD workflows
-```
+GitHub 认证、GPG 备份密码、GPG 私钥原口令各有用途：认证先取得仓库，原备份密码再恢复个人和 Work 两把主密钥，实际签名仍可能需要原私钥口令。无需为恢复现有备份重新加密，也不能依赖尚未克隆的备份完成首次 Git 登录。
 
-**架构要点**:
-- 大量逻辑放在 `internal/chezmoi`,围绕 **抽象文件系统接口** 设计,便于测试与 dry-run
-- CLI 层用 **Cobra**;TUI 交互用 **Bubble Tea**
-- 测试覆盖率很高,使用 **txtar / scripttest** 风格的端到端脚本测试
+README 和实现设计维护可执行步骤，包括 HTTPS/PAT 的本机凭据助手、SSH 登录密钥、子模块、管理员权限、预览、恢复失败重试及双密钥验签。本文不另维护一套重复的安装命令。
 
----
+## 6. 上游阅读入口
 
-## 7. 设计亮点
-
-1. **声明式而非命令式** — 你描述"应该是什么",chezmoi 计算 diff 并收敛
-2. **文件名即元数据** — 不用额外配置文件就能表达权限、加密、模板、脚本类别等属性
-3. **幂等的脚本钩子** — `run_once_` / `run_onchange_` 通过 hash 决定是否再次执行
-4. **零运行时依赖** — Go 静态二进制,新机器 `curl | sh` 即可
-5. **测试友好** — 抽象 FS + 大量 golden test,使得跨平台行为高度可验证
-6. **渐进式采用** — 可以从单文件 `chezmoi add` 开始,逐步引入模板、加密、脚本
-
----
-
-## 8. 适用场景
-
-- 维护多台开发机/服务器的统一(但不完全相同)配置
-- 需要把含密钥的配置安全地版本化
-- 团队成员需要快速 bootstrap 一致的开发环境
-- 需要根据 OS/角色生成略有差异的同一份配置文件
-
-## 9. 局限 / 注意
-
-- 学习曲线高于裸 git:模板语法、属性前缀、source/target 心智模型需要时间
-- 复杂模板调试依赖 `chezmoi execute-template` 与 `--verbose`
-- 加密功能依赖外部工具(age/gpg 等),仍需在每台机器配置密钥
-
----
-
-**一句话总结**:chezmoi 把 dotfiles 管理从"脚本拷贝 + 手动 patch"提升为"带模板与加密的声明式状态收敛系统",是目前 dotfiles 管理领域功能最完整、工程质量最高的开源工具之一。
+- [项目仓库](https://github.com/twpayne/chezmoi)：入口、许可证和源码。
+- [官方概念](https://www.chezmoi.io/reference/concepts/)与[属性协议](https://www.chezmoi.io/reference/source-state-attributes/)：理解 source/target 与命名规则。
+- [模板](https://www.chezmoi.io/user-guide/templating/)、[加密](https://www.chezmoi.io/user-guide/encryption/)和[`init`](https://www.chezmoi.io/reference/commands/init/)：核对特定版本的实际语义。
+- [源码技术分析](chezmoi-internals.md)：上游实现思路与 xyrev 当前模块之间的对应关系。

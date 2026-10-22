@@ -18,9 +18,9 @@ xyrev --version
 
 ## 新 Mac 初始化私有 dotfiles
 
-`Xyrev/xyrev` 和发行包保持公开，以上安装命令可匿名使用；`szwathub/dotfiles` 是私有仓库，初始化前需要有仓库访问权的 GitHub 账户。Git 认证用于下载仓库，GPG 备份密码用于解密密钥，两者独立。`init` 发生在软件安装之前，不能依赖后续 `apply` 安装的 Homebrew、GitHub CLI 或 GPG 来完成首次 Git 认证。
+`Xyrev/xyrev` 和发行包保持公开，以上安装命令可匿名使用；`szwathub/dotfiles` 是私有仓库，初始化前需要有仓库访问权的 GitHub 账户。Git 认证用于下载仓库，GPG 备份密码用于解密密钥，两者独立。`init` 发生在软件安装之前，不能依赖后续 `apply` 安装的 Homebrew、GitHub CLI 或 GPG 来完成首次 Git 认证。首次推荐 HTTPS，SSH 作为可选方式；完整步骤、密码用途和恢复边界见[新 Mac 流程](chezmoi-rust-implementation.md#3-新-mac从公开安装到私有仓库恢复)。
 
-### 先准备 Git 和 SSH（推荐）
+### 准备 Git
 
 在 macOS Terminal 的 zsh 中操作。先检查 `git --version`；如果提示缺少开发工具，运行：
 
@@ -34,7 +34,20 @@ xcode-select --install
 git --version
 ```
 
-使用系统自带的 OpenSSH，新机器不需要先安装 Homebrew 或 `gh`。下面沿用仓库 SSH 配置中的 `~/.ssh/github_rsa` 路径，生成的算法仍是 Ed25519。已有同名私钥或公钥时，先检查并复用，保留原文件；只在两者都不存在时生成新密钥：
+### HTTPS 认证（首次推荐）
+
+首次下载采用 HTTPS，不依赖尚未取得的 SSH 或 GPG 密钥。在浏览器创建仅授权 `szwathub/dotfiles`、具有 Contents 读取权限的 [fine-grained PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)；推送时另需写权限。先让 macOS Keychain 缓存凭据：
+
+```bash
+git config --global credential.https://github.com.helper osxkeychain
+git ls-remote https://github.com/szwathub/dotfiles.git HEAD
+```
+
+在 Git 的交互提示中输入 GitHub 用户名，Password 位置粘贴 PAT；不要输入账户登录密码，也不要将 PAT 放入 URL、命令参数或环境变量。预检成功应返回 HEAD 的提交哈希。默认系统 Git 后端关闭终端凭据提示，所以必须先完成该预缓存步骤；浏览器登录本身不会为 Git 提供凭据。凭据助手见 [Git 官方文档](https://git-scm.com/docs/gitcredentials)。
+
+### SSH 认证（可选）
+
+已有独立 SSH 登录密钥或准备为新机生成密钥时，也可选择 SSH。使用系统自带的 OpenSSH，不需要先安装 Homebrew 或 `gh`。下面沿用仓库 SSH 配置中的 `~/.ssh/github_rsa` 路径，生成的算法仍是 Ed25519。已有同名私钥或公钥时，先检查并复用，保留原文件；只在两者都不存在时生成新密钥：
 
 ```bash
 mkdir -p "$HOME/.ssh"
@@ -66,16 +79,19 @@ git ls-remote git@github.com:szwathub/dotfiles.git HEAD
 
 ### 初始化、预览和部署
 
-SSH 预检成功后执行。个人完整主指纹让 GPG 选择可用的签名子密钥；工作密钥也会从同一份备份恢复：
+完成所选协议的仓库预检后执行。下面采用 HTTPS；选择 SSH 时，将 URL 换为 `git@github.com:szwathub/dotfiles.git`：
 
 ```bash
-xyrev dotfile init git@github.com:szwathub/dotfiles.git --recurse-submodules \
-  --data git_signing_key=2BF609784E75AAC78CB67A7E465799B005224003
+xyrev dotfile init https://github.com/szwathub/dotfiles.git --recurse-submodules
 xyrev dotfile diff
 sudo -v
 xyrev dotfile apply
 xyrev dotfile verify
 ```
+
+`--data git_signing_key=...` 是可选的个人 Git 签名默认值，也可在初始化提示中选择；它不是 Git 认证或密钥恢复前置。工作密钥会从同一份备份恢复，仓库签名身份由 dotfiles 的 URL 匹配规则设置。
+
+HTTPS 凭据配置可能使 `~/.gitconfig` 在首次 apply 时出现冲突；先查看 diff，再选择备份覆盖，非交互时可核对后显式使用 `apply --force`。部署后的 macOS Git 配置仍启用 `osxkeychain`，凭据留在 Keychain 中。
 
 初始化时核对 Git 姓名、邮箱和 Homebrew prefix（Apple Silicon 默认 `/opt/homebrew`，Intel 默认 `/usr/local`）。查看 `diff` 后再部署；完整 HOME 部署会安装软件和修改仓库声明的 macOS 设置。`sudo -v` 在本机准备管理员权限，xyrev 本身仍以当前用户运行。`apply` 依次检查或安装 Homebrew、安装 Brewfile（含 GPG Suite）、部署文件、隐藏提示 GPG 备份密码并恢复个人/Work 密钥，最后设置 macOS 偏好；受口令保护的原私钥可能另有 pinentry 提示。当前密码备份无需 agekey。
 
@@ -96,18 +112,7 @@ done
 rm -r -- "$xyrev_gpg_check_dir"
 ```
 
-两次验签都应显示对应个人/Work 身份的 `Good signature`。`xyrev dotfile verify` 检查部署状态，实际签名确认私钥可用。日常同步运行 `xyrev dotfile update`；新 Terminal 如未加载 SSH 密钥，先重新执行上述 `ssh-add`。
-
-### HTTPS 认证替代
-
-若选择 HTTPS，在浏览器创建仅授权 `szwathub/dotfiles`、具有 Contents 读取权限的 [fine-grained PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)；推送时另需写权限。先让 macOS Keychain 缓存凭据：
-
-```bash
-git config --global credential.https://github.com.helper osxkeychain
-git ls-remote https://github.com/szwathub/dotfiles.git HEAD
-```
-
-在 Git 的交互提示中输入 GitHub 用户名，Password 位置粘贴 PAT；不要输入账户登录密码，也不要将 PAT 放入 URL、命令参数或环境变量。预检成功后，将上面 `init` 的仓库地址替换为 `https://github.com/szwathub/dotfiles.git`，其余步骤相同。xyrev 的 Git 子进程关闭终端凭据提示，所以必须先完成该预缓存步骤；凭据助手见 [Git 官方文档](https://git-scm.com/docs/gitcredentials)。
+两次验签都应显示对应个人/Work 身份的 `Good signature`。`xyrev dotfile verify` 检查文件计划与已记录的恢复摘要，不检查之后手动删掉的 keyring 条目；实际签名确认私钥可用。日常同步运行 `xyrev dotfile update`；HTTPS 凭据过期先重新预缓存，选择 SSH 时若新 Terminal 未加载密钥则重新执行 `ssh-add`。
 
 ## 从源码构建
 
@@ -258,7 +263,7 @@ GPG 使用本机 `gpg`，配置 `backend='gpg'`、`gpg_recipient` 或使用 `--b
 
 通用钩子仍可使用 `"$XYREV_EXECUTABLE" dotfile encrypt/decrypt`；独立加解密不争用部署锁，其他写操作受锁保护。GPG 密钥备份与恢复使用下述原生命令和声明配置，无需仓库中的备份/恢复脚本。
 
-预览不执行 run hooks、不更新目标、部署状态或缓存；渲染模板仍会调用秘密提供器，`modify_` 转换脚本会在私有临时工作目录中执行。部署和预览都应使用可信仓库。diff 和 archive 包含渲染后的明文，请按目标文件的敏感程度保存。
+预览时 xyrev 不执行 run hooks、不写目标、部署状态或持久缓存；渲染模板仍会调用秘密提供器，`modify_` 转换脚本会在私有临时工作目录中执行。这些外部程序没有被沙箱限制，仍可能有自己的副作用。部署和预览都应使用可信仓库。diff 和 archive 包含渲染后的明文，请按目标文件的敏感程度保存。
 
 ## GPG 密钥备份与恢复
 
@@ -287,7 +292,7 @@ passphrase_file = {{ gpg_passphrase_file | default('') | tojson }}
 
 配置仅包含路径和开关，密码文件必须在仓库外。`apply` / `init --apply` / `update` 依次执行 before 钩子、部署文件、原生 GPG 恢复和 after 钩子；因此可先安装 GPG Suite，再恢复密钥，最后执行系统设置。恢复到 HOME 的 `~/.gnupg`，独立 destination 跳过自动恢复。只有完整成功后才记录恢复摘要；失败可重试，重复部署不重复导入，备份变化后会重新恢复。
 
-`diff`、`status`、`apply --dry-run` 只显示待恢复项，不询问密码或运行 GPG；`verify` 会报告尚未成功恢复的备份。支持文件与声明不会作为普通 dotfile 部署或进入 archive。显式 `gpg restore` 可再次导入备份。只同步普通配置时，仓库可将 `enabled` 绑定到 `restore_gpg` 数据，并使用 `--data restore_gpg=false`。
+对于原生 GPG 恢复计划，`diff`、`status`、`apply --dry-run` 只显示待恢复项，不询问备份密码或运行 GPG；普通加密文件仍可能需要解密。`verify` 会报告尚未成功恢复的备份。GPG 声明和默认 `.xyrevtemplates/gpg/` 控制目录中的支持文件不会作为普通 dotfile 部署或进入 archive；自定义备份目录需另行放在控制目录或明确排除。显式 `gpg restore` 可再次导入备份。只同步普通配置时，仓库可将 `enabled` 绑定到 `restore_gpg` 数据，并使用 `--data restore_gpg=false`。
 
 ## 外部资源与归档
 

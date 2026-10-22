@@ -1,526 +1,169 @@
-# chezmoi 源码深度解析
+# chezmoi 技术研究与 xyrev 实现映射
 
-> 基于对仓库 `internal/chezmoi` 与 `internal/cmd` 子树的实际代码阅读。所有路径均相对于仓库根。
+> 本轮整理：2026-10-23；xyrev 对照版本：v0.5.0。本文保留上游 chezmoi 的架构研究，用于解释设计来源；Go 类型、`internal/chezmoi` 和 `internal/cmd` 路径均属于 `twpayne/chezmoi`，不是本仓库 Rust 路径。
+>
+> 本文不提供未固定版本的源码行号或规模断言。上游链接指向官方源码/文档，后续可能变化；伪代码只表达控制关系，省略参数、错误处理和版本差异，不是逐字摘录，也不是可直接编译的当前源码。xyrev 的实际能力以 [实现设计](chezmoi-rust-implementation.md)、[README](README.md) 和 CLI 帮助为准。
 
----
+## 1. 三层状态与惰性求值
 
-## 0. 整体架构:三层状态 + 装饰器文件系统
+上游将源描述、期望结果和实际磁盘状态分开。`SourceStateEntry` 表达来源及求值入口，`TargetStateEntry` 提供应用和跳过判定，actual entry 描述当前磁盘；文件、目录、脚本、链接及删除操作分别建模。源码入口为 [sourcestateentry.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/sourcestateentry.go) 和 [targetstateentry.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/targetstateentry.go)。
 
-chezmoi 的整个执行模型可以浓缩成两个核心抽象:
+```text
+source entry
+    │ 数据、模板、解密、外部资源
+    ▼
+target entry ── 与 actual / 上次成功状态比较 ──▶ 应用选定变更
+```
 
-1. **三层状态机**
+保留求值函数和内容摘要，可以推迟读取、渲染或解密，并复用结果。上次成功状态为本地编辑检测提供基线；它是部署记录，不是所有文件系统操作都能自动回滚的事务。
 
-   ```
-   SourceStateEntry  ──模板渲染/解密──▶  TargetStateEntry  ──reconcile──▶  ActualStateEntry
-        (源)                                  (目标应有)                       (磁盘现状)
-   ```
-
-2. **装饰器模式的 `System` 接口**:所有文件系统操作走同一个 `System` 接口,`apply` / `diff` / `dry-run` / `archive` / `debug` 共用同一份 reconcile 代码,只是替换了底层 `System` 实现。
-
-加上一个 **bbolt 持久化层** 记录脚本运行状态和"上次写入的 EntryState",就构成了 chezmoi 的全部骨架。
-
----
-
-## 1. Source State → Target State 模型
-
-### 涉及文件
-- `internal/chezmoi/sourcestate.go`(3000+ 行,核心)
-- `internal/chezmoi/sourcestateentry.go`
-- `internal/chezmoi/targetstateentry.go`
-- `internal/chezmoi/actualstateentry.go`
-- `internal/chezmoi/sourcestatetreenode.go`
-
-### 关键接口
+以下 Go 风格伪代码仅用于说明边界；其中函数名是示意，不是上游 API：
 
 ```go
-// sourcestateentry.go
-type SourceStateEntry interface {
-    slog.LogValuer
-    Evaluate() error
-    Order() ScriptOrder
-    Origin() SourceStateOrigin
-    SourceRelPath() SourceRelPath
-    TargetStateEntry(destSystem System, destDirAbsPath AbsPath) (TargetStateEntry, error)
-}
+wanted := evaluate(source, machineData)
+found := inspect(destination)
+changes := compare(wanted, found, lastSuccess)
+applySelected(changes, system)
+recordSuccessful(changes, persistentState)
 ```
 
-实现类型:
-- `SourceStateFile` / `SourceStateDir` / `SourceStateImplicitDir` / `SourceStateRemove` / `SourceStateCommand`
-- 对应 target: `TargetStateFile` / `TargetStateDir` / `TargetStateSymlink` / `TargetStateScript` / `TargetStateRemove` / `TargetStateModifyDirWithCmd`
-- 对应 actual: `ActualStateFile` / `ActualStateDir` / `ActualStateSymlink` / `ActualStateAbsent`
+实际错误路径必须只记录成功项。上面的简化顺序不代表发生中途错误后可以把整个计划标记成功。
 
-### 实现原理
+## 2. 路径属性解析
 
-**Read 阶段**(`SourceState.Read`,sourcestate.go:999):递归遍历 `~/.local/share/chezmoi`,根据每个文件名分发处理:
-- 特殊文件(`.chezmoidata.*`、`.chezmoitemplates`、`.chezmoiexternal.*`、`.chezmoiignore`、`.chezmoiremove`、`.chezmoiscripts`、`.chezmoiversion`)走专用解析路径
-- 普通文件/目录调用 `parseFileAttr` / `parseDirAttr` 解析文件名属性,构造对应的 `SourceStateEntry` 并插入 `SourceStateEntryTreeNode`(一棵以 target 路径为索引的树)
+上游 [attr.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/attr.go) 区分文件类型、脚本条件和阶段，按适用对象解析有序属性。不能任意打乱或组合前缀后假定含义相同。规范以 [source state attributes](https://www.chezmoi.io/reference/source-state-attributes/) 为准。
 
-**Apply 阶段**(sourcestate.go:765,简化):
-
-```go
-sourceStateEntry := s.root.Get(targetRelPath)
-targetStateEntry, _ := sourceStateEntry.TargetStateEntry(destSystem, destAbsPath)
-targetEntryState, _ := targetStateEntry.EntryState(options.Umask)
-
-if skip, _ := targetStateEntry.SkipApply(persistentState, targetAbsPath); skip {
-    return nil
-}
-actualStateEntry, _ := NewActualStateEntry(targetSystem, targetAbsPath, nil, nil)
-
-// preApplyFunc 做三方比较: target vs lastWritten vs actual
-// 用于检测「上次 apply 后用户在目标位置又手动改过」的冲突
-
-if changed, err := targetStateEntry.Apply(targetSystem, persistentState, actualStateEntry); ...
-return PersistentStateSet(persistentState, EntryStateBucket, targetAbsPath.Bytes(), targetEntryState)
-```
-
-**原理总结**:
-- `SourceState` 把"源仓库里有什么"解析成树
-- `TargetStateEntry` 是惰性求值的:只有调用 `TargetStateEntry()` 时才会渲染模板、解密、读取外部资源
-- 每次 apply 完成后把 `EntryState`(含内容 SHA-256)写入 bbolt 的 `EntryStateBucket`,下一次 apply 用它做 **三方合并** 检测人为修改
-
----
-
-## 2. 文件名属性编码 (`dot_`, `private_`, `run_once_`, …)
-
-### 涉及文件
-- `internal/chezmoi/attr.go`(403 行)
-- 前缀常量定义在 `internal/chezmoi/chezmoi.go:37-57`
-
-### 前缀字典
-
-```go
-afterPrefix      = "after_"
-beforePrefix     = "before_"
-createPrefix     = "create_"
-dotPrefix        = "dot_"
-emptyPrefix      = "empty_"
-encryptedPrefix  = "encrypted_"
-exactPrefix      = "exact_"
-executablePrefix = "executable_"
-externalPrefix   = "external_"
-literalPrefix    = "literal_"
-modifyPrefix     = "modify_"
-oncePrefix       = "once_"
-onChangePrefix   = "onchange_"
-privatePrefix    = "private_"
-readOnlyPrefix   = "readonly_"
-removePrefix     = "remove_"
-runPrefix        = "run_"
-symlinkPrefix    = "symlink_"
-literalSuffix    = ".literal"
-TemplateSuffix   = ".tmpl"
-```
-
-### 解析算法
-
-`parseFileAttr` 是一台 **有序前缀剥离状态机**:先识别"文件类型前缀"(`create_` / `remove_` / `run_` / `symlink_` / `modify_`),不同类型有不同的合法子前缀集合。例如 `run_` 之后能继续吃 `once_` / `onchange_`,再吃 `before_` / `after_`:
-
-```go
-case strings.HasPrefix(name, runPrefix):
-    sourceFileType = SourceFileTypeScript
-    name = name[len(runPrefix):]
-    switch {
-    case strings.HasPrefix(name, oncePrefix):
-        name = name[len(oncePrefix):]; condition = ScriptConditionOnce
-    case strings.HasPrefix(name, onChangePrefix):
-        name = name[len(onChangePrefix):]; condition = ScriptConditionOnChange
-    default:
-        condition = ScriptConditionAlways
-    }
-    switch {
-    case strings.HasPrefix(name, beforePrefix): order = ScriptOrderBefore
-    case strings.HasPrefix(name, afterPrefix):  order = ScriptOrderAfter
-    }
-```
-
-普通文件则按 `encrypted_ → private_ → readonly_ → empty_ → executable_` 的固定顺序剥离;然后把名字前缀 `dot_` 还原成 `.`,后缀 `.tmpl` 标记为模板,`.literal` 表示字面量(允许文件名包含 `dot_` 等字面字符串),`.age` 等加密后缀在 `encrypted_` 出现时被剥离。
-
-最后由 `FileAttr.perm()` 计算 Unix 权限:
-
-```
-基础 0o666
-| 0o111   if executable
-&^ 0o077  if private    // 只有 owner 可读写
-&^ 0o222  if readonly
-```
-
-**原理**:文件名本身就是元数据载体,从而做到"仓库即真相",不需要任何 sidecar manifest。
-
----
-
-## 3. 模板引擎
-
-### 涉及文件
-- `internal/chezmoi/template.go`(`Template` 包装器和指令解析)
-- `internal/chezmoi/templatefuncs.go`(基础函数)
-- `internal/cmd/*templatefuncs.go`(每个秘密管理器/外部工具一个文件)
-- `internal/cmd/config.go`(注册函数和 `chezmoi.*` 数据)
-
-### 函数表构造
-
-`config.go:377` 起,chezmoi 以 **sprig** 的 `TxtFuncMap()` 为基础,然后通过 `addTemplateFunc` 叠加自定义函数。每个秘密管理器(Bitwarden、1Password、KeePassXC、Vault、pass、gopass、LastPass、keyring、AWS Secrets Manager、Azure Key Vault……)都贡献自己的函数。
-
-### 渲染主循环
-
-```go
-// sourcestate.go:870
-tmpl, _ := ParseTemplate(options.NameRelPath.String(), options.Data, templateOptions)
-for _, t := range s.templates {                 // .chezmoitemplates 下的 partial
-    tmpl, _ = tmpl.AddParseTree(t)
-}
-templateData := s.TemplateData()
-if chezmoiTemplateData, ok := templateData["chezmoi"].(map[string]any); ok {
-    chezmoiTemplateData["sourceFile"] = options.NameRelPath.String()
-    chezmoiTemplateData["targetFile"] = options.DestAbsPath.String()
-}
-RecursiveMerge(templateData, options.ExtraData)
-result, _ := tmpl.Execute(templateData)
-```
-
-### `chezmoi.*` 数据
-
-`config.go:1690` 附近构造的内置变量:
-`arch / os / hostname / fqdnHostname / kernel / osRelease / homeDir / destDir / sourceDir / cacheDir / configFile / username / uid / gid / group / version / windowsVersion / pathSeparator / executable` 等。
-
-`.chezmoidata.{toml,yaml,json}` 与 `.chezmoi.{toml,yaml,json}` 通过 `RecursiveMerge` 深度合并进同一棵 map。
-
-### 模板指令
-
-`parseAndRemoveDirectives`(template.go:134)在交给 `text/template` 之前,扫描注释里的 `chezmoi:template:` 指令(可设置 `left-delimiter` / `right-delimiter` / `line-ending` / `encoding` / `format-indent` / `missing-key`),并把整行从源文件物理移除——这样指令本身不会再受到分隔符变更的影响。
-
-### 防御性深拷贝
-
-`(*Template).Execute` 用 `copystructure.Copy(data)` 在每次执行前克隆数据,防止某个模板函数 in-place 修改 map 影响后续模板。
-
----
-
-## 4. 加密抽象
-
-### 涉及文件
-- `internal/chezmoi/encryption.go`(接口)
-- `internal/chezmoi/ageencryption.go`(age,支持外部 binary 与内置 `filippo.io/age` 库两种模式)
-- `internal/chezmoi/gpgencryption.go`(始终 fork gpg 进程)
-- `internal/chezmoi/noencryption.go`(空实现)
-- `internal/chezmoi/debugencryption.go`(装饰器)
-
-### 接口
-
-```go
-type Encryption interface {
-    Decrypt(ciphertext []byte) ([]byte, error)
-    DecryptToFile(plaintextAbsPath AbsPath, ciphertext []byte) error
-    Encrypt(plaintext []byte) ([]byte, error)
-    EncryptFile(plaintextAbsPath AbsPath) ([]byte, error)
-    EncryptedSuffix() string  // 用于驱动 parseFileAttr 的后缀识别
-}
-```
-
-### age 内置模式
-
-```go
-recipients, _ := e.builtinRecipients()
-ciphertextBuffer := &bytes.Buffer{}
-armoredCiphertextWriter := armor.NewWriter(ciphertextBuffer)
-ciphertextWriteCloser, _ := age.Encrypt(armoredCiphertextWriter, recipients...)
-io.Copy(ciphertextWriteCloser, bytes.NewReader(plaintext))
-ciphertextWriteCloser.Close(); armoredCiphertextWriter.Close()
-```
-
-### gpg 模式:私有临时目录
-
-gpg 不便用管道,所以 `withPrivateTempDir` 在私有目录里写出文件再调用:
-
-```go
-withPrivateTempDir(func(tempDirAbsPath AbsPath) error {
-    ciphertextAbsPath := tempDirAbsPath.JoinString("ciphertext" + e.EncryptedSuffix())
-    os.WriteFile(ciphertextAbsPath.String(), ciphertext, 0o600)
-    plaintextAbsPath := tempDirAbsPath.JoinString("plaintext")
-    e.run(e.decryptArgs(plaintextAbsPath, ciphertextAbsPath))
-    plaintext, err = os.ReadFile(plaintextAbsPath.String())
-})
-```
-
-**原理**:`Encryption` 是个最小接口,内部细节(子进程 vs 内置库、armor 编码、临时文件)被完全封装。`EncryptedSuffix()` 反向影响文件名解析,使得加解密后缀和文件名 metadata 系统解耦。
-
----
-
-## 5. `run_once_` / `run_onchange_` 幂等性
-
-### 涉及文件
-- `internal/chezmoi/targetstateentry.go`(`TargetStateScript`)
-- `internal/chezmoi/persistentstate.go`(bucket 名字)
-- `internal/chezmoi/sourcestate.go:readScriptsDir`
-- `internal/chezmoi/realsystem.go:RunScript`
-
-### 关键代码 — 是否跳过执行
-
-```go
-// targetstateentry.go:413
-switch t.condition {
-case ScriptConditionAlways:
-    return false, nil
-
-case ScriptConditionOnce:
-    contentsSHA256, _ := t.ContentsSHA256()
-    scriptStateKey := []byte(hex.EncodeToString(contentsSHA256[:]))
-    if v, _ := persistentState.Get(ScriptStateBucket, scriptStateKey); v != nil {
-        return true, nil  // 该哈希的脚本运行过了
-    }
-
-case ScriptConditionOnChange:
-    entryStateKey := []byte(targetAbsPath.String())
-    entryStateBytes, _ := persistentState.Get(EntryStateBucket, entryStateKey)
-    var entryState EntryState
-    stateFormat.Unmarshal(entryStateBytes, &entryState)
-    if bytes.Equal(entryState.ContentsSHA256.Bytes(), contentsSHA256[:]) {
-        return true, nil  // 自上次运行以来未变
-    }
-}
-```
-
-### 原理
-
-| 模式 | 键 | 触发再次运行的条件 |
+| 属性类别 | 典型名称 | 关注点 |
 |---|---|---|
-| `run_once_` | **脚本内容的 SHA-256** | 脚本内容变化(因为新 hash → 新 key) |
-| `run_onchange_` | **脚本目标路径** | 路径相同但内容 hash 不同 |
-| `run_` | — | 永远执行 |
+| 类型 | `create_`、`modify_`、`remove_`、`symlink_`、`run_` | 决定目标是文件、链接、删除还是动作 |
+| 内容处理 | `encrypted_`、`.tmpl` | 决定是否解密、渲染 |
+| 权限与空文件 | `private_`、`readonly_`、`executable_`、`empty_` | 影响权限与空内容的语义 |
+| 路径转义 | `dot_`、`literal_`、`.literal` | 解码目标名称或保留字面量 |
+| 目录行为 | `exact_`、`external_` 等 | 涉及目录成员及外部来源 |
+| 脚本行为 | `once_`、`onchange_`、`before_`、`after_` | 条件和执行阶段分别编码 |
 
-`run_once_` 的精妙之处:它把哈希 **本身** 当 key,所以同一个 `run_once_` 脚本被改写后会以"另一个 once 任务"的身份再跑一次;`run_onchange_` 则用路径作 key 并存上次内容 hash,从而能区分"内容变了"。
+路径属性把映射和行为放进 source 名称；它不排斥数据、外部资源或恢复策略等控制文件。`private_` 表达访问权限，并非密文标记。具体权限还要考虑文件/目录类型、umask 和操作系统，不能把一种 Unix 位运算直接当作 Windows 实现。
 
-执行顺序由 `before_` / `after_` 前缀映射到 `ScriptOrderBefore / During / After`,在 apply 主循环里分三批跑。
+xyrev 采用这套命名思路，但由自己的解析器验证类型与顺序；支持集合见实现设计，不以本表推导任意上游组合都兼容。
 
----
+## 3. 模板、数据和指令
 
-## 6. apply / diff — 文件系统抽象 (装饰器模式)
+chezmoi 使用 Go `text/template` 与 Sprig，内置数据位于 `.chezmoi`；用户数据、配置数据和模板片段共同参与渲染。官方说明见 [templating](https://www.chezmoi.io/user-guide/templating/)。
 
-### 涉及文件
-- `internal/chezmoi/system.go`
-- `internal/chezmoi/realsystem.go` + `realsystem_unix.go` / `realsystem_windows.go`
-- `internal/chezmoi/dryrunsystem.go` / `debugsystem.go` / `gitdiffsystem.go`
-- `internal/chezmoi/readonlysystem.go` / `erroronwritesystem.go`
-- `internal/chezmoi/archivereadersystem.go` / `tarwritersystem.go` / `zipwritersystem.go`
-- `internal/chezmoi/externaldiffsystem.go` / `nullsystem.go` / `dumpsystem.go`
+[template.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/template.go) 对模板执行增加指令处理、数据复制及编码/换行处理。指令在模板解析前处理，避免改变分隔符后再无法识别指令本身；复制数据用于避免函数修改共享数据。具体函数表与机器变量由上游命令层组合，阅读入口为 [config.go](https://github.com/twpayne/chezmoi/blob/master/internal/cmd/config.go)。
 
-### 接口节选
+xyrev 使用 MiniJinja，并保留严格缺失变量、include、初始化提示、数据覆盖、编码和换行等能力；这不是 Go Template 的解释器。典型迁移关系为：
 
-```go
-type System interface {
-    Chmod(name AbsPath, mode fs.FileMode) error
-    Lstat(filename AbsPath) (fs.FileInfo, error)
-    Mkdir(name AbsPath, perm fs.FileMode) error
-    ReadDir(name AbsPath) ([]fs.DirEntry, error)
-    ReadFile(name AbsPath) ([]byte, error)
-    Readlink(name AbsPath) (string, error)
-    Remove(name AbsPath) error; RemoveAll(name AbsPath) error
-    Rename(oldPath, newPath AbsPath) error
-    RunCmd(cmd *exec.Cmd) error
-    RunScript(scriptName RelPath, dir AbsPath, data []byte, options RunScriptOptions) error
-    WriteFile(filename AbsPath, data []byte, perm fs.FileMode) error
-    WriteSymlink(oldName string, newName AbsPath) error
-    UnderlyingFS() vfs.FS
-}
-```
-
-### 装饰器矩阵
-
-| 实现 | 作用 | 实现要点 |
-|---|---|---|
-| `RealSystem` | 真实落地 | 包 `go-vfs` 文件系统;通过 `google/renameio` 做 **原子写** |
-| `DryRunSystem` | 模拟 | 读操作透传;所有写操作只 `setModified()` 然后返回 nil |
-| `DebugSystem` | 日志 | 调用 `slog.Log` 记录方法名 + 参数后透传 |
-| `GitDiffSystem` | 生成 unified diff | 拦截写操作,调用 `diff` 库输出 |
-| `ReadOnlySystem` / `ErrorOnWriteSystem` | 安全保护 | 写操作直接报错 |
-| `TarWriterSystem` / `ZipWriterSystem` | `chezmoi archive` | 把目标文件系统映射成 archive 流 |
-| `ArchiveReaderSystem` | `.chezmoiexternal` | 把 tar/zip 当源文件系统访问 |
-
-`emptySystemMixin` / `noUpdateSystemMixin` 两个 mixin 让装饰器只覆写需要的方法。
-
-### 原理
-
-整个 apply 主循环是 **System 无关的**——`chezmoi diff` 实际上等于 `apply` 跑在 `DryRunSystem(GitDiffSystem(realSystem))` 上。这种设计让 dry-run、diff、archive、debug 全部 **复用同一份 reconcile 逻辑**,几乎没有重复代码。
-
----
-
-## 7. 密码管理器 / 秘密集成
-
-### 涉及文件(均在 `internal/cmd/`)
-
-`bitwardentemplatefuncs.go` / `bitwardensecretstemplatefuncs.go` / `onepasswordtemplatefuncs.go` / `keepassxctemplatefuncs.go` / `keepertemplatefuncs.go` / `lastpasstemplatefuncs.go` / `passtemplatefuncs.go` / `gopasstemplatefuncs.go` / `passholetemplatefuncs.go` / `protonpasstemplatefuncs.go` / `rbwtemplatefuncs.go` / `vaulttemplatefuncs.go` / `awssecretsmanagertemplatefuncs.go` / `azurekeyvaulttemplatefuncs.go` / `dopplertemplatefuncs.go` / `ejsontemplatefuncs.go` / `dashlanetemplatefuncs.go` / `keyringtemplatefuncs.go` / `githubtemplatefuncs.go` / `secrettemplatefuncs.go`
-
-### 通用模式 (Bitwarden 为例)
-
-```go
-type bitwardenConfig struct {
-    Command     string
-    Unlock      autoBool
-    session     string
-    outputCache map[string][]byte           // 进程内缓存
-}
-
-func (c *Config) bitwardenTemplateFunc(args ...string) map[string]any {
-    must(c.bitwardenMaybeUnlock())
-    output := mustValue(c.bitwardenOutput(append([]string{"get"}, args...)))
-    var data map[string]any
-    must(json.Unmarshal(output, &data))
-    return data
-}
-
-func (c *Config) bitwardenOutput(args []string) ([]byte, error) {
-    key := strings.Join(args, "\x00")        // argv 序列化为 cache key
-    if data, ok := c.Bitwarden.outputCache[key]; ok {
-        return data, nil
-    }
-    output, err := c.bitwardenUncachedOutput(args)
-    if err != nil { return nil, err }
-    if c.Bitwarden.outputCache == nil {
-        c.Bitwarden.outputCache = make(map[string][]byte)
-    }
-    c.Bitwarden.outputCache[key] = output
-    return output, nil
-}
-```
-
-### 原理
-
-每个秘密函数遵循同一套三步流水线:
-
-1. **解锁**:复用 `$BW_SESSION` 之类的环境变量,缺失时调用 `bw unlock --raw` 一次,token 缓存进 `Config.Bitwarden.session`
-2. **执行 CLI**:`os/exec` 调用对应 vendor 命令
-3. **JSON 解码 + 进程内缓存**:以 `argv` 拼接字符串作 key 缓存输出,使得同一份秘密在多个模板中只 fork 一次进程
-
-`must` / `mustValue` 用 panic 透出错误,在模板执行边界被 `recover` 转换为模板错误。少数函数(GitHub API、1Password)还叠加了 TTL 缓存。
-
----
-
-## 8. init / bootstrap 流程
-
-### 涉及文件
-- `internal/cmd/initcmd.go`(356 行)
-
-### 流程(`runInitCmd`)
-
-1. **`oneShot` 模式** 自动展开 `force + apply + depth=1 + purge + purgeBinary`,服务于 `curl | sh` 一键安装场景
-2. 若 `~/.local/share/chezmoi/.git` 不存在:
-   - 无参数:`git init` 或内置 `go-git`
-   - 有 repo 参数:`guessRepoURL` 通过一组正则把 `user`、`user/repo`、`sr.ht/~user`、`gitlab.com/...` 等简写补全成完整 URL,然后 clone:
-
-```go
-args := []string{"clone"}
-if c.init.recurseSubmodules { args = append(args, "--recurse-submodules") }
-if c.init.branch != ""      { args = append(args, "--branch", c.init.branch) }
-if c.init.depth  != 0       { args = append(args, "--depth", strconv.Itoa(c.init.depth)) }
-args = append(args, repoURLStr, workingTreeRawPath.String())
-c.run(chezmoi.EmptyAbsPath, c.Git.Command, args)
-```
-
-3. `checkVersion` 校验仓库的 `.chezmoiversion` 与 binary 兼容
-4. `createAndReloadConfigFile` 处理 `.chezmoi.toml.tmpl` —— 这是 `promptString` / `promptBool` / `promptChoice` 等交互式模板函数的舞台 —— 然后写出最终 `chezmoi.toml`
-5. 可选 `git lfs pull`
-6. `--apply`:跑一遍 `applyArgs`(和 `chezmoi apply` 同一代码路径)
-7. `--purge` / `--purge-binary`:删除源目录、缓存、persistent state、配置,最后甚至自删 binary
-
-### 原理
-
-`UseBuiltinGit` 让 init 在 **没有 git 的全新机器** 上也能跑通——这是 chezmoi 单二进制 bootstrap 承诺的核心保障。同时把"clone → 提示用户 → 写配置 → apply"压扁成一条线性流水线,使新机器 `sh -c "$(curl ...)" -- init --apply user` 真正可行。
-
----
-
-## 9. 持久化状态 (bbolt)
-
-### 涉及文件
-- `internal/chezmoi/boltpersistentstate.go`
-- `internal/chezmoi/persistentstate.go`
-
-### Bucket 列表
-
-```go
-ConfigStateBucket          = []byte("configState")
-EntryStateBucket           = []byte("entryState")
-GitRepoExternalStateBucket = []byte("gitRepoExternalState")
-ScriptStateBucket          = []byte("scriptState")
-```
-
-### 关键设计点
-
-```go
-switch _, err := system.Stat(path); {
-case errors.Is(err, fs.ErrNotExist):
-    empty = true   // bbolt 不能以 read-only 打开不存在的文件
-}
-options := bbolt.Options{
-    OpenFile: func(name string, flag int, perm fs.FileMode) (*os.File, error) {
-        rawPath, _ := system.RawPath(NewAbsPath(name))
-        dir, _ := filepath.Split(rawPath.String())
-        os.MkdirAll(dir, 0o777)
-        return os.OpenFile(rawPath.String(), flag, perm)
-    },
-    ReadOnly: mode == BoltPersistentStateReadOnly,
-    Timeout:  time.Second,    // flock 超时
-}
-```
-
-### 原理
-
-- **底层**:`bbolt`(etcd 维护的 boltdb fork),纯 Go 单文件 KV,B+Tree + mmap + 写时复制 + 全局事务,天然支持崩溃一致性
-- **写**:`db.Update(tx → CreateBucketIfNotExists(bucket).Put(key, value))`
-- **读**:`db.View` 中读出的 byte slice 只在事务内有效,所以代码总是 **clone** 一份再返回
-- **read-only 兼容**:bbolt 不允许 read-only 打开不存在的 DB,chezmoi 用 `empty=true` 标志在前面短路所有读
-- **并发**:1 秒 flock 超时,允许并发的 chezmoi 进程礼貌等待
-- **装饰器同样有效**:`MockPersistentState`(测试)、`NullPersistentState`(完全无状态)、`DebugPersistentState`(日志)、`ReadOnlyPersistentState`(保护 diff)
-
-它存的是什么?
-- `EntryStateBucket`: 每个 target 路径上次写入时的 `EntryState`(类型、mode、内容 SHA-256),用于 **三方冲突检测**
-- `ScriptStateBucket`: `run_once_` 已运行过的脚本 hash → `{Name, RunAt}`
-- `GitRepoExternalStateBucket`: `.chezmoiexternal` 引用的 git 仓库的最后同步信息
-- `ConfigStateBucket`: 配置文件本身的状态(检测配置变更触发提示)
-
----
-
-## 10. 跨子系统的几个共性原则
-
-| 原则 | 体现 |
+| 上游写法 | xyrev 写法或边界 |
 |---|---|
-| **仓库即真相,文件名即元数据** | 所有属性靠 `parseFileAttr` 编码,无 sidecar manifest |
-| **三层状态分离** | Source(解析)→ Target(渲染/解密)→ Actual(磁盘)三层互不耦合 |
-| **装饰器无处不在** | `System`、`Encryption`、`PersistentState` 都有 Real / Mock / ReadOnly / Debug / Null 装饰器矩阵 |
-| **lazy + 缓存** | 模板渲染、秘密管理器调用、bbolt 都是 lazy + 进程内缓存 |
-| **可测试性** | 抽象 FS + 抽象 PersistentState + golden test(`chezmoitest` / `archivetest`)使跨平台行为高度可验证 |
-| **零外部依赖能跑通** | go-git、内置 age、纯 Go bbolt 都是可选启用的"无外部 binary"实现 |
+| `{{ .chezmoi.os }}` | `{{ xyrev.os }}` |
+| Go 的 `if` / `end` 模板动作 | Jinja 的 `{% if ... %}` / `{% endif %}` |
+| `.chezmoi.homeDir` 等变量 | 使用 README 列出的 `xyrev.home_dir` 等字段，不假定字段逐项等价 |
+| Sprig 和上游辅助函数 | 改用 Jinja 或 xyrev 明确提供的函数，不自动迁移 |
+| `.chezmoitemplates`、部分控制文件别名 | 支持相应迁移入口，不代表其中的 Go 模板可直接运行 |
 
----
+当前 Rust 入口为 [template.rs](src/dotfile/template.rs)。
 
-## 11. 一个完整 `chezmoi apply` 的调用链(把上述模块串起来)
+## 4. 加密边界与明文处理
 
-1. `cmd/applycmd.go` → `Config.runApplyCmd`
-2. 打开 `BoltPersistentState`(若是 dry-run 包一层 `ReadOnlyPersistentState`)
-3. 构造 `System` 栈:`RealSystem` → 视情况包 `DryRunSystem` / `GitDiffSystem` / `DebugSystem`
-4. `SourceState.Read` 读取 `~/.local/share/chezmoi`,期间执行 `parseFileAttr` 构树
-5. 对每个 target 路径调用 `SourceState.Apply`:
-   - `sourceStateEntry.TargetStateEntry()` —— 这里触发 **模板渲染**(template.go)与 **解密**(encryption.go)
-   - 计算 `EntryState`(含 SHA-256)
-   - `SkipApply` 查 `ScriptStateBucket` / `EntryStateBucket` 决定是否跳过(`run_once_` / `run_onchange_` 幂等)
-   - `preApplyFunc` 用三方比较检测人为修改
-   - `targetStateEntry.Apply(system, ...)` 通过 `System` 接口写入(实际写哪儿取决于装饰器栈)
-   - 写回新的 `EntryState` 到 `EntryStateBucket`
-6. 脚本类 entry 按 `before / during / after` 顺序由 `RealSystem.RunScript` 调用解释器执行
+上游通过加密抽象分离内容处理与路径解析。官方 [加密文档](https://www.chezmoi.io/user-guide/encryption/)区分 age、gpg 等用法；[透明加密](https://www.chezmoi.io/user-guide/encryption/transparent/)由 transcrypt/git-crypt 等外部 Git 工具参与，不能据此断言所有后端都内置。
 
-整条流水线没有任何一处直接 `os.WriteFile` 或硬编码 `git`/`age`/`gpg` 命令路径——这就是 chezmoi 工程质量的来源:**所有副作用都流过抽象接口**,从而 dry-run、diff、archive、test 这些"另类用途"都可以零成本接入。
+上游 [gpgencryption.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/gpgencryption.go) 中的 GPG 加解密流程会在私有临时目录组织输入/输出文件，再执行配置的 gpg。这里描述的是该上游实现选择，**不是 GPG 不能使用 stdin/stdout 的限制**。
 
----
+xyrev 当前实现应分别理解：
 
-## 12. 推荐阅读切入点
+- [crypto.rs](src/dotfile/crypto.rs) 内置 age；普通 GPG 加解密使用子进程管道，不照搬上述临时文件流程。
+- [gpg.rs](src/dotfile/gpg.rs) 提供 GPG 密钥备份和恢复。私钥与 ownertrust 的明文在内存和 GPG 管道间流转，密码不写入参数、环境变量、日志或状态。
+- 已加密文件的 `edit` 为编辑器提供私有临时工作文件；这是交互编辑功能，不能与 GPG 密钥备份/恢复的明文处理承诺混为一谈。
 
-如果你想自己读源码,建议按下面的顺序进入:
+v0.5.0 原生命令支持显式选择多把主密钥、密码加密、独立 age 身份文件、校验、导入及成功状态。`.xyrevgpg.toml[.tmpl]` 声明恢复策略，现有密码密文无需重新加密；历史 `backup-metadata.sh` 仅作字段数据解析，不能作为 Shell 执行。仓库无需另外维护备份/恢复脚本。
 
-1. `internal/chezmoi/chezmoi.go` —— 看常量,建立词汇表
-2. `internal/chezmoi/attr.go` —— 理解文件名 → 属性的全部规则
-3. `internal/chezmoi/system.go` + `realsystem.go` + `dryrunsystem.go` —— 理解装饰器骨架
-4. `internal/chezmoi/sourcestateentry.go` + `targetstateentry.go` —— 理解三层状态接口
-5. `internal/chezmoi/sourcestate.go` 的 `Read` 与 `Apply` —— 主循环
-6. `internal/chezmoi/boltpersistentstate.go` —— 看持久化是怎么挂上去的
-7. `internal/cmd/initcmd.go` + `internal/cmd/applycmd.go` —— CLI 层如何把上述东西编排起来
-8. `internal/cmd/bitwardentemplatefuncs.go` —— 一个完整的秘密管理器集成模板
+## 5. 脚本幂等与阶段
 
-掌握以上 8 个文件,你基本就掌握了 chezmoi 90% 的设计。
+上游 [TargetStateScript](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/targetstateentry.go) 使用脚本内容摘要和持久状态决定是否跳过。条件与阶段是两组独立信息：
+
+| 条件 | 状态判定思路 |
+|---|---|
+| `run_` | 每次应用执行 |
+| `run_once_` | 已成功执行过的内容摘要可跳过；改动内容会形成新的 once 任务 |
+| `run_onchange_` | 比较该脚本最近成功内容；内容变化后再次执行 |
+
+before、普通阶段和 after 决定脚本与文件的相对顺序；“失败也算执行过”会破坏重试语义。上游执行顺序另见 [application order](https://www.chezmoi.io/reference/application-order/)。
+
+xyrev 的 [scripts.rs](src/dotfile/scripts.rs) 用 redb 记录成功执行；onchange 保存最近成功版本，因此 A→B→A 会再次运行。脚本命名中的数字只是同阶段内的排序约定。原生 GPG 恢复在 [Plan](src/dotfile/plan.rs) 中作为单独步骤：before 钩子和目标文件完成后恢复，再执行 after 钩子。普通阶段脚本仍按目标路径与文件穿插处理。
+
+## 6. System 装饰器的研究价值
+
+上游 [system.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/system.go) 抽象文件操作及命令/脚本执行；相应实现可以承担真实写入、预览、日志或归档工作。阅读时应区分共同接口与各命令的具体组装，不应把某一条装饰器栈写成所有版本的固定调用链。
+
+| 上游实现类别 | 目的 |
+|---|---|
+| RealSystem | 实际访问目标系统 |
+| DryRunSystem / ReadOnlySystem | 抑制或拒绝相应写操作 |
+| GitDiffSystem / DebugSystem | 记录差异或调试信息 |
+| TarWriterSystem / ZipWriterSystem | 将目标内容输出为归档 |
+| ArchiveReaderSystem | 让归档内容参与读取 |
+
+这些抽象有利于重用状态转换和测试，但不代表所有副作用都消失，或加入一种用途完全没有工程成本。模板秘密函数、外部下载和命令调用仍需逐项审查。
+
+xyrev 当前通过 [plan.rs](src/dotfile/plan.rs) 的共享 `Plan` 计算变化，再由预览、应用和归档路径消费；项目没有名为 `RealVfs`、`DryRunVfs` 或 `TarWriterVfs` 的完整 Rust 装饰器层。这些名称只属于长期结构草图。
+
+## 7. 秘密服务适配
+
+上游命令层注册提供器函数。以 [bitwardentemplatefuncs.go](https://github.com/twpayne/chezmoi/blob/master/internal/cmd/bitwardentemplatefuncs.go) 为例，它会处理会话或解锁、调用配置的 CLI、解码结果，并按参数缓存进程内结果。这个例子说明“提供器适配器”的组织方式，不保证其他服务采用完全相同的登录、缓存或错误处理规则。
+
+xyrev 的 [secrets.rs](src/dotfile/secrets.rs) 实现 README 列出的 1Password、Bitwarden、pass、gopass、Vault、Keyring、KeePassXC、LastPass、Doppler、AWS 和 Azure 等适配。同一进程中复用相同请求的结果，不把秘密缓存持久化；用户仍需准备对应 CLI 和认证。
+
+预览不会运行 run hooks 或修改部署状态，但模板求值仍可能调用秘密服务，普通加密文件仍可能需要解密，`modify_` 也会运行转换程序。原生 GPG 备份预览不启动 GPG、不询问恢复密码，是另一个明确约束；不能把它推广成所有模板和内容处理均不执行外部程序。
+
+## 8. init / bootstrap 的范围
+
+上游 [`init` 文档](https://www.chezmoi.io/reference/commands/init/)定义克隆或建立 source、生成配置、可选 apply，以及 one-shot、purge、URL 猜测等参数；命令层入口为 [initcmd.go](https://github.com/twpayne/chezmoi/blob/master/internal/cmd/initcmd.go)。这些是上游接口，不是 xyrev 隐含支持的选项。
+
+xyrev 则要求完整 Git URL，默认系统 Git，可显式选择 gix。SSH 仍需 SSH 客户端；子模块/LFS 会调用系统 Git 等工具。缺失 Git/Command Line Tools 时会给出安装引导，不会凭空生成账户认证，也不应把“内置 Git”解读成任何私有仓库都可匿名初始化。
+
+新机器先安装公开 xyrev，准备 Git 并预先通过凭据助手或 SSH 完成私有仓库认证，然后 init、diff、权限准备、apply 和 GPG 恢复。系统软件安装发生在后续 apply，不能用它作为首次 clone 的认证前置。完整且统一的 HTTPS 主流程及 SSH 替代方案见 [新 Mac：从公开安装到私有仓库恢复](chezmoi-rust-implementation.md#3-新-mac从公开安装到私有仓库恢复)。
+
+当前 `szwathub/dotfiles` 为私有仓库，xyrev 发行包仍公开。Git 登录凭据、原 GPG 备份密码和各私钥原口令分别管理；现有个人与 Work 密钥通过一次备份密码输入恢复。
+
+## 9. bbolt 研究与 xyrev 状态格式
+
+上游 [persistentstate.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/persistentstate.go) 定义条目、脚本、外部 Git 资源及配置状态等逻辑 bucket。[boltpersistentstate.go](https://github.com/twpayne/chezmoi/blob/master/internal/chezmoi/boltpersistentstate.go) 提供 bbolt 存储、只读/读写打开和事务访问；读取时复制事务中的字节数据，避免事务结束后继续引用底层内存。不存在的数据库需要按空状态处理，不能让只读预览为了初始化数据库而写入。
+
+这里可借鉴的是状态职责、只读边界和成功记账，而不是必须沿用同一种数据库或 bucket 格式。数据库事务也不能替代目标文件系统的跨文件事务。
+
+xyrev 当前采用：
+
+| 内容 | 存储与职责 |
+|---|---|
+| 文件、链接、目录的上次成功基线 | `~/.xyrev/dotfile/state/<source-destination-key>.json`，由 [storage.rs](src/dotfile/storage.rs) 原子保存 |
+| 最近成功 GPG 恢复摘要 | 同一 JSON 状态中的公开摘要，按 source/destination 隔离 |
+| run_once/run_onchange 成功状态 | `state/scripts.redb`，由 [scripts.rs](src/dotfile/scripts.rs) 管理 |
+| 并发与部分成功 | 命令锁保护；部署失败保留已完成项和覆盖前备份，不承诺多文件整体回滚 |
+
+因此“全部 EntryState 已进入 redb”或“直接复用上游 bbolt”都不是当前实现事实。
+
+## 10. 当前 Rust 模块映射
+
+| 职责 | xyrev 当前源码 |
+|---|---|
+| CLI 参数与子命令 | [src/cli/dotfile/mod.rs](src/cli/dotfile/mod.rs) |
+| 命令编排与配置/状态入口 | [mod.rs](src/dotfile/mod.rs)、[storage.rs](src/dotfile/storage.rs) |
+| 属性、source 扫描、模板与数据 | [source.rs](src/dotfile/source.rs)、[template.rs](src/dotfile/template.rs) |
+| 统一计划、冲突、文件/GPG/脚本顺序 | [plan.rs](src/dotfile/plan.rs) |
+| 脚本状态与子进程 | [scripts.rs](src/dotfile/scripts.rs)、[process.rs](src/dotfile/process.rs) |
+| 普通加密与原生 GPG 密钥管理 | [crypto.rs](src/dotfile/crypto.rs)、[gpg.rs](src/dotfile/gpg.rs) |
+| Git 与缺失工具引导 | [git.rs](src/dotfile/git.rs)、[native_git.rs](src/dotfile/native_git.rs)、[prerequisites.rs](src/dotfile/prerequisites.rs) |
+| 秘密、外部资源与归档 | [secrets.rs](src/dotfile/secrets.rs)、[external.rs](src/dotfile/external.rs)、[archive.rs](src/dotfile/archive.rs) |
+| 日常维护、诊断与交互 | [maintenance.rs](src/dotfile/maintenance.rs)、[tools.rs](src/dotfile/tools.rs)、[ui.rs](src/dotfile/ui.rs) |
+
+这份映射描述 v0.5.0 的单 crate 布局。将通用类型、模板、状态或文件系统抽象拆成多个 crate，以及加入更完整的 Vfs 装饰器，均可作为长期可选重构；当前没有要求先建立 `xyrev-dotfile-*` workspace 才算实现功能。
+
+## 11. 兼容和验收边界
+
+- 已采用：Git 仓库来源、路径属性、三层比较、模板/秘密、脚本幂等、外部资源、预览、归档与状态记录等思路；xyrev 原生 GPG 密钥管理还提供自己的声明与兼容校验。
+- 需要迁移：Go Template/Sprig、变量命名、部分控制字段、CLI 参数和状态数据。采用相同文件名前缀不等于无修改运行整个上游仓库。
+- 当前未支持：完整上游函数/命令集、用户名式 URL 猜测、one-shot/purge、透明 Git 加密后端，以及 README 未列出的提供器和选项。
+- 验证依据：项目测试与 macOS/Linux/Windows CI，而不是研究文档中的源码数量或“零依赖”推断；真实账户登录、SSH/PAT、私有 LFS 和第三方秘密服务仍需自己的认证条件。
+
+阅读上游时，先由属性和 source/target 接口理解数据流，再追踪模板、System、持久状态和具体命令。阅读当前 xyrev 时，从本节 Rust 映射和实现设计进入，避免把上游 Go 文件路径或教学伪代码当成已经存在的 Rust 架构。
