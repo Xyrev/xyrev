@@ -89,12 +89,16 @@ class NativeGpgTests(unittest.TestCase):
     def kill_agent(self, home):
         if Path(self.gpgconf).is_file():
             subprocess.run([self.gpgconf, '--homedir', str(home), '--kill', 'all'],
-                           env=self.env, capture_output=True, timeout=15)
+                           env=dict(self.env, GNUPGHOME=str(home)),
+                           capture_output=True, timeout=15)
 
     def gpg(self, home, *args, input=None, ok=True):
         result = subprocess.run([self.gpg_program, '--no-options', '--homedir', str(home),
                                  '--batch', '--pinentry-mode', 'loopback', *args],
-                                env=self.env, input=input, capture_output=True, timeout=40)
+                                # GPG 2.2 also passes GNUPGHOME to its agent;
+                                # keep it consistent with the explicit keyring.
+                                env=dict(self.env, GNUPGHOME=str(home)), input=input,
+                                capture_output=True, timeout=40)
         if ok:
             self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
         else:
