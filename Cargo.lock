@@ -4304,6 +4304,7 @@ dependencies = [
  "clap_complete",
  "clap_mangen",
  "crossterm",
+ "dunce",
  "encoding_rs",
  "flate2",
  "fs2",

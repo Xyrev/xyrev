@@ -45,6 +45,9 @@ gix = { version = "=0.63.0", default-features = false, features = ["blocking-htt
 ratatui = { version = "=0.26.3", default-features = false, features = ["crossterm"] }
 crossterm = "0.27"
 
+[target.'cfg(windows)'.dependencies]
+dunce = "=1.0.5"
+
 # Commit Cargo.lock: several upstream MSRV declarations are incomplete; CI tests Rust 1.74.
 [target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"

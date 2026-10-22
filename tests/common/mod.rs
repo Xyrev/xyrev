@@ -15,11 +15,24 @@ pub struct Sandbox {
     pub destination: PathBuf,
 }
 
+/// Git for Windows appends `/HEAD` internally, which does not work with the
+/// verbatim paths returned by `canonicalize`. Simplify safe drive paths only.
+pub fn git_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        dunce::simplified(path).to_owned()
+    }
+    #[cfg(not(windows))]
+    {
+        path.to_owned()
+    }
+}
+
 pub fn git(directory: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
         .arg("-C")
-        .arg(directory)
-        .args(args)
+        .arg(git_path(directory))
+        .args(args.iter().map(|argument| git_path(Path::new(argument))))
         .env(
             "GIT_CONFIG_GLOBAL",
             if cfg!(windows) { "NUL" } else { "/dev/null" },
@@ -39,8 +52,18 @@ pub fn write(path: &Path, contents: &str) {
 }
 
 pub fn file_url(path: &Path) -> String {
+    let path = git_path(path);
     let path = path.to_str().unwrap().replace('\\', "/");
-    let path = path.strip_prefix("//?/").unwrap_or(&path);
+    #[cfg(windows)]
+    let path = if let Some(unc) = path.strip_prefix("//?/UNC/") {
+        format!("//{unc}")
+    } else {
+        path.strip_prefix("//?/").unwrap_or(&path).to_owned()
+    };
+    #[cfg(windows)]
+    if path.starts_with("//") {
+        return format!("file:{path}");
+    }
     if path.starts_with('/') {
         format!("file://{path}")
     } else {
@@ -74,7 +97,7 @@ pub fn failure(output: Output, expected: &str) {
 impl Sandbox {
     pub fn new(files: &[(&str, &str)]) -> Self {
         let temporary = tempfile::tempdir().unwrap();
-        let root = fs::canonicalize(temporary.path()).unwrap();
+        let root = git_path(&fs::canonicalize(temporary.path()).unwrap());
         let home = root.join("home");
         let work = root.join("upstream work");
         let remote = root.join("remote repo.git");
@@ -163,6 +186,25 @@ impl Sandbox {
     pub fn control(&self) -> PathBuf {
         self.home.join(".xyrev/dotfile")
     }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_git_paths_and_file_urls_preserve_spaces_without_verbatim_prefixes() {
+    let drive = Path::new(r"\\?\C:\Users\runneradmin\Temp\remote repo.git");
+    assert_eq!(
+        git_path(drive),
+        Path::new(r"C:\Users\runneradmin\Temp\remote repo.git")
+    );
+    assert_eq!(
+        file_url(drive),
+        "file:///C:/Users/runneradmin/Temp/remote repo.git"
+    );
+    let unc = Path::new(r"\\?\UNC\server\share\remote repo.git");
+    assert_eq!(git_path(unc), unc);
+    assert_eq!(file_url(unc), "file://server/share/remote repo.git");
+    let reserved = Path::new(r"\\?\C:\Temp\COM1");
+    assert_eq!(git_path(reserved), reserved);
 }
 
 /// Contents, permissions, and modification times detect accidental writes in preview/idempotency checks.
