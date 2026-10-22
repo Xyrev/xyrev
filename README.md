@@ -14,16 +14,100 @@ xyrev --version
 
 可设置 `PREFIX` 选择安装目录（最终位置为 `$PREFIX/bin/xyrev`）。`install.sh` 和兼容入口 `newinstall.sh` 行为一致；不指定 `VERSION` 时选择最新稳定 Release。Windows 可从 [Release 下载页](https://github.com/Xyrev/xyrev/releases/tag/v0.5.0) 下载 `xyrev-v0.5.0-x86_64-pc-windows-msvc.zip`，解压后使用其中的 `xyrev.exe`。
 
-在新机器上初始化 dotfiles：
+上面的 `export` 只影响当前终端。macOS zsh 用户可将 `export PATH="$HOME/.local/bin:$PATH"` 加入 `~/.zprofile`，让新 Terminal 也能找到 xyrev；Fish 用户运行 `fish_add_path ~/.local/bin` 持久保存路径。
+
+## 新 Mac 初始化私有 dotfiles
+
+`Xyrev/xyrev` 和发行包保持公开，以上安装命令可匿名使用；`szwathub/dotfiles` 是私有仓库，初始化前需要有仓库访问权的 GitHub 账户。Git 认证用于下载仓库，GPG 备份密码用于解密密钥，两者独立。`init` 发生在软件安装之前，不能依赖后续 `apply` 安装的 Homebrew、GitHub CLI 或 GPG 来完成首次 Git 认证。
+
+### 先准备 Git 和 SSH（推荐）
+
+在 macOS Terminal 的 zsh 中操作。先检查 `git --version`；如果提示缺少开发工具，运行：
 
 ```bash
-xyrev dotfile init https://github.com/szwathub/dotfiles --recurse-submodules
+xcode-select --install
+```
+
+等待系统安装窗口完成后，再检查 Git：
+
+```bash
+git --version
+```
+
+使用系统自带的 OpenSSH，新机器不需要先安装 Homebrew 或 `gh`。下面沿用仓库 SSH 配置中的 `~/.ssh/github_rsa` 路径，生成的算法仍是 Ed25519。已有同名私钥或公钥时，先检查并复用，保留原文件；只在两者都不存在时生成新密钥：
+
+```bash
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+if [[ -e "$HOME/.ssh/github_rsa" || -L "$HOME/.ssh/github_rsa" || -e "$HOME/.ssh/github_rsa.pub" || -L "$HOME/.ssh/github_rsa.pub" ]]; then
+  printf '%s\n' '已有 github_rsa 或 github_rsa.pub，请先检查并复用，未生成新密钥。'
+else
+  /usr/bin/ssh-keygen -t ed25519 -C "you@example.com (new-mac)" -f "$HOME/.ssh/github_rsa"
+fi
+```
+
+在终端为新 SSH 登录密钥设置口令，它与 GPG 备份密码及原 GPG 私钥口令独立。确认密钥可用后，加入 agent 并将口令保存到 macOS Keychain；复用不带口令的密钥时省略 `--apple-use-keychain`：
+
+```bash
+[ -n "${SSH_AUTH_SOCK:-}" ] || eval "$(/usr/bin/ssh-agent -s)"
+/usr/bin/ssh-add --apple-use-keychain "$HOME/.ssh/github_rsa"
+pbcopy < "$HOME/.ssh/github_rsa.pub"
+```
+
+`ssh-add` 需要可用的 agent；如果提示无法连接，先运行 `eval "$(/usr/bin/ssh-agent -s)"`，再重试 `ssh-add`。在浏览器登录有仓库权限的 GitHub 账户，打开 [SSH keys 设置](https://github.com/settings/keys)，添加剪贴板中的**公钥**，类型选 Authentication Key。SSH 私钥留在本机；SSH 口令、GitHub 凭据和 GPG 密码都不要发到聊天或写入仓库。agent 与 macOS Keychain 的行为见 [GitHub SSH 指南](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=mac)。
+
+添加后，在同一个 Terminal 验证实际仓库权限：
+
+```bash
+git ls-remote git@github.com:szwathub/dotfiles.git HEAD
+```
+
+第一次连接时，对照 [GitHub 公布的 SSH 主机指纹](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints) 后确认；预检应返回 HEAD 的提交哈希。可选的 `ssh -T git@github.com` 成功时仍返回退出码 **1**，需检查欢迎消息中的账户；它只验证账户认证，不能替代仓库访问预检，见 [GitHub 连接测试说明](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection)。
+
+### 初始化、预览和部署
+
+SSH 预检成功后执行。个人完整主指纹让 GPG 选择可用的签名子密钥；工作密钥也会从同一份备份恢复：
+
+```bash
+xyrev dotfile init git@github.com:szwathub/dotfiles.git --recurse-submodules \
+  --data git_signing_key=2BF609784E75AAC78CB67A7E465799B005224003
 xyrev dotfile diff
+sudo -v
 xyrev dotfile apply
 xyrev dotfile verify
 ```
 
-Git 不可用时，`init` 会在克隆前显示安装指引；macOS 按提示完成 Command Line Tools 安装后重试原命令。`apply` 时仓库先检查或初始化 Homebrew，再安装 Brewfile 中的软件并部署配置。先查看 `diff` 确认变更；完整部署到 HOME 会执行仓库中的系统设置脚本。
+初始化时核对 Git 姓名、邮箱和 Homebrew prefix（Apple Silicon 默认 `/opt/homebrew`，Intel 默认 `/usr/local`）。查看 `diff` 后再部署；完整 HOME 部署会安装软件和修改仓库声明的 macOS 设置。`sudo -v` 在本机准备管理员权限，xyrev 本身仍以当前用户运行。`apply` 依次检查或安装 Homebrew、安装 Brewfile（含 GPG Suite）、部署文件、隐藏提示 GPG 备份密码并恢复个人/Work 密钥，最后设置 macOS 偏好；受口令保护的原私钥可能另有 pinentry 提示。当前密码备份无需 agekey。
+
+下载期间管理员权限可能过期；重新 `sudo -v` 后再运行 `xyrev dotfile apply`。若安装器仍需交互，可先在 Terminal 安装 Homebrew 或执行 `brew install --cask gpg-suite`，再重试。失败阶段不记录成功，已完成阶段保留。仓库认证失败应先修复 SSH/PAT 权限并重跑 `git ls-remote`；GPG 密码错误只需重跑 `apply`，不用重新初始化。
+
+部署检查通过后，可核验两把私钥并各做一次签名。使用 Suite 绝对路径，避免 PATH 中其他 `gpg`；这里生成的只是临时消息和公开签名，不导出密钥：
+
+```bash
+/usr/local/MacGPG2/bin/gpg --list-secret-keys --keyid-format long --fingerprint \
+  2BF609784E75AAC78CB67A7E465799B005224003 98A56F40C2A502230AC6635435DF2F117D3233C5
+xyrev_gpg_check_dir=$(mktemp -d "${TMPDIR:-/tmp}/xyrev-gpg-check.XXXXXX")
+printf 'xyrev GPG restore check\n' > "$xyrev_gpg_check_dir/message.txt"
+for xyrev_gpg_key in 2BF609784E75AAC78CB67A7E465799B005224003 98A56F40C2A502230AC6635435DF2F117D3233C5; do
+  /usr/local/MacGPG2/bin/gpg --local-user "$xyrev_gpg_key" --armor --detach-sign \
+    --output "$xyrev_gpg_check_dir/$xyrev_gpg_key.asc" "$xyrev_gpg_check_dir/message.txt" &&
+  /usr/local/MacGPG2/bin/gpg --verify "$xyrev_gpg_check_dir/$xyrev_gpg_key.asc" "$xyrev_gpg_check_dir/message.txt"
+done
+rm -r -- "$xyrev_gpg_check_dir"
+```
+
+两次验签都应显示对应个人/Work 身份的 `Good signature`。`xyrev dotfile verify` 检查部署状态，实际签名确认私钥可用。日常同步运行 `xyrev dotfile update`；新 Terminal 如未加载 SSH 密钥，先重新执行上述 `ssh-add`。
+
+### HTTPS 认证替代
+
+若选择 HTTPS，在浏览器创建仅授权 `szwathub/dotfiles`、具有 Contents 读取权限的 [fine-grained PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)；推送时另需写权限。先让 macOS Keychain 缓存凭据：
+
+```bash
+git config --global credential.https://github.com.helper osxkeychain
+git ls-remote https://github.com/szwathub/dotfiles.git HEAD
+```
+
+在 Git 的交互提示中输入 GitHub 用户名，Password 位置粘贴 PAT；不要输入账户登录密码，也不要将 PAT 放入 URL、命令参数或环境变量。预检成功后，将上面 `init` 的仓库地址替换为 `https://github.com/szwathub/dotfiles.git`，其余步骤相同。xyrev 的 Git 子进程关闭终端凭据提示，所以必须先完成该预缓存步骤；凭据助手见 [Git 官方文档](https://git-scm.com/docs/gitcredentials)。
 
 ## 从源码构建
 

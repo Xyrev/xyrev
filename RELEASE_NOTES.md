@@ -7,14 +7,19 @@ GPG 密钥备份、校验和恢复统一迁入 xyrev，不再依赖 dotfiles 仓
 - `.xyrevgpg.toml[.tmpl]` 声明自动恢复；部署顺序为 before 钩子、普通配置、GPG 恢复、after 钩子。成功后记录摘要，失败可重试，重复部署保持幂等。
 - 保留历史单/多密钥 Shell 清单读取兼容，清单仅作为数据解析。预览不运行 GPG 或询问密码；独立 destination 跳过自动恢复。
 
-macOS / Linux 安装：
+`Xyrev/xyrev` 和发行包保持公开；示例 `szwathub/dotfiles` 为私有仓库。首次初始化前先完成 SSH 或 HTTPS 凭据助手认证，并用 `git ls-remote` 确认仓库读取权限。Git 认证与后续 GPG 备份密码独立；不能依赖 `apply` 才安装的软件完成首次认证。完整新 Mac 步骤见 [README](README.md#新-mac-初始化私有-dotfiles)。
+
+macOS 安装与初始化（以下使用已认证的 SSH）：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.5.0/install.sh | VERSION=v0.5.0 bash
 export PATH="$HOME/.local/bin:$PATH"
 xyrev --version
-xyrev dotfile init https://github.com/szwathub/dotfiles --recurse-submodules
+git ls-remote git@github.com:szwathub/dotfiles.git HEAD
+xyrev dotfile init git@github.com:szwathub/dotfiles.git --recurse-submodules \
+  --data git_signing_key=2BF609784E75AAC78CB67A7E465799B005224003
 xyrev dotfile diff
+sudo -v
 xyrev dotfile apply
 xyrev dotfile verify
 ```
