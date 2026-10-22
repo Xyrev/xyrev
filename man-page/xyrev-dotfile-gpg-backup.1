@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH xyrev-dotfile-gpg-backup 1  "xyrev-dotfile-gpg-backup "
+.SH NAME
+xyrev\-dotfile\-gpg\-backup \- Export selected GPG keys and ownertrust into an encrypted backup
+.SH SYNOPSIS
+\fBxyrev\-dotfile\-gpg\-backup\fR <\fB\-\-fingerprint\fR> [\fB\-\-output\fR] [\fB\-\-identity\fR] [\fB\-\-passphrase\-file\fR] [\fB\-\-gpg\-program\fR] [\fB\-h\fR|\fB\-\-help\fR]
+.SH DESCRIPTION
+Export selected GPG keys and ownertrust into an encrypted backup
+.SH OPTIONS
+.TP
+\fB\-\-fingerprint\fR \fI<FINGERPRINT>\fR
+Complete primary GPG fingerprint; repeat to select multiple keys
+.TP
+\fB\-\-output\fR \fI<OUTPUT>\fR
+Backup directory (defaults to .xyrevtemplates/gpg in the source)
+.TP
+\fB\-\-identity\fR \fI<IDENTITY>\fR
+Separate age identity kept outside the repository
+.TP
+\fB\-\-passphrase\-file\fR \fI<PASSPHRASE_FILE>\fR
+Read the password from private external storage or an inherited pipe
+.TP
+\fB\-\-gpg\-program\fR \fI<GPG_PROGRAM>\fR
+GPG executable (GPG Suite is detected on macOS)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

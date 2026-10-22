@@ -75,6 +75,8 @@ pub enum Fingerprint {
 #[derive(Default, Serialize, Deserialize)]
 pub struct State {
     pub entries: BTreeMap<String, Fingerprint>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gpg_restore: Option<String>,
 }
 
 pub fn digest(bytes: &[u8]) -> String {

@@ -1193,3 +1193,17 @@ macOS 已本机验证；Linux/Windows 添加 CI 测试矩阵，Windows ACL 与 P
 - 文件属性兼容、模板兼容、控制文件兼容和零外部依赖是不同验收项，不能相互替代。
 
 参考：[chezmoi 文件属性](https://www.chezmoi.io/reference/source-state-attributes/)、[chezmoi 模板](https://www.chezmoi.io/user-guide/templating/)、[示例仓库](https://github.com/szwathub/dotfiles)。
+
+
+## 20. 原生 GPG 备份与恢复（v0.5.0）
+
+GPG 密钥管理是 xyrev 的通用能力。dotfiles 仓库只声明恢复策略、保存公钥及 age 密文，不再维护选钥、密码输入、校验、导入逻辑或专用备份/恢复 Shell 脚本。
+
+- `xyrev dotfile gpg backup --fingerprint FPR [--fingerprint FPR ...]` 显式选择完整主密钥，默认密码加密；支持外部私有密码文件、独立 age 身份文件和 GPG 程序路径覆盖。
+- `xyrev dotfile gpg restore` 读取备份，校验摘要、公私钥主指纹集合和 ownertrust 后导入 HOME 下的 GPG keyring。兼容历史单/多密钥 `backup-metadata.sh`，仅解析字段，不执行 Shell；原有密码密文无需重新生成。
+- `.xyrevgpg.toml[.tmpl]` 声明 `enabled`、`directory`、`program`、`identity`、`passphrase_file`，只允许一种声明文件。默认支持目录为 `.xyrevtemplates/gpg`。
+- 统一计划按 before 钩子、目标文件、原生恢复、after 钩子执行。状态按 source/destination 隔离，只保存最近成功恢复的公开摘要；失败不记成功，A→B→A 重新恢复，未变备份不重复导入。
+- `diff`、`status`、`apply --dry-run` 不执行 GPG、不读密码；`verify` 对尚未成功恢复的备份返回非零。独立 destination 跳过自动恢复。声明与备份支持文件不会作为目标部署或进入 archive。
+- 私钥明文仅在内存和 GPG 标准输入管道中流转，密码不进入 argv、环境变量、日志或状态。写入源备份时拒绝遗漏既有密钥；密码错误、导出不完整、内容不匹配时不发布新备份。
+
+实现及跨平台命令说明以 README 和 `xyrev dotfile gpg --help` 为准。

@@ -109,6 +109,7 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand data 'Print merged template data as JSON'
             cand encrypt 'Encrypt a file using configured age or gpg'
             cand decrypt 'Decrypt a file using configured identities'
+            cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -286,6 +287,56 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand -h 'Print help'
             cand --help 'Print help'
         }
+        &'xyrev;dotfile;gpg'= {
+            cand --source 'Local source repository (saved by init)'
+            cand --destination 'Destination directory (defaults to the user''s home)'
+            cand --data 'Override template data (key=value; JSON values are accepted)'
+            cand -v 'Show more debugging information'
+            cand --verbose 'Show more debugging information'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand restore 'Validate and restore an encrypted GPG key backup'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'xyrev;dotfile;gpg;backup'= {
+            cand --fingerprint 'Complete primary GPG fingerprint; repeat to select multiple keys'
+            cand --output 'Backup directory (defaults to .xyrevtemplates/gpg in the source)'
+            cand --identity 'Separate age identity kept outside the repository'
+            cand --passphrase-file 'Read the password from private external storage or an inherited pipe'
+            cand --gpg-program 'GPG executable (GPG Suite is detected on macOS)'
+            cand --source 'Local source repository (saved by init)'
+            cand --destination 'Destination directory (defaults to the user''s home)'
+            cand --data 'Override template data (key=value; JSON values are accepted)'
+            cand -v 'Show more debugging information'
+            cand --verbose 'Show more debugging information'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'xyrev;dotfile;gpg;restore'= {
+            cand --input 'Backup directory (defaults to .xyrevtemplates/gpg in the source)'
+            cand --identity 'Separate age identity for identity-encrypted backups'
+            cand --passphrase-file 'Read the password from a private file outside the repository'
+            cand --gpg-program 'GPG executable (GPG Suite is detected on macOS)'
+            cand --source 'Local source repository (saved by init)'
+            cand --destination 'Destination directory (defaults to the user''s home)'
+            cand --data 'Override template data (key=value; JSON values are accepted)'
+            cand -v 'Show more debugging information'
+            cand --verbose 'Show more debugging information'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'xyrev;dotfile;gpg;help'= {
+            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand restore 'Validate and restore an encrypted GPG key backup'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'xyrev;dotfile;gpg;help;backup'= {
+        }
+        &'xyrev;dotfile;gpg;help;restore'= {
+        }
+        &'xyrev;dotfile;gpg;help;help'= {
+        }
         &'xyrev;dotfile;keygen'= {
             cand --output 'output'
             cand --source 'Local source repository (saved by init)'
@@ -323,6 +374,7 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand data 'Print merged template data as JSON'
             cand encrypt 'Encrypt a file using configured age or gpg'
             cand decrypt 'Decrypt a file using configured identities'
+            cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -358,6 +410,14 @@ set edit:completion:arg-completer[xyrev] = {|@words|
         &'xyrev;dotfile;help;encrypt'= {
         }
         &'xyrev;dotfile;help;decrypt'= {
+        }
+        &'xyrev;dotfile;help;gpg'= {
+            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand restore 'Validate and restore an encrypted GPG key backup'
+        }
+        &'xyrev;dotfile;help;gpg;backup'= {
+        }
+        &'xyrev;dotfile;help;gpg;restore'= {
         }
         &'xyrev;dotfile;help;keygen'= {
         }
@@ -416,6 +476,7 @@ set edit:completion:arg-completer[xyrev] = {|@words|
             cand data 'Print merged template data as JSON'
             cand encrypt 'Encrypt a file using configured age or gpg'
             cand decrypt 'Decrypt a file using configured identities'
+            cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
         }
@@ -450,6 +511,14 @@ set edit:completion:arg-completer[xyrev] = {|@words|
         &'xyrev;help;dotfile;encrypt'= {
         }
         &'xyrev;help;dotfile;decrypt'= {
+        }
+        &'xyrev;help;dotfile;gpg'= {
+            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand restore 'Validate and restore an encrypted GPG key backup'
+        }
+        &'xyrev;help;dotfile;gpg;backup'= {
+        }
+        &'xyrev;help;dotfile;gpg;restore'= {
         }
         &'xyrev;help;dotfile;keygen'= {
         }

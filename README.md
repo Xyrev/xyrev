@@ -7,12 +7,12 @@
 macOS / Linux 无需先安装 Git、Rust 或 Homebrew。安装器按系统架构下载发布包，验证 SHA-256 后安装到 `~/.local/bin`：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.4.1/install.sh | VERSION=v0.4.1 bash
+curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.5.0/install.sh | VERSION=v0.5.0 bash
 export PATH="$HOME/.local/bin:$PATH"
 xyrev --version
 ```
 
-可设置 `PREFIX` 选择安装目录（最终位置为 `$PREFIX/bin/xyrev`）。`install.sh` 和兼容入口 `newinstall.sh` 行为一致；不指定 `VERSION` 时选择最新稳定 Release。Windows 可从 [Release 下载页](https://github.com/Xyrev/xyrev/releases/tag/v0.4.1) 下载 `xyrev-v0.4.1-x86_64-pc-windows-msvc.zip`，解压后使用其中的 `xyrev.exe`。
+可设置 `PREFIX` 选择安装目录（最终位置为 `$PREFIX/bin/xyrev`）。`install.sh` 和兼容入口 `newinstall.sh` 行为一致；不指定 `VERSION` 时选择最新稳定 Release。Windows 可从 [Release 下载页](https://github.com/Xyrev/xyrev/releases/tag/v0.5.0) 下载 `xyrev-v0.5.0-x86_64-pc-windows-msvc.zip`，解压后使用其中的 `xyrev.exe`。
 
 在新机器上初始化 dotfiles：
 
@@ -172,9 +172,38 @@ GPG 使用本机 `gpg`，配置 `backend='gpg'`、`gpg_recipient` 或使用 `--b
 
 脚本支持 `run_`、`run_once_`、`run_onchange_`，可叠加 `before_` / `after_` 和 `.tmpl`。before 阶段先执行，普通脚本与文件按解码目标路径穿插执行，after 阶段最后执行。只在成功后记录 once/onchange 状态；失败可重试，已完成文件和成功脚本保留。onchange 记录最近成功内容，A→B→A 会重新执行。提供 `XYREV_SOURCE_DIR` / `XYREV_DEST_DIR` / `XYREV_HOME` / `XYREV_OS` / `XYREV_ARCH`，以及当前运行程序绝对路径 `XYREV_EXECUTABLE`。
 
-钩子可以调用 `"$XYREV_EXECUTABLE" dotfile decrypt backup.age --passphrase-file /dev/fd/3` 或 `--identity /path/to/identity`，将解密结果通过管道交给导入工具；独立 `encrypt` / `decrypt` 不争用部署锁，`apply` / `add` 等写操作仍受锁保护。需流式恢复的密钥备份可放在 `.xyrevtemplates/`，该目录不会作为目标文件部署或纳入 archive。将密文摘要包含在 onchange 模板中，备份变更才会触发重新导入。密码保存在密码管理器；采用身份文件模式时，age 私钥必须在仓库外单独保管并预先恢复。不要将 GPG 私钥只加密给自身，否则新机器缺少用于解密的同一把私钥。钩子没有交互 stdin，但可显式通过控制终端隐藏读取密码；受口令保护的 GPG 密钥可能通过 pinentry 提示解锁。
+通用钩子仍可使用 `"$XYREV_EXECUTABLE" dotfile encrypt/decrypt`；独立加解密不争用部署锁，其他写操作受锁保护。GPG 密钥备份与恢复使用下述原生命令和声明配置，无需仓库中的备份/恢复脚本。
 
 预览不执行 run hooks、不更新目标、部署状态或缓存；渲染模板仍会调用秘密提供器，`modify_` 转换脚本会在私有临时工作目录中执行。部署和预览都应使用可信仓库。diff 和 archive 包含渲染后的明文，请按目标文件的敏感程度保存。
+
+## GPG 密钥备份与恢复
+
+在已有私钥的机器上，显式选择完整主密钥指纹；子密钥会随主密钥一起导出：
+
+```bash
+xyrev dotfile gpg backup --fingerprint PERSONAL_PRIMARY_FINGERPRINT --fingerprint WORK_PRIMARY_FINGERPRINT
+xyrev dotfile gpg restore
+```
+
+备份默认在本机控制终端隐藏输入并确认密码，使用 age 密码加密私钥和 ownertrust。密码保存在密码管理器或离线介质中；GPG 原私钥口令保持原样，系统 pinentry 可能另行要求解锁。`--passphrase-file` 可从仓库外的私有文件提供密码，备份也可从管道描述符读取。密码不会进入参数、环境变量、日志或部署状态，私钥明文只保存在内存和管道中。
+
+默认备份目录为 source 中的 `.xyrevtemplates/gpg/`，保存公钥、`secret.asc.age`、`ownertrust.txt.age` 和公开清单 `backup-metadata.sh`。xyrev 将该历史清单作为严格的字段数据解析，不执行其中的 Shell。现有单密钥、多密钥的密码备份及独立 age 身份文件备份均可直接恢复，无需重新加密。`backup --identity /external/private/identity.agekey` 使用已有的独立 age 身份文件；恢复时先从单独备份恢复身份文件。
+
+`--fingerprint` 可重复；备份会拒绝遗漏既有清单中的密钥。恢复前校验 SHA-256、公私钥的完整主指纹集合和 ownertrust，缺少私钥、混入未选密钥、密码错误或数据损坏都会在真实导入之前失败。只导出明确选择的密钥，不复制整个 `~/.gnupg`。`--gpg-program` 可指定 GPG 可执行文件；macOS 优先使用已安装的 GPG Suite。
+
+仓库可用 `.xyrevgpg.toml` 或 `.xyrevgpg.toml.tmpl` 声明自动恢复（两者只能存在一个）：
+
+```toml
+enabled = {{ restore_gpg | default(true) | tojson }}
+directory = ".xyrevtemplates/gpg"
+program = {{ gpg_program | default('gpg') | tojson }}
+identity = {{ gpg_identity | default('') | tojson }}
+passphrase_file = {{ gpg_passphrase_file | default('') | tojson }}
+```
+
+配置仅包含路径和开关，密码文件必须在仓库外。`apply` / `init --apply` / `update` 依次执行 before 钩子、部署文件、原生 GPG 恢复和 after 钩子；因此可先安装 GPG Suite，再恢复密钥，最后执行系统设置。恢复到 HOME 的 `~/.gnupg`，独立 destination 跳过自动恢复。只有完整成功后才记录恢复摘要；失败可重试，重复部署不重复导入，备份变化后会重新恢复。
+
+`diff`、`status`、`apply --dry-run` 只显示待恢复项，不询问密码或运行 GPG；`verify` 会报告尚未成功恢复的备份。支持文件与声明不会作为普通 dotfile 部署或进入 archive。显式 `gpg restore` 可再次导入备份。只同步普通配置时，仓库可将 `enabled` 绑定到 `restore_gpg` 数据，并使用 `--data restore_gpg=false`。
 
 ## 外部资源与归档
 

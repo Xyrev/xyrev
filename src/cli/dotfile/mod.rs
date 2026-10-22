@@ -51,6 +51,8 @@ pub enum Commands {
     Encrypt(CryptoArgs),
     /// Decrypt a file using configured identities
     Decrypt(CryptoArgs),
+    /// Back up or restore GPG keys using encrypted dotfile storage
+    Gpg(GpgArgs),
     /// Generate an age identity and print its public recipient
     Keygen {
         #[arg(long)]
@@ -159,4 +161,53 @@ impl DotfileCommand {
     pub fn run(&self, verbose: bool) -> anyhow::Result<()> {
         crate::dotfile::run(self, verbose)
     }
+}
+
+#[derive(Args, Debug)]
+pub struct GpgArgs {
+    #[command(subcommand)]
+    pub command: GpgCommands,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum GpgCommands {
+    /// Export selected GPG keys and ownertrust into an encrypted backup
+    Backup(GpgBackupArgs),
+    /// Validate and restore an encrypted GPG key backup
+    Restore(GpgRestoreArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct GpgBackupArgs {
+    /// Complete primary GPG fingerprint; repeat to select multiple keys
+    #[arg(long, required = true)]
+    pub fingerprint: Vec<String>,
+    /// Backup directory (defaults to .xyrevtemplates/gpg in the source)
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+    /// Separate age identity kept outside the repository
+    #[arg(long, conflicts_with = "passphrase_file")]
+    pub identity: Option<PathBuf>,
+    /// Read the password from private external storage or an inherited pipe
+    #[arg(long)]
+    pub passphrase_file: Option<PathBuf>,
+    /// GPG executable (GPG Suite is detected on macOS)
+    #[arg(long)]
+    pub gpg_program: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+pub struct GpgRestoreArgs {
+    /// Backup directory (defaults to .xyrevtemplates/gpg in the source)
+    #[arg(long)]
+    pub input: Option<PathBuf>,
+    /// Separate age identity for identity-encrypted backups
+    #[arg(long, conflicts_with = "passphrase_file")]
+    pub identity: Option<PathBuf>,
+    /// Read the password from a private file outside the repository
+    #[arg(long)]
+    pub passphrase_file: Option<PathBuf>,
+    /// GPG executable (GPG Suite is detected on macOS)
+    #[arg(long)]
+    pub gpg_program: Option<PathBuf>,
 }

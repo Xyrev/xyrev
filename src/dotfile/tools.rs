@@ -104,12 +104,12 @@ fn read_passphrase(paths: &Paths, args: &CryptoArgs, decrypt: bool) -> Result<Se
 }
 
 #[cfg(not(windows))]
-fn prompt_passphrase(prompt: &str) -> io::Result<SecretString> {
+pub(super) fn prompt_passphrase(prompt: &str) -> io::Result<SecretString> {
     rpassword::prompt_password(prompt).map(SecretString::new)
 }
 
 #[cfg(windows)]
-fn prompt_passphrase(prompt: &str) -> io::Result<SecretString> {
+pub(super) fn prompt_passphrase(prompt: &str) -> io::Result<SecretString> {
     use std::os::windows::io::AsRawHandle;
     use windows_sys::Win32::System::Console::{
         GetConsoleMode, SetConsoleMode, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT,

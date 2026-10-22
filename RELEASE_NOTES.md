@@ -1,3 +1,26 @@
+# xyrev v0.5.0
+
+GPG 密钥备份、校验和恢复统一迁入 xyrev，不再依赖 dotfiles 仓库中的备份/恢复脚本。兼容已提交的个人和 Work 密码加密备份，现有密文无需重新生成。
+
+- 新增 `xyrev dotfile gpg backup` 和 `restore`，支持多主密钥、隐藏密码输入、外部密码文件及独立 age 身份文件。
+- 原生校验摘要、公私钥完整集合及 ownertrust，防止遗漏既有密钥或导入不完整备份。密码和私钥明文不写入仓库、命令参数、环境变量或临时文件。
+- `.xyrevgpg.toml[.tmpl]` 声明自动恢复；部署顺序为 before 钩子、普通配置、GPG 恢复、after 钩子。成功后记录摘要，失败可重试，重复部署保持幂等。
+- 保留历史单/多密钥 Shell 清单读取兼容，清单仅作为数据解析。预览不运行 GPG 或询问密码；独立 destination 跳过自动恢复。
+
+macOS / Linux 安装：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.5.0/install.sh | VERSION=v0.5.0 bash
+export PATH="$HOME/.local/bin:$PATH"
+xyrev --version
+xyrev dotfile init https://github.com/szwathub/dotfiles --recurse-submodules
+xyrev dotfile diff
+xyrev dotfile apply
+xyrev dotfile verify
+```
+
+现有机器升级 xyrev 后运行 `xyrev dotfile update`。启用恢复时在本机控制终端输入原备份密码；原 GPG 私钥如有口令，系统 pinentry 可能另行提示。只同步配置可使用 `--data restore_gpg=false`。安装 xyrev 无需 Rust；首次克隆仍需要 Git，GPG 操作需要本机 GPG（macOS 可由 dotfiles 安装 GPG Suite）。
+
 # xyrev v0.4.1
 
 支持在新机器上用密码恢复 GPG 备份，无需单独保存 age 身份文件。私钥和 ownertrust 通过 age 密码加密，恢复时经管道导入 GPG；密码不写入参数、环境变量或仓库。

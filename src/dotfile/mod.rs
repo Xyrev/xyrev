@@ -2,6 +2,7 @@ mod archive;
 mod crypto;
 mod external;
 mod git;
+mod gpg;
 mod maintenance;
 mod native_git;
 mod plan;
@@ -46,7 +47,11 @@ pub fn run(command: &DotfileCommand, verbose: bool) -> Result<()> {
     }
     let write = matches!(
         &command.command,
-        Commands::Init(_) | Commands::Update | Commands::Add(_) | Commands::Edit(_)
+        Commands::Init(_)
+            | Commands::Update
+            | Commands::Add(_)
+            | Commands::Edit(_)
+            | Commands::Gpg(_)
     ) || matches!(&command.command,Commands::Apply(args) if !args.dry_run);
     let _lock = storage::lock(&initial.root, write)?;
     let mut paths =
@@ -98,6 +103,7 @@ pub fn run(command: &DotfileCommand, verbose: bool) -> Result<()> {
     git::ready(&paths.source)?;
     let engine = template::Engine::new(&paths, &command.data, false)?;
     match &command.command {
+        Commands::Gpg(args) => return gpg::run(&paths, &engine, args),
         Commands::Data => {
             println!("{}", serde_json::to_string_pretty(&engine.data)?);
             return Ok(());
@@ -131,7 +137,8 @@ pub fn run(command: &DotfileCommand, verbose: bool) -> Result<()> {
         return Ok(());
     }
     let mut state = paths.state()?;
-    let plan = plan::Plan::build(&paths, tree, &state)?;
+    let mut plan = plan::Plan::build(&paths, tree, &state)?;
+    plan.set_gpg(gpg::prepare_restore(&paths, &engine)?, &state);
     match &command.command {
         Commands::Diff => {
             plan.show(true);

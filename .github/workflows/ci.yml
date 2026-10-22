@@ -23,6 +23,21 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked --all-targets
+      - name: Install GnuPG for disposable-key integration tests
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if ! command -v gpg >/dev/null 2>&1; then
+            case "$RUNNER_OS" in
+              Linux) sudo apt-get update && sudo apt-get install -y gnupg ;;
+              macOS) brew install gnupg ;;
+            esac
+          fi
+      - name: Test native GPG backup and restore with disposable keys
+        if: runner.os != 'Windows'
+        env:
+          XYREV_BIN: target/debug/xyrev
+        run: python -m unittest discover -s tests -p 'test_gpg_native.py' -v
       - name: Check generated CLI assets
         if: runner.os == 'macOS'
         run: |

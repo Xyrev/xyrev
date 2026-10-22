@@ -122,6 +122,7 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
             [CompletionResult]::new('encrypt', 'encrypt', [CompletionResultType]::ParameterValue, 'Encrypt a file using configured age or gpg')
             [CompletionResult]::new('decrypt', 'decrypt', [CompletionResultType]::ParameterValue, 'Decrypt a file using configured identities')
+            [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -316,6 +317,63 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
+        'xyrev;dotfile;gpg' {
+            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
+            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
+            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'xyrev;dotfile;gpg;backup' {
+            [CompletionResult]::new('--fingerprint', '--fingerprint', [CompletionResultType]::ParameterName, 'Complete primary GPG fingerprint; repeat to select multiple keys')
+            [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'Backup directory (defaults to .xyrevtemplates/gpg in the source)')
+            [CompletionResult]::new('--identity', '--identity', [CompletionResultType]::ParameterName, 'Separate age identity kept outside the repository')
+            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read the password from private external storage or an inherited pipe')
+            [CompletionResult]::new('--gpg-program', '--gpg-program', [CompletionResultType]::ParameterName, 'GPG executable (GPG Suite is detected on macOS)')
+            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
+            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
+            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'xyrev;dotfile;gpg;restore' {
+            [CompletionResult]::new('--input', '--input', [CompletionResultType]::ParameterName, 'Backup directory (defaults to .xyrevtemplates/gpg in the source)')
+            [CompletionResult]::new('--identity', '--identity', [CompletionResultType]::ParameterName, 'Separate age identity for identity-encrypted backups')
+            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read the password from a private file outside the repository')
+            [CompletionResult]::new('--gpg-program', '--gpg-program', [CompletionResultType]::ParameterName, 'GPG executable (GPG Suite is detected on macOS)')
+            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
+            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
+            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'xyrev;dotfile;gpg;help' {
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'xyrev;dotfile;gpg;help;backup' {
+            break
+        }
+        'xyrev;dotfile;gpg;help;restore' {
+            break
+        }
+        'xyrev;dotfile;gpg;help;help' {
+            break
+        }
         'xyrev;dotfile;keygen' {
             [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'output')
             [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
@@ -355,6 +413,7 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
             [CompletionResult]::new('encrypt', 'encrypt', [CompletionResultType]::ParameterValue, 'Encrypt a file using configured age or gpg')
             [CompletionResult]::new('decrypt', 'decrypt', [CompletionResultType]::ParameterValue, 'Decrypt a file using configured identities')
+            [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -406,6 +465,17 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             break
         }
         'xyrev;dotfile;help;decrypt' {
+            break
+        }
+        'xyrev;dotfile;help;gpg' {
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
+            break
+        }
+        'xyrev;dotfile;help;gpg;backup' {
+            break
+        }
+        'xyrev;dotfile;help;gpg;restore' {
             break
         }
         'xyrev;dotfile;help;keygen' {
@@ -476,6 +546,7 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
             [CompletionResult]::new('encrypt', 'encrypt', [CompletionResultType]::ParameterValue, 'Encrypt a file using configured age or gpg')
             [CompletionResult]::new('decrypt', 'decrypt', [CompletionResultType]::ParameterValue, 'Decrypt a file using configured identities')
+            [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
             break
@@ -526,6 +597,17 @@ Register-ArgumentCompleter -Native -CommandName 'xyrev' -ScriptBlock {
             break
         }
         'xyrev;help;dotfile;decrypt' {
+            break
+        }
+        'xyrev;help;dotfile;gpg' {
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
+            break
+        }
+        'xyrev;help;dotfile;gpg;backup' {
+            break
+        }
+        'xyrev;help;dotfile;gpg;restore' {
             break
         }
         'xyrev;help;dotfile;keygen' {
