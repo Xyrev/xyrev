@@ -31,7 +31,7 @@ impl InitCommand {
         }
 
         if let Ok(home_dir) = env::var("HOME").or_else(|_| env::var("USERPROFILE")) {
-            let xyrev_dir = std::path::Path::new(&home_dir).join(ROOT_DIR);
+            let _xyrev_dir = std::path::Path::new(&home_dir).join(ROOT_DIR);
         } else {
             println!("无法获取用户主目录");
         }

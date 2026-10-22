@@ -1,29 +1,27 @@
 mod cli;
 mod common;
+mod dotfile;
+mod help;
 
 use clap::Parser;
 use cli::Cli;
-use common::log::{log_rich, Span};
-use termcolor::Color;
 
 fn main() {
-    let cli = Cli::parse();
+    if let Err(error) = run(Cli::parse()) {
+        eprintln!("Error: {error:#}");
+        std::process::exit(1);
+    }
+}
 
-    infolog!("asdasdad");
-
-    log_rich(&[
-        Span::new("==> ").color(Color::Green).bold(),
-        Span::new("编译完成，耗时 ").bold(),
-        Span::new("1.23s").color(Color::Cyan),
-    ])
-    .unwrap();
-    // log(log_level, cli.verbose, "欢迎使用 Xyrev！").expect("日志输出失败");
-
+fn run(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         cli::Commands::Init(cmd) => cmd.run(cli.verbose),
         cli::Commands::Agent(cmd) => cmd.run(cli.verbose),
         #[cfg(target_os = "macos")]
         cli::Commands::Apple(cmd) => println!("Apple {}", cmd.name),
-        cli::Commands::Dotfile(cmd) => println!("Dotfile {}", cmd.name),
+        cli::Commands::Dotfile(cmd) => cmd.run(cli.verbose)?,
+        cli::Commands::Completions { shell } => help::completions(shell),
+        cli::Commands::Man { output } => help::man(output.as_deref())?,
     }
+    Ok(())
 }

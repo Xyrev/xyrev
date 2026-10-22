@@ -9,10 +9,10 @@ use clap::{Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(
     name = "xyrev",
-    about = "A helpful utility designed to make xyrev effortless",
+    about = "Developer environment and Git-backed dotfile management",
     version,
     disable_help_subcommand = false,
-    color = clap::ColorChoice::Always,
+    color = clap::ColorChoice::Auto,
     args_conflicts_with_subcommands = false
 )]
 pub struct Cli {
@@ -39,4 +39,13 @@ pub enum Commands {
     Apple(apple::AppleCommand),
 
     Dotfile(dotfile::DotfileCommand),
+    /// Generate shell completions from the current command definitions
+    Completions {
+        shell: clap_complete::Shell,
+    },
+    /// Render the manual, or write all command manuals to a directory
+    Man {
+        #[arg(long)]
+        output: Option<std::path::PathBuf>,
+    },
 }

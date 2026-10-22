@@ -15,8 +15,8 @@ _xyrev() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" : \
-'*-v[Use verbose output (-vv very verbose/build.rs output)]' \
-'*--verbose[Use verbose output (-vv very verbose/build.rs output)]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
 '-h[Print help]' \
 '--help[Print help]' \
 '-V[Print version]' \
@@ -36,20 +36,602 @@ _arguments "${_arguments_options[@]}" : \
 '--force[Force reinitialize configuration (overwrite existing)]' \
 '-C[Clean and reinitialize (remove all existing data)]' \
 '--clean[Clean and reinitialize (remove all existing data)]' \
-'*-v[Use verbose output (-vv very verbose/build.rs output)]' \
-'*--verbose[Use verbose output (-vv very verbose/build.rs output)]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
 '-h[Print help]' \
 '--help[Print help]' \
 && ret=0
 ;;
-(dotfile)
+(agent)
 _arguments "${_arguments_options[@]}" : \
-'*-v[Use verbose output (-vv for very verbose)]' \
-'*--verbose[Use verbose output (-vv for very verbose)]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_xyrev__agent_commands" \
+"*::: :->agent" \
+&& ret=0
+
+    case $state in
+    (agent)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:xyrev-agent-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Agent name:_default' \
+&& ret=0
+;;
+(copilot)
+_arguments "${_arguments_options[@]}" : \
+'-m+[Install method (auto, brew, npm, winget, script)]:METHOD:_default' \
+'--method=[Install method (auto, brew, npm, winget, script)]:METHOD:_default' \
+'--version=[Specific version to install (e.g., v0.0.369)]:VERSION:_default' \
+'--prefix=[Custom installation prefix (for script method)]:PREFIX:_default' \
+'--prerelease[Install prerelease version]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_xyrev__agent__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:xyrev-agent-help-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(copilot)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(apple)
+_arguments "${_arguments_options[@]}" : \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
 '-h[Print help]' \
 '--help[Print help]' \
 ':name -- Dotfile name:_default' \
 && ret=0
+;;
+(dotfile)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_xyrev__dotfile_commands" \
+"*::: :->dotfile" \
+&& ret=0
+
+    case $state in
+    (dotfile)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:xyrev-dotfile-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+'--branch=[]:BRANCH:_default' \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'--apply[Deploy after cloning]' \
+'--recurse-submodules[]' \
+'--builtin[Clone using the built-in Git backend]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':repo -- HTTPS, SSH, or file\:// Git URL:_default' \
+&& ret=0
+;;
+(diff)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(apply)
+_arguments "${_arguments_options[@]}" : \
+'--prompt=[Interactive conflict handling (auto only prompts on a terminal)]:PROMPT:(auto always never)' \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'--dry-run[]' \
+'--force[Back up and overwrite conflicting destination entries]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(managed)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(add)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'--template[]' \
+'--encrypt[]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'*::paths:_files' \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'--apply[]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'*::paths:_files' \
+&& ret=0
+;;
+(unmanaged)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(doctor)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(archive)
+_arguments "${_arguments_options[@]}" : \
+'--format=[]:FORMAT:(tar tgz zip)' \
+'-o+[]:OUTPUT:_files' \
+'--output=[]:OUTPUT:_files' \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(execute-template)
+_arguments "${_arguments_options[@]}" : \
+'()--file=[]:FILE:_files' \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'--init[]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::template:_default' \
+&& ret=0
+;;
+(data)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(encrypt)
+_arguments "${_arguments_options[@]}" : \
+'-o+[]:OUTPUT:_files' \
+'--output=[]:OUTPUT:_files' \
+'--backend=[]:BACKEND:(age gpg)' \
+'*--recipient=[]:RECIPIENT:_default' \
+'*--identity=[]:IDENTITY:_files' \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':input:_files' \
+&& ret=0
+;;
+(decrypt)
+_arguments "${_arguments_options[@]}" : \
+'-o+[]:OUTPUT:_files' \
+'--output=[]:OUTPUT:_files' \
+'--backend=[]:BACKEND:(age gpg)' \
+'*--recipient=[]:RECIPIENT:_default' \
+'*--identity=[]:IDENTITY:_files' \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':input:_files' \
+&& ret=0
+;;
+(keygen)
+_arguments "${_arguments_options[@]}" : \
+'--output=[]:OUTPUT:_files' \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(cd)
+_arguments "${_arguments_options[@]}" : \
+'--source=[Local source repository (saved by init)]:SOURCE:_files' \
+'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
+'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
+'--print[]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_xyrev__dotfile__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:xyrev-dotfile-help-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(diff)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(apply)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(managed)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(unmanaged)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(doctor)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(archive)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(execute-template)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(data)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(encrypt)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(decrypt)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(keygen)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(cd)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(completions)
+_arguments "${_arguments_options[@]}" : \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell:(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(man)
+_arguments "${_arguments_options[@]}" : \
+'--output=[]:OUTPUT:_files' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_xyrev__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:xyrev-help-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(agent)
+_arguments "${_arguments_options[@]}" : \
+":: :_xyrev__help__agent_commands" \
+"*::: :->agent" \
+&& ret=0
+
+    case $state in
+    (agent)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:xyrev-help-agent-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(copilot)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(apple)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(dotfile)
+_arguments "${_arguments_options[@]}" : \
+":: :_xyrev__help__dotfile_commands" \
+"*::: :->dotfile" \
+&& ret=0
+
+    case $state in
+    (dotfile)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:xyrev-help-dotfile-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(diff)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(apply)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(managed)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(unmanaged)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(doctor)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(archive)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(execute-template)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(data)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(encrypt)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(decrypt)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(keygen)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(cd)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(completions)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(man)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
 ;;
         esac
     ;;
@@ -60,19 +642,482 @@ esac
 _xyrev_commands() {
     local commands; commands=(
 'init:Create a new configuration folder or reinitialize the existing one' \
-'dotfile:' \
+'agent:' \
+'apple:' \
+'dotfile:Manage dotfiles from a Git repository using chezmoi-style names' \
+'completions:Generate shell completions from the current command definitions' \
+'man:Render the manual, or write all command manuals to a directory' \
+'help:Print this message or the help of the given subcommand(s)' \
     )
     _describe -t commands 'xyrev commands' commands "$@"
 }
+(( $+functions[_xyrev__agent_commands] )) ||
+_xyrev__agent_commands() {
+    local commands; commands=(
+'init:' \
+'copilot:' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'xyrev agent commands' commands "$@"
+}
+(( $+functions[_xyrev__agent__copilot_commands] )) ||
+_xyrev__agent__copilot_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev agent copilot commands' commands "$@"
+}
+(( $+functions[_xyrev__agent__help_commands] )) ||
+_xyrev__agent__help_commands() {
+    local commands; commands=(
+'init:' \
+'copilot:' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'xyrev agent help commands' commands "$@"
+}
+(( $+functions[_xyrev__agent__help__copilot_commands] )) ||
+_xyrev__agent__help__copilot_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev agent help copilot commands' commands "$@"
+}
+(( $+functions[_xyrev__agent__help__help_commands] )) ||
+_xyrev__agent__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev agent help help commands' commands "$@"
+}
+(( $+functions[_xyrev__agent__help__init_commands] )) ||
+_xyrev__agent__help__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev agent help init commands' commands "$@"
+}
+(( $+functions[_xyrev__agent__init_commands] )) ||
+_xyrev__agent__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev agent init commands' commands "$@"
+}
+(( $+functions[_xyrev__apple_commands] )) ||
+_xyrev__apple_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev apple commands' commands "$@"
+}
+(( $+functions[_xyrev__completions_commands] )) ||
+_xyrev__completions_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev completions commands' commands "$@"
+}
 (( $+functions[_xyrev__dotfile_commands] )) ||
 _xyrev__dotfile_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'init:Clone a Git URL and save configuration' \
+'diff:Preview content and permission changes without writing' \
+'status:List pending changes and conflicts' \
+'apply:Deploy the local source repository' \
+'update:Fast-forward the source repository and deploy changes' \
+'managed:List managed destination paths' \
+'add:Import existing destination files into source state' \
+'edit:Edit source files (encrypted files are decrypted only in a private temporary directory)' \
+'unmanaged:List destination files not managed by source' \
+'verify:Return nonzero when the destination differs from source' \
+'doctor:Diagnose repository, configuration, state and optional executables' \
+'archive:Export rendered target files as tar, tar.gz, or zip' \
+'execute-template:Evaluate a Jinja template using repository and local data' \
+'data:Print merged template data as JSON' \
+'encrypt:Encrypt a file using configured age or gpg' \
+'decrypt:Decrypt a file using configured identities' \
+'keygen:Generate an age identity and print its public recipient' \
+'cd:Start a shell in the source repository, or print its path' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
     _describe -t commands 'xyrev dotfile commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__add_commands] )) ||
+_xyrev__dotfile__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile add commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__apply_commands] )) ||
+_xyrev__dotfile__apply_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile apply commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__archive_commands] )) ||
+_xyrev__dotfile__archive_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile archive commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__cd_commands] )) ||
+_xyrev__dotfile__cd_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile cd commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__data_commands] )) ||
+_xyrev__dotfile__data_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile data commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__decrypt_commands] )) ||
+_xyrev__dotfile__decrypt_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile decrypt commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__diff_commands] )) ||
+_xyrev__dotfile__diff_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile diff commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__doctor_commands] )) ||
+_xyrev__dotfile__doctor_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile doctor commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__edit_commands] )) ||
+_xyrev__dotfile__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile edit commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__encrypt_commands] )) ||
+_xyrev__dotfile__encrypt_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile encrypt commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__execute-template_commands] )) ||
+_xyrev__dotfile__execute-template_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile execute-template commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help_commands] )) ||
+_xyrev__dotfile__help_commands() {
+    local commands; commands=(
+'init:Clone a Git URL and save configuration' \
+'diff:Preview content and permission changes without writing' \
+'status:List pending changes and conflicts' \
+'apply:Deploy the local source repository' \
+'update:Fast-forward the source repository and deploy changes' \
+'managed:List managed destination paths' \
+'add:Import existing destination files into source state' \
+'edit:Edit source files (encrypted files are decrypted only in a private temporary directory)' \
+'unmanaged:List destination files not managed by source' \
+'verify:Return nonzero when the destination differs from source' \
+'doctor:Diagnose repository, configuration, state and optional executables' \
+'archive:Export rendered target files as tar, tar.gz, or zip' \
+'execute-template:Evaluate a Jinja template using repository and local data' \
+'data:Print merged template data as JSON' \
+'encrypt:Encrypt a file using configured age or gpg' \
+'decrypt:Decrypt a file using configured identities' \
+'keygen:Generate an age identity and print its public recipient' \
+'cd:Start a shell in the source repository, or print its path' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'xyrev dotfile help commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__add_commands] )) ||
+_xyrev__dotfile__help__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help add commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__apply_commands] )) ||
+_xyrev__dotfile__help__apply_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help apply commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__archive_commands] )) ||
+_xyrev__dotfile__help__archive_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help archive commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__cd_commands] )) ||
+_xyrev__dotfile__help__cd_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help cd commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__data_commands] )) ||
+_xyrev__dotfile__help__data_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help data commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__decrypt_commands] )) ||
+_xyrev__dotfile__help__decrypt_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help decrypt commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__diff_commands] )) ||
+_xyrev__dotfile__help__diff_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help diff commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__doctor_commands] )) ||
+_xyrev__dotfile__help__doctor_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help doctor commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__edit_commands] )) ||
+_xyrev__dotfile__help__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help edit commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__encrypt_commands] )) ||
+_xyrev__dotfile__help__encrypt_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help encrypt commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__execute-template_commands] )) ||
+_xyrev__dotfile__help__execute-template_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help execute-template commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__help_commands] )) ||
+_xyrev__dotfile__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help help commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__init_commands] )) ||
+_xyrev__dotfile__help__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help init commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__keygen_commands] )) ||
+_xyrev__dotfile__help__keygen_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help keygen commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__managed_commands] )) ||
+_xyrev__dotfile__help__managed_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help managed commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__status_commands] )) ||
+_xyrev__dotfile__help__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help status commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__unmanaged_commands] )) ||
+_xyrev__dotfile__help__unmanaged_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help unmanaged commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__update_commands] )) ||
+_xyrev__dotfile__help__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help update commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__help__verify_commands] )) ||
+_xyrev__dotfile__help__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile help verify commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__init_commands] )) ||
+_xyrev__dotfile__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile init commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__keygen_commands] )) ||
+_xyrev__dotfile__keygen_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile keygen commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__managed_commands] )) ||
+_xyrev__dotfile__managed_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile managed commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__status_commands] )) ||
+_xyrev__dotfile__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile status commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__unmanaged_commands] )) ||
+_xyrev__dotfile__unmanaged_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile unmanaged commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__update_commands] )) ||
+_xyrev__dotfile__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile update commands' commands "$@"
+}
+(( $+functions[_xyrev__dotfile__verify_commands] )) ||
+_xyrev__dotfile__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev dotfile verify commands' commands "$@"
+}
+(( $+functions[_xyrev__help_commands] )) ||
+_xyrev__help_commands() {
+    local commands; commands=(
+'init:Create a new configuration folder or reinitialize the existing one' \
+'agent:' \
+'apple:' \
+'dotfile:Manage dotfiles from a Git repository using chezmoi-style names' \
+'completions:Generate shell completions from the current command definitions' \
+'man:Render the manual, or write all command manuals to a directory' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'xyrev help commands' commands "$@"
+}
+(( $+functions[_xyrev__help__agent_commands] )) ||
+_xyrev__help__agent_commands() {
+    local commands; commands=(
+'init:' \
+'copilot:' \
+    )
+    _describe -t commands 'xyrev help agent commands' commands "$@"
+}
+(( $+functions[_xyrev__help__agent__copilot_commands] )) ||
+_xyrev__help__agent__copilot_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help agent copilot commands' commands "$@"
+}
+(( $+functions[_xyrev__help__agent__init_commands] )) ||
+_xyrev__help__agent__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help agent init commands' commands "$@"
+}
+(( $+functions[_xyrev__help__apple_commands] )) ||
+_xyrev__help__apple_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help apple commands' commands "$@"
+}
+(( $+functions[_xyrev__help__completions_commands] )) ||
+_xyrev__help__completions_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help completions commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile_commands] )) ||
+_xyrev__help__dotfile_commands() {
+    local commands; commands=(
+'init:Clone a Git URL and save configuration' \
+'diff:Preview content and permission changes without writing' \
+'status:List pending changes and conflicts' \
+'apply:Deploy the local source repository' \
+'update:Fast-forward the source repository and deploy changes' \
+'managed:List managed destination paths' \
+'add:Import existing destination files into source state' \
+'edit:Edit source files (encrypted files are decrypted only in a private temporary directory)' \
+'unmanaged:List destination files not managed by source' \
+'verify:Return nonzero when the destination differs from source' \
+'doctor:Diagnose repository, configuration, state and optional executables' \
+'archive:Export rendered target files as tar, tar.gz, or zip' \
+'execute-template:Evaluate a Jinja template using repository and local data' \
+'data:Print merged template data as JSON' \
+'encrypt:Encrypt a file using configured age or gpg' \
+'decrypt:Decrypt a file using configured identities' \
+'keygen:Generate an age identity and print its public recipient' \
+'cd:Start a shell in the source repository, or print its path' \
+    )
+    _describe -t commands 'xyrev help dotfile commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__add_commands] )) ||
+_xyrev__help__dotfile__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile add commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__apply_commands] )) ||
+_xyrev__help__dotfile__apply_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile apply commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__archive_commands] )) ||
+_xyrev__help__dotfile__archive_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile archive commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__cd_commands] )) ||
+_xyrev__help__dotfile__cd_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile cd commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__data_commands] )) ||
+_xyrev__help__dotfile__data_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile data commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__decrypt_commands] )) ||
+_xyrev__help__dotfile__decrypt_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile decrypt commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__diff_commands] )) ||
+_xyrev__help__dotfile__diff_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile diff commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__doctor_commands] )) ||
+_xyrev__help__dotfile__doctor_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile doctor commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__edit_commands] )) ||
+_xyrev__help__dotfile__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile edit commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__encrypt_commands] )) ||
+_xyrev__help__dotfile__encrypt_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile encrypt commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__execute-template_commands] )) ||
+_xyrev__help__dotfile__execute-template_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile execute-template commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__init_commands] )) ||
+_xyrev__help__dotfile__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile init commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__keygen_commands] )) ||
+_xyrev__help__dotfile__keygen_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile keygen commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__managed_commands] )) ||
+_xyrev__help__dotfile__managed_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile managed commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__status_commands] )) ||
+_xyrev__help__dotfile__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile status commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__unmanaged_commands] )) ||
+_xyrev__help__dotfile__unmanaged_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile unmanaged commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__update_commands] )) ||
+_xyrev__help__dotfile__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile update commands' commands "$@"
+}
+(( $+functions[_xyrev__help__dotfile__verify_commands] )) ||
+_xyrev__help__dotfile__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help dotfile verify commands' commands "$@"
+}
+(( $+functions[_xyrev__help__help_commands] )) ||
+_xyrev__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help help commands' commands "$@"
+}
+(( $+functions[_xyrev__help__init_commands] )) ||
+_xyrev__help__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help init commands' commands "$@"
+}
+(( $+functions[_xyrev__help__man_commands] )) ||
+_xyrev__help__man_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev help man commands' commands "$@"
 }
 (( $+functions[_xyrev__init_commands] )) ||
 _xyrev__init_commands() {
     local commands; commands=()
     _describe -t commands 'xyrev init commands' commands "$@"
+}
+(( $+functions[_xyrev__man_commands] )) ||
+_xyrev__man_commands() {
+    local commands; commands=()
+    _describe -t commands 'xyrev man commands' commands "$@"
 }
 
 if [ "$funcstack[1]" = "_xyrev" ]; then

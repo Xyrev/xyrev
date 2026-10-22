@@ -12,7 +12,7 @@ pub struct CopilotCommand {
     pub prerelease: bool,
 
     /// Specific version to install (e.g., v0.0.369)
-    #[arg(short, long)]
+    #[arg(long)]
     pub version: Option<String>,
 
     /// Custom installation prefix (for script method)
