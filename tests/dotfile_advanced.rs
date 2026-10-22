@@ -932,7 +932,17 @@ fn windows_private_readonly_acl_and_replacement_are_idempotent() {
         .unwrap()
         .permissions()
         .readonly());
-    let output=Command::new("powershell.exe").args(["-NoProfile","-NonInteractive","-Command","$a=Get-Acl -LiteralPath $env:TARGET; if(!$a.AreAccessRulesProtected){exit 1}; [Console]::Write('protected')"]).env("TARGET",s.destination.join(".secret")).output().unwrap();
+    let output = Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "$a=Get-Acl -LiteralPath $env:TARGET; if(!$a.AreAccessRulesProtected){exit 1}; [Console]::Write('protected')",
+        ])
+        .env_remove("PSModulePath")
+        .env("TARGET", s.destination.join(".secret"))
+        .output()
+        .unwrap();
     assert_eq!(success(output), "protected");
     write(&s.source.join("readonly_settings"), "two");
     success(s.cli(&["apply"]));

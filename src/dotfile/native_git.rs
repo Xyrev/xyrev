@@ -49,8 +49,22 @@ pub fn clone(url: &str, destination: &Path, branch: Option<&str>) -> Result<()> 
         bail!("Built-in Git checkout encountered errors or path collisions");
     }
     repo.head_id().context("Repository must contain a commit")?;
+    // gix normalizes file:///C:/... URLs when saving a remote on Windows.
+    // Keep the configured spelling so init/update can compare it to the source URL.
+    save_origin_url(&repo, url)?;
     mark(destination)?;
     Ok(())
+}
+
+fn save_origin_url(repo: &gix::Repository, url: &str) -> Result<()> {
+    let path = repo.git_dir().join("config");
+    let mut config =
+        gix::config::File::from_path_no_includes(path.clone(), gix::config::Source::Local)
+            .context("Read built-in Git repository configuration")?;
+    config.set_raw_value("remote", Some("origin".into()), "url", url)?;
+    let mut contents = Vec::new();
+    config.write_to(&mut contents)?;
+    storage::atomic_write(&path, &contents, 0o600).context("Save built-in Git origin URL")
 }
 
 pub fn run(source: &Path, args: &[String]) -> Result<Option<String>> {
@@ -73,10 +87,9 @@ pub fn run(source: &Path, args: &[String]) -> Result<Option<String>> {
             .context("Source HEAD is not a branch")?
             .to_owned(),
         ["remote", "get-url", "origin"] => repo
-            .find_remote("origin")?
-            .url(gix::remote::Direction::Fetch)
+            .config_snapshot()
+            .string("remote.origin.url")
             .context("Missing origin URL")?
-            .to_bstring()
             .to_str()?
             .to_owned(),
         ["status", ..] => {
@@ -246,4 +259,46 @@ pub fn update(paths: &Paths) -> Result<()> {
     }
     println!("Updated source to {}", &new.to_string()[..7]);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_origin_url_round_trip(url: &str) {
+        let temp = tempfile::tempdir().unwrap();
+        let repo = gix::init(temp.path()).unwrap();
+        save_origin_url(&repo, url).unwrap();
+        let args = ["remote", "get-url", "origin"].map(str::to_owned);
+        assert_eq!(run(temp.path(), &args).unwrap().as_deref(), Some(url));
+        let config = gix::config::File::from_path_no_includes(
+            repo.git_dir().join("config"),
+            gix::config::Source::Local,
+        )
+        .unwrap();
+        assert_eq!(
+            config
+                .string("core", None, "repositoryformatversion")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "0"
+        );
+    }
+
+    #[test]
+    fn origin_url_preserves_windows_file_url_spelling() {
+        for url in [
+            "file:///C:/Users/runner/work/dotfiles.git",
+            "file:///C:/Users/runner/work/dotfiles%20repo.git",
+            "file:///C:/Users/runner/work/dotfiles repo.git",
+        ] {
+            assert_origin_url_round_trip(url);
+        }
+    }
+
+    #[test]
+    fn origin_url_round_trip_escapes_git_config_syntax() {
+        assert_origin_url_round_trip("https://example.invalid/a#b;\"c\\d repository.git");
+    }
 }

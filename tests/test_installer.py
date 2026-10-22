@@ -65,7 +65,8 @@ class InstallerTests(unittest.TestCase):
                         INSTALL_TEST_LOG=str(self.log), INSTALL_TEST_ASSETS=str(self.assets))
         self.env.pop('PREFIX', None)
         self.env.pop('INSTALL_TEST_FAIL', None)
-        for name in ['mktemp', 'mkdir', 'rm', 'awk', 'chmod', 'cp', 'mv', 'tar', 'unzip', 'sha256sum', 'shasum']:
+        # GNU tar invokes gzip externally for -xzf; expose that dependency too.
+        for name in ['mktemp', 'mkdir', 'rm', 'awk', 'chmod', 'cp', 'mv', 'tar', 'gzip', 'unzip', 'sha256sum', 'shasum']:
             tool = shutil.which(name)
             if tool:
                 (self.bin / name).symlink_to(tool)

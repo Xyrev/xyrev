@@ -333,11 +333,72 @@ pub fn set_mode(path: &Path, mode: u32) -> Result<()> {
     Ok(())
 }
 #[cfg(windows)]
+fn powershell(script: &str) -> std::process::Command {
+    // A missing-Git check intentionally runs with an empty PATH. Use the OS
+    // installation directly instead of depending on a shell search for it.
+    let executable = std::env::var_os("SystemRoot")
+        .or_else(|| std::env::var_os("WINDIR"))
+        .map(|root| PathBuf::from(root).join("System32/WindowsPowerShell/v1.0/powershell.exe"))
+        .unwrap_or_else(|| "powershell.exe".into());
+    let mut command = std::process::Command::new(executable);
+    command
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        // PowerShell 7 can pass its incompatible module search path to the
+        // Windows PowerShell 5 helper. Let that helper rebuild its own defaults.
+        .env_remove("PSModulePath");
+    command
+}
+
+#[cfg(windows)]
 pub fn set_mode(path: &Path, mode: u32) -> Result<()> {
     // Keep all path values in the environment, never interpolate them as code.
-    let script = r#"$ErrorActionPreference='Stop'; $path=$env:XYREV_ACL_PATH; $item=Get-Item -LiteralPath $path -Force; $directory=$item.PSIsContainer; $mode=[Convert]::ToInt32($env:XYREV_ACL_MODE,8); $acl=Get-Acl -LiteralPath $path; $acl.SetAccessRuleProtection($true,$false); foreach($rule in @($acl.Access)){$acl.RemoveAccessRuleSpecific($rule)}; $inherit=if($directory){[System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit'}else{[System.Security.AccessControl.InheritanceFlags]::None}; $prop=[System.Security.AccessControl.PropagationFlags]::None; $allow=[System.Security.AccessControl.AccessControlType]::Allow; $me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User; $rights=if(($mode -band 128) -ne 0){[System.Security.AccessControl.FileSystemRights]::FullControl}else{[System.Security.AccessControl.FileSystemRights]::ReadAndExecute}; $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($me,$rights,$inherit,$prop,$allow)); foreach($sid in @('S-1-5-18','S-1-5-32-544')){$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new([System.Security.Principal.SecurityIdentifier]::new($sid),[System.Security.AccessControl.FileSystemRights]::FullControl,$inherit,$prop,$allow))}; if(($mode -band 63) -ne 0){$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new([System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-545'),[System.Security.AccessControl.FileSystemRights]::ReadAndExecute,$inherit,$prop,$allow))}; if(!$directory -and (($mode -band 128) -eq 0)){$item.IsReadOnly=$true}; Set-Acl -LiteralPath $path -AclObject $acl; if(!$directory -and (($mode -band 128) -ne 0)){$item.IsReadOnly=$false}"#;
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+    let script = r#"
+$ErrorActionPreference = 'Stop'
+$path = $env:XYREV_ACL_PATH
+$item = Get-Item -LiteralPath $path -Force
+$directory = $item.PSIsContainer
+$mode = [Convert]::ToInt32($env:XYREV_ACL_MODE, 8)
+$acl = Get-Acl -LiteralPath $path
+$acl.SetAccessRuleProtection($true, $false)
+foreach ($rule in @($acl.Access)) {
+    $acl.RemoveAccessRuleSpecific($rule)
+}
+$inherit = if ($directory) {
+    [System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit'
+} else {
+    [System.Security.AccessControl.InheritanceFlags]::None
+}
+$prop = [System.Security.AccessControl.PropagationFlags]::None
+$allow = [System.Security.AccessControl.AccessControlType]::Allow
+$me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$rights = if (($mode -band 128) -ne 0) {
+    [System.Security.AccessControl.FileSystemRights]::FullControl
+} else {
+    [System.Security.AccessControl.FileSystemRights]::ReadAndExecute
+}
+$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new(
+    $me, $rights, $inherit, $prop, $allow))
+foreach ($sid in @('S-1-5-18', 'S-1-5-32-544')) {
+    $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new(
+        [System.Security.Principal.SecurityIdentifier]::new($sid),
+        [System.Security.AccessControl.FileSystemRights]::FullControl,
+        $inherit, $prop, $allow))
+}
+if (($mode -band 63) -ne 0) {
+    $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new(
+        [System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-545'),
+        [System.Security.AccessControl.FileSystemRights]::ReadAndExecute,
+        $inherit, $prop, $allow))
+}
+if (!$directory -and (($mode -band 128) -eq 0)) {
+    $item.IsReadOnly = $true
+}
+Set-Acl -LiteralPath $path -AclObject $acl
+if (!$directory -and (($mode -band 128) -ne 0)) {
+    $item.IsReadOnly = $false
+}
+"#;
+    let output = powershell(script)
         .env("XYREV_ACL_PATH", path)
         .env("XYREV_ACL_MODE", format!("{mode:o}"))
         .output()
@@ -380,8 +441,7 @@ pub fn path_mode(_path: &Path, meta: &fs::Metadata) -> Result<u32> {
 
 #[cfg(windows)]
 fn acl_command(path: &Path, script: &str) -> Result<std::process::Output> {
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+    let output = powershell(script)
         .env("XYREV_ACL_PATH", path)
         .output()
         .context("Run Windows ACL helper")?;
@@ -400,7 +460,24 @@ fn acl_command(path: &Path, script: &str) -> Result<std::process::Output> {
 pub fn path_mode(path: &Path, meta: &fs::Metadata) -> Result<u32> {
     let output = acl_command(
         path,
-        r#"$ErrorActionPreference='Stop'; $acl=Get-Acl -LiteralPath $env:XYREV_ACL_PATH; $me=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $private=$true; $write=$false; foreach($rule in $acl.Access){if($rule.AccessControlType -ne 'Allow'){continue}; $sid=$rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value; if($sid -notin @($me,'S-1-5-18','S-1-5-32-544')){$private=$false}; if($sid -eq $me -and (($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::WriteData) -ne 0)){$write=$true}}; @{private=$private;write=$write}|ConvertTo-Json -Compress"#,
+        r#"
+$ErrorActionPreference = 'Stop'
+$acl = Get-Acl -LiteralPath $env:XYREV_ACL_PATH
+$me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$private = $true
+$write = $false
+foreach ($rule in $acl.Access) {
+    if ($rule.AccessControlType -ne 'Allow') { continue }
+    $sid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
+    if ($sid -notin @($me, 'S-1-5-18', 'S-1-5-32-544')) {
+        $private = $false
+    }
+    if ($sid -eq $me -and (($rule.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::WriteData) -ne 0)) {
+        $write = $true
+    }
+}
+@{private=$private; write=$write} | ConvertTo-Json -Compress
+"#,
     )?;
     let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
     let mut mode = if meta.is_dir() { 0o755 } else { 0o644 };
