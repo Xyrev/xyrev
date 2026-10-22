@@ -2,6 +2,31 @@
 
 开发环境命令行工具。`xyrev dotfile` 通过 Git URL 初始化、预览、部署、维护和更新 dotfiles，采用 chezmoi 风格路径属性、MiniJinja 模板及统一变更计划。
 
+## 安装发布版本
+
+macOS / Linux 无需先安装 Git、Rust 或 Homebrew。安装器按系统架构下载发布包，验证 SHA-256 后安装到 `~/.local/bin`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.4.0/install.sh | VERSION=v0.4.0 bash
+export PATH="$HOME/.local/bin:$PATH"
+xyrev --version
+```
+
+可设置 `PREFIX` 选择安装目录（最终位置为 `$PREFIX/bin/xyrev`）。`install.sh` 和兼容入口 `newinstall.sh` 行为一致；不指定 `VERSION` 时选择最新稳定 Release。Windows 可从 [Release 下载页](https://github.com/Xyrev/xyrev/releases/tag/v0.4.0) 下载 `xyrev-v0.4.0-x86_64-pc-windows-msvc.zip`，解压后使用其中的 `xyrev.exe`。
+
+在新机器上初始化 dotfiles：
+
+```bash
+xyrev dotfile init https://github.com/szwathub/dotfiles --recurse-submodules
+xyrev dotfile diff
+xyrev dotfile apply
+xyrev dotfile verify
+```
+
+Git 不可用时，`init` 会在克隆前显示安装指引；macOS 按提示完成 Command Line Tools 安装后重试原命令。`apply` 时仓库先检查或初始化 Homebrew，再安装 Brewfile 中的软件并部署配置。先查看 `diff` 确认变更；完整部署到 HOME 会执行仓库中的系统设置脚本。
+
+## 从源码构建
+
 ```bash
 cargo build --locked --release
 xyrev dotfile init https://github.com/YOUR_NAME/dotfiles

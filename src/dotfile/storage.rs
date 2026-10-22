@@ -302,7 +302,13 @@ pub fn atomic_write(path: &Path, data: &[u8], mode: u32) -> Result<()> {
     let mut temp =
         tempfile::NamedTempFile::new_in(path.parent().context("File has no parent directory")?)?;
     temp.write_all(data)?;
-    set_mode(temp.path(), mode)?;
+    // Windows persistence changes file attributes, so retain owner write access
+    // until the replacement is complete; private access rules still apply.
+    #[cfg(windows)]
+    let staged_mode = mode | 0o200;
+    #[cfg(not(windows))]
+    let staged_mode = mode;
+    set_mode(temp.path(), staged_mode)?;
     temp.as_file().sync_all()?;
     #[cfg(windows)]
     if path.is_file() {
@@ -311,6 +317,12 @@ pub fn atomic_write(path: &Path, data: &[u8], mode: u32) -> Result<()> {
     temp.persist(path)
         .map_err(|e| e.error)
         .with_context(|| format!("Replace {}", path.display()))?;
+    // tempfile clears FILE_ATTRIBUTE_READONLY while persisting on Windows.
+    // Set read-only permissions only after its atomic replacement completes.
+    #[cfg(windows)]
+    if mode & 0o200 == 0 {
+        set_mode(path, mode)?;
+    }
     Ok(())
 }
 
@@ -331,7 +343,12 @@ pub fn set_mode(path: &Path, mode: u32) -> Result<()> {
         .output()
         .context("Set Windows ACL")?;
     if !output.status.success() {
-        bail!("Cannot set Windows permissions for {}", path.display());
+        bail!(
+            "Cannot set Windows permissions for {} ({}): {}",
+            path.display(),
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
     }
     Ok(())
 }
@@ -370,8 +387,10 @@ fn acl_command(path: &Path, script: &str) -> Result<std::process::Output> {
         .context("Run Windows ACL helper")?;
     if !output.status.success() {
         bail!(
-            "Cannot read or set Windows permissions for {}",
-            path.display()
+            "Cannot read or set Windows permissions for {} ({}): {}",
+            path.display(),
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
         );
     }
     Ok(output)
@@ -399,5 +418,36 @@ pub fn normalized_mode(mode: u32, directory: bool) -> u32 {
         mode & !0o111
     } else {
         mode
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::*;
+
+    #[test]
+    fn atomic_private_writes_preserve_readonly_and_can_be_replaced() {
+        let temp = tempfile::tempdir().unwrap();
+        let directory = temp.path().join("private [folder]");
+        private_dir(&directory).unwrap();
+        let file = directory.join("identity [test]");
+        atomic_write(&file, b"first", 0o600).unwrap();
+        assert_eq!(
+            path_mode(&file, &fs::metadata(&file).unwrap()).unwrap(),
+            0o600
+        );
+        atomic_write(&file, b"readonly", 0o400).unwrap();
+        assert!(fs::metadata(&file).unwrap().permissions().readonly());
+        assert_eq!(
+            path_mode(&file, &fs::metadata(&file).unwrap()).unwrap(),
+            0o400
+        );
+        atomic_write(&file, b"replacement", 0o600).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), b"replacement");
+        assert!(!fs::metadata(&file).unwrap().permissions().readonly());
+        assert_eq!(
+            path_mode(&file, &fs::metadata(&file).unwrap()).unwrap(),
+            0o600
+        );
     }
 }

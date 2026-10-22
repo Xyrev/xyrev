@@ -1,372 +1,135 @@
 #!/usr/bin/env bash
-set -e
+# Canonical installer; newinstall.sh is an identical compatibility entry point.
+set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+repo='Xyrev/xyrev'
+work_dir=''
+staged_binary=''
+cleanup() {
+    if [ -n "$staged_binary" ]; then rm -f -- "$staged_binary" || true; fi
+    if [ -n "$work_dir" ]; then rm -rf -- "$work_dir" || true; fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 
-# Configuration
-REPO_OWNER="szwathub"
-REPO_NAME="xyrev"
-BINARY_NAME="xyrev"
-DEFAULT_INSTALL_DIR="${PREFIX:-$HOME/.local}/bin"
+# This installer needs base system utilities, never Git or a compiler.
+for tool in uname mktemp mkdir rm awk chmod cp mv; do
+    command -v "$tool" >/dev/null 2>&1 || fail "Required command is missing: $tool"
+done
+if command -v curl >/dev/null 2>&1; then
+    downloader=curl
+elif command -v wget >/dev/null 2>&1; then
+    downloader=wget
+else
+    fail 'Install curl or wget before installing xyrev.'
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+    hasher=sha256sum
+elif command -v shasum >/dev/null 2>&1; then
+    hasher=shasum
+else
+    fail 'Install sha256sum or shasum before installing xyrev; SHA256 verification is required.'
+fi
 
-# Print colored messages
-info() { echo -e "${GREEN}ℹ${NC} $*"; }
-warn() { echo -e "${YELLOW}⚠${NC} $*"; }
-error() { echo -e "${RED}✗${NC} $*" >&2; }
-success() { echo -e "${GREEN}✓${NC} $*"; }
+download() {
+    printf 'Downloading %s\n' "$1" >&2
+    if [ "$downloader" = curl ]; then
+        curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --retry 2 --connect-timeout 15 "$1" --output "$2"
+    else
+        wget --https-only --quiet --output-document="$2" "$1"
+    fi
+}
 
-# Detect OS
-detect_os() {
-    case "$(uname -s)" in
-        Darwin*)
-            echo "macos"
-            ;;
-        Linux*)
-            echo "linux"
-            ;;
-        MINGW*|MSYS*|CYGWIN*)
-            echo "windows"
-            ;;
-        *)
-            error "Unsupported operating system: $(uname -s)"
-            exit 1
-            ;;
+system=$(uname -s)
+machine=$(uname -m)
+case "$machine" in
+    arm64|aarch64) arch=aarch64 ;;
+    x86_64|amd64) arch=x86_64 ;;
+    *) fail "Unsupported architecture: $machine" ;;
+esac
+suffix='.tar.gz'
+binary_name=xyrev
+case "$system" in
+    Darwin) target="$arch-apple-darwin" ;;
+    Linux)
+        libc=gnu
+        if command -v ldd >/dev/null 2>&1; then
+            case "$(ldd --version 2>&1 || true)" in *musl*) libc=musl ;; esac
+        elif compgen -G '/lib/ld-musl-*.so.1' >/dev/null; then
+            libc=musl
+        fi
+        if [ "$arch" = aarch64 ] && [ "$libc" = musl ]; then
+            fail 'Linux ARM64 musl is not supported by the release assets.'
+        fi
+        target="$arch-unknown-linux-$libc"
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        [ "$arch" = x86_64 ] || fail 'Only Windows x86_64 release assets are available.'
+        target=x86_64-pc-windows-msvc
+        suffix='.zip'
+        binary_name=xyrev.exe
+        ;;
+    *) fail "Unsupported operating system: $system" ;;
+esac
+if [ "$suffix" = .zip ]; then
+    command -v unzip >/dev/null 2>&1 || fail 'Install unzip before installing xyrev.'
+else
+    command -v tar >/dev/null 2>&1 || fail 'Install tar before installing xyrev.'
+fi
+
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/xyrev-install.XXXXXX")
+version=${VERSION:-latest}
+if [ "$version" = latest ]; then
+    latest_url="https://github.com/$repo/releases/latest"
+    if [ "$downloader" = curl ]; then
+        resolved=$(curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --retry 2 --connect-timeout 15 "$latest_url" --output /dev/null --write-out '%{url_effective}') || fail 'Could not find the latest xyrev release.'
+    else
+        resolved=$(wget --https-only --server-response --spider "$latest_url" 2>&1 | awk 'tolower($1) == "location:" { url = $2 } END { print url }') || fail 'Could not find the latest xyrev release.'
+    fi
+    case "$resolved" in
+        */releases/tag/*) version=${resolved##*/} ;;
+        *) fail 'Could not determine the latest xyrev release tag.' ;;
     esac
-}
+fi
+case "$version" in v*) ;; *) version="v$version" ;; esac
+[[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VERSION must be latest or a release version such as v0.4.0.'
+base="xyrev-$version-$target"
+package="$base$suffix"
+url="https://github.com/$repo/releases/download/$version"
+download "$url/$package" "$work_dir/$package" || fail "Could not download $package."
+download "$url/SHA256SUMS.txt" "$work_dir/SHA256SUMS.txt" || fail 'Could not download SHA256SUMS.txt; installation stopped.'
+expected=$(awk -v name="$package" '$2 == name { count++; hash = $1 } END { if (count != 1) exit 1; print tolower(hash) }' "$work_dir/SHA256SUMS.txt") || fail "Expected one SHA256 checksum for $package."
+[[ "$expected" =~ ^[0-9a-f]{64}$ ]] || fail 'The SHA256 checksum is malformed.'
+if [ "$hasher" = sha256sum ]; then
+    actual=$(sha256sum "$work_dir/$package" | awk '{ print tolower($1) }')
+else
+    actual=$(shasum -a 256 "$work_dir/$package" | awk '{ print tolower($1) }')
+fi
+[ "$actual" = "$expected" ] || fail 'SHA256 checksum mismatch; the existing xyrev was preserved.'
 
-# Detect architecture
-detect_arch() {
-    local arch="$(uname -m)"
-    case "$arch" in
-        x86_64|amd64)
-            echo "x86_64"
-            ;;
-        aarch64|arm64)
-            echo "aarch64"
-            ;;
-        i686|i386)
-            echo "i686"
-            ;;
-        armv7*|armhf)
-            echo "arm"
-            ;;
-        *)
-            error "Unsupported architecture: $arch"
-            exit 1
-            ;;
-    esac
-}
+mkdir -p "$work_dir/extract"
+if [ "$suffix" = .zip ]; then
+    unzip -q "$work_dir/$package" "$base/$binary_name" -d "$work_dir/extract" || fail 'Could not extract the xyrev executable.'
+else
+    tar -xzf "$work_dir/$package" -C "$work_dir/extract" "$base/$binary_name" || fail 'Could not extract the xyrev executable.'
+fi
+binary="$work_dir/extract/$base/$binary_name"
+[ -f "$binary" ] && [ ! -L "$binary" ] || fail 'The release archive has no regular xyrev executable.'
+chmod 755 "$binary"
+reported_version=$("$binary" --version) || fail 'The downloaded executable could not run on this machine.'
+[ "$reported_version" = "xyrev ${version#v}" ] || fail "Executable version does not match $version: $reported_version"
 
-# Detect libc type (for Linux)
-detect_libc() {
-    if [ "$(detect_os)" != "linux" ]; then
-        echo ""
-        return
-    fi
-
-    # Check if musl is available
-    if ldd --version 2>&1 | grep -q musl; then
-        echo "musl"
-    else
-        echo "gnu"
-    fi
-}
-
-# Build target triple based on release.yml matrix
-build_target() {
-    local os="$1"
-    local arch="$2"
-    local libc="$3"
-
-    case "$os" in
-        macos)
-            case "$arch" in
-                x86_64) echo "x86_64-apple-darwin" ;;
-                aarch64) echo "aarch64-apple-darwin" ;;
-                *) error "Unsupported macOS architecture: $arch"; exit 1 ;;
-            esac
-            ;;
-        linux)
-            local libc_suffix=""
-            if [ "$libc" = "musl" ]; then
-                libc_suffix="-musl"
-            else
-                libc_suffix="-gnu"
-            fi
-
-            case "$arch" in
-                x86_64) echo "x86_64-unknown-linux${libc_suffix}" ;;
-                aarch64) echo "aarch64-unknown-linux${libc_suffix}" ;;
-                i686) echo "i686-unknown-linux${libc_suffix}" ;;
-                arm) echo "arm-unknown-linux-${libc_suffix}eabihf" ;;
-                *) error "Unsupported Linux architecture: $arch"; exit 1 ;;
-            esac
-            ;;
-        windows)
-            case "$arch" in
-                x86_64) echo "x86_64-pc-windows-msvc" ;;
-                i686) echo "i686-pc-windows-msvc" ;;
-                *) error "Unsupported Windows architecture: $arch"; exit 1 ;;
-            esac
-            ;;
-        *)
-            error "Unsupported OS: $os"
-            exit 1
-            ;;
-    esac
-}
-
-# Get latest release version from GitHub
-get_latest_version() {
-    local api_url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
-
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'
-    elif command -v wget >/dev/null 2>&1; then
-        wget -qO- "$api_url" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'
-    else
-        error "Neither curl nor wget found. Please install one of them."
-        exit 1
-    fi
-}
-
-# Download file
-download_file() {
-    local url="$1"
-    local output="$2"
-
-    info "Downloading from: $url"
-
-    if command -v curl >/dev/null 2>&1; then
-        if ! curl -fsSL "$url" -o "$output"; then
-            error "Download failed"
-            return 1
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        if ! wget -qO "$output" "$url"; then
-            error "Download failed"
-            return 1
-        fi
-    else
-        error "Neither curl nor wget found"
-        return 1
-    fi
-
-    return 0
-}
-
-# Main installation function
-main() {
-    info "Installing ${BINARY_NAME}..."
-    echo ""
-
-    # Detect system
-    local os="$(detect_os)"
-    local arch="$(detect_arch)"
-    local libc="$(detect_libc)"
-    local target="$(build_target "$os" "$arch" "$libc")"
-
-    info "Detected system:"
-    echo "  OS: $os"
-    echo "  Architecture: $arch"
-    [ -n "$libc" ] && echo "  Libc: $libc"
-    echo "  Target: $target"
-    echo ""
-
-    # Get version
-    local version="${VERSION:-}"
-    if [ -z "$version" ]; then
-        info "Fetching latest version..."
-        version="$(get_latest_version)"
-        if [ -z "$version" ]; then
-            error "Failed to fetch latest version"
-            exit 1
-        fi
-    fi
-
-    # Ensure version starts with 'v'
-    case "$version" in
-        v*) ;;
-        *) version="v$version" ;;
-    esac
-
-    info "Version: $version"
-    echo ""
-
-    # Build download URL
-    local pkg_suffix=".tar.gz"
-    if [ "$os" = "windows" ]; then
-        pkg_suffix=".zip"
-    fi
-
-    local pkg_name="${BINARY_NAME}-${version}-${target}${pkg_suffix}"
-    local download_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${version}/${pkg_name}"
-
-    # Create temporary directory
-    local tmp_dir="$(mktemp -d)"
-    trap "rm -rf '$tmp_dir'" EXIT
-
-    local tmp_archive="$tmp_dir/${pkg_name}"
-
-    # Download archive
-    if ! download_file "$download_url" "$tmp_archive"; then
-        error "Failed to download ${pkg_name}"
-        error "URL: $download_url"
-        exit 1
-    fi
-
-    success "Downloaded successfully"
-    echo ""
-
-    # Download and verify SHA256 checksum
-    info "Verifying SHA256 checksum..."
-    local checksums_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${version}/SHA256SUMS.txt"
-    local tmp_checksums="$tmp_dir/SHA256SUMS.txt"
-
-    if download_file "$checksums_url" "$tmp_checksums" 2>/dev/null; then
-        # Extract expected checksum for our package
-        local expected_checksum=""
-        expected_checksum="$(grep "  ${pkg_name}$" "$tmp_checksums" | awk '{print $1}')"
-
-        if [ -z "$expected_checksum" ]; then
-            error "Checksum for ${pkg_name} not found in SHA256SUMS.txt"
-            exit 1
-        fi
-
-        # Calculate actual checksum
-        local actual_checksum=""
-        if command -v sha256sum >/dev/null 2>&1; then
-            actual_checksum="$(sha256sum "$tmp_archive" | awk '{print $1}')"
-        elif command -v shasum >/dev/null 2>&1; then
-            actual_checksum="$(shasum -a 256 "$tmp_archive" | awk '{print $1}')"
-        else
-            warn "No sha256sum or shasum found, skipping checksum validation"
-        fi
-
-        if [ -n "$actual_checksum" ]; then
-            if [ "$actual_checksum" = "$expected_checksum" ]; then
-                success "SHA256 checksum verified"
-            else
-                error "SHA256 checksum mismatch!"
-                error "  Expected: $expected_checksum"
-                error "  Actual:   $actual_checksum"
-                exit 1
-            fi
-        fi
-    else
-        warn "Could not download SHA256SUMS.txt, skipping checksum validation"
-    fi
-    echo ""
-
-    # Verify archive
-    info "Verifying archive..."
-    if [ "$os" = "windows" ]; then
-        if ! command -v unzip >/dev/null 2>&1; then
-            error "unzip command not found"
-            exit 1
-        fi
-        if ! unzip -t "$tmp_archive" >/dev/null 2>&1; then
-            error "Downloaded file is not a valid zip archive"
-            exit 1
-        fi
-    else
-        if ! tar -tzf "$tmp_archive" >/dev/null 2>&1; then
-            error "Downloaded file is not a valid tarball"
-            exit 1
-        fi
-    fi
-    success "Archive verified"
-    echo ""
-
-    # Create installation directory
-    local install_dir="$DEFAULT_INSTALL_DIR"
-    info "Installing to: $install_dir"
-
-    if ! mkdir -p "$install_dir"; then
-        error "Could not create directory $install_dir"
-        error "Try running with sudo or set PREFIX to a directory you own:"
-        error "  export PREFIX=\$HOME/.local"
-        exit 1
-    fi
-
-    # Extract and install
-    local binary_suffix=""
-    if [ "$os" = "windows" ]; then
-        binary_suffix=".exe"
-    fi
-
-    local extract_dir="$tmp_dir/extract"
-    mkdir -p "$extract_dir"
-
-    if [ "$os" = "windows" ]; then
-        unzip -q "$tmp_archive" -d "$extract_dir"
-    else
-        tar -xzf "$tmp_archive" -C "$extract_dir"
-    fi
-
-    # Find the binary (it might be in a subdirectory)
-    local binary_path=""
-    if [ -f "$extract_dir/${BINARY_NAME}${binary_suffix}" ]; then
-        binary_path="$extract_dir/${BINARY_NAME}${binary_suffix}"
-    else
-        binary_path="$(find "$extract_dir" -name "${BINARY_NAME}${binary_suffix}" -type f | head -n 1)"
-    fi
-
-    if [ -z "$binary_path" ] || [ ! -f "$binary_path" ]; then
-        error "Binary not found in archive"
-        exit 1
-    fi
-
-    # Install binary
-    if [ -f "$install_dir/${BINARY_NAME}${binary_suffix}" ]; then
-        warn "Replacing existing binary at $install_dir/${BINARY_NAME}${binary_suffix}"
-    fi
-
-    cp "$binary_path" "$install_dir/${BINARY_NAME}${binary_suffix}"
-    chmod +x "$install_dir/${BINARY_NAME}${binary_suffix}"
-
-    success "Installed to $install_dir/${BINARY_NAME}${binary_suffix}"
-    echo ""
-
-    # Check if binary is in PATH
-    if ! command -v "$BINARY_NAME" >/dev/null 2>&1; then
-        warn "$install_dir is not in your PATH"
-        echo ""
-
-        # Detect shell
-        local shell_name="$(basename "${SHELL:-/bin/sh}")"
-        local rc_file=""
-
-        case "$shell_name" in
-            zsh)  rc_file="$HOME/.zshrc" ;;
-            bash) rc_file="$HOME/.bashrc" ;;
-            fish) rc_file="$HOME/.config/fish/config.fish" ;;
-            *)    rc_file="$HOME/.profile" ;;
-        esac
-
-        echo "To add $install_dir to your PATH, add this to $rc_file:"
-        echo ""
-        if [ "$shell_name" = "fish" ]; then
-            echo "  set -gx PATH $install_dir \$PATH"
-        else
-            echo "  export PATH=\"$install_dir:\$PATH\""
-        fi
-        echo ""
-        echo "Then reload your shell:"
-        echo "  source $rc_file"
-    else
-        success "${BINARY_NAME} is ready to use!"
-    fi
-
-    echo ""
-    success "Installation complete!"
-    echo ""
-    echo "Run '${BINARY_NAME} --help' to get started."
-}
-
-# Run main function
-main "$@"
+install_dir="${PREFIX:-${HOME:?Set HOME or PREFIX}/.local}/bin"
+mkdir -p "$install_dir" || fail "Cannot create $install_dir; set PREFIX to a directory you own."
+staged_binary=$(mktemp "$install_dir/.xyrev-install.XXXXXX")
+cp "$binary" "$staged_binary"
+chmod 755 "$staged_binary"
+mv -f -- "$staged_binary" "$install_dir/$binary_name"
+staged_binary=''
+printf 'Installed xyrev %s to %s/%s\n' "${version#v}" "$install_dir" "$binary_name"
+case ":${PATH:-}:" in
+    *":$install_dir:"*) ;;
+    *) printf 'Add %s to your PATH to run xyrev.\n' "$install_dir" ;;
+esac

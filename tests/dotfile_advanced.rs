@@ -58,7 +58,7 @@ fn template_directives_and_source_root_version() {
             .collect::<Vec<_>>(),
     )
     .unwrap();
-    assert_eq!(text, "0.2.3\r\n");
+    assert_eq!(text, format!("{}\r\n", env!("CARGO_PKG_VERSION")));
     assert!(!s.destination.join("outside").exists());
     write(&s.source.join(".xyrevversion"), ">9.0.0");
     failure(s.cli(&["diff"]), "version");
@@ -87,7 +87,7 @@ fn add_recursive_literals_and_unmanaged() {
     success(s.cli(&["apply"]));
     assert_eq!(
         fs::read_to_string(s.destination.join("named.tmpl")).unwrap(),
-        "0.2.3"
+        env!("CARGO_PKG_VERSION")
     );
 }
 
@@ -277,7 +277,7 @@ fn archive_all_formats_are_rendered_without_deploying() {
                 .unwrap()
                 .read_to_string(&mut text)
                 .unwrap();
-            assert_eq!(text, "0.2.3");
+            assert_eq!(text, env!("CARGO_PKG_VERSION"));
         } else {
             let reader: Box<dyn std::io::Read> = if format == "tgz" {
                 Box::new(flate2::read::GzDecoder::new(&data[..]))
@@ -292,7 +292,7 @@ fn archive_all_formats_are_rendered_without_deploying() {
                     use std::io::Read;
                     let mut text = String::new();
                     entry.read_to_string(&mut text).unwrap();
-                    assert_eq!(text, "0.2.3");
+                    assert_eq!(text, env!("CARGO_PKG_VERSION"));
                     found = true;
                 }
             }
@@ -786,7 +786,7 @@ fn real_terminal_conflict_confirmation_cancels_or_backs_up_and_applies() {
                     &mut slave,
                     std::ptr::null_mut(),
                     std::ptr::null_mut(),
-                    &mut size
+                    std::ptr::addr_of_mut!(size)
                 ),
                 0
             );
