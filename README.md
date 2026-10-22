@@ -7,12 +7,12 @@
 macOS / Linux 无需先安装 Git、Rust 或 Homebrew。安装器按系统架构下载发布包，验证 SHA-256 后安装到 `~/.local/bin`：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.4.0/install.sh | VERSION=v0.4.0 bash
+curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.4.1/install.sh | VERSION=v0.4.1 bash
 export PATH="$HOME/.local/bin:$PATH"
 xyrev --version
 ```
 
-可设置 `PREFIX` 选择安装目录（最终位置为 `$PREFIX/bin/xyrev`）。`install.sh` 和兼容入口 `newinstall.sh` 行为一致；不指定 `VERSION` 时选择最新稳定 Release。Windows 可从 [Release 下载页](https://github.com/Xyrev/xyrev/releases/tag/v0.4.0) 下载 `xyrev-v0.4.0-x86_64-pc-windows-msvc.zip`，解压后使用其中的 `xyrev.exe`。
+可设置 `PREFIX` 选择安装目录（最终位置为 `$PREFIX/bin/xyrev`）。`install.sh` 和兼容入口 `newinstall.sh` 行为一致；不指定 `VERSION` 时选择最新稳定 Release。Windows 可从 [Release 下载页](https://github.com/Xyrev/xyrev/releases/tag/v0.4.1) 下载 `xyrev-v0.4.1-x86_64-pc-windows-msvc.zip`，解压后使用其中的 `xyrev.exe`。
 
 在新机器上初始化 dotfiles：
 
@@ -160,13 +160,19 @@ xyrev dotfile keygen --output ~/.config/xyrev/identity.txt
 xyrev dotfile add --encrypt ~/.ssh/config
 xyrev dotfile encrypt input --recipient age1... --output output.age
 xyrev dotfile decrypt output.age --identity ~/.config/xyrev/identity.txt
+xyrev dotfile encrypt input --passphrase --output password-backup.age
+xyrev dotfile decrypt password-backup.age --passphrase
 ```
 
-内置 age 支持 X25519 身份、多个接收方和 armored 密文；解密口令型 age 文件可设置 `XYREV_AGE_PASSPHRASE`。GPG 使用本机 `gpg`，配置 `backend='gpg'`、`gpg_recipient` 或使用 `--backend gpg --recipient <id>`。`encrypted_` 文件支持 `.age` / `.asc`，可叠加 `.tmpl`。加密编辑仅在私有临时目录中解密，编辑成功后重新加密。
+内置 age 支持 X25519 身份、多个接收方、密码加密和 armored 密文。独立 `encrypt` / `decrypt --passphrase` 在本机终端隐藏输入，加密时二次确认；密码模式不需要 age 身份文件。脚本可用 `--passphrase-file /dev/fd/3` 从管道描述符读取密码，不要把密码放入命令参数、环境变量或仓库。密码不能为空；密码错误不会写出解密结果或覆盖输出文件。密码选项不能与 `--identity` / `--recipient` / GPG backend 混用。既有口令型 source 文件的 `XYREV_AGE_PASSPHRASE` 兼容方式保留。
+
+GPG 使用本机 `gpg`，配置 `backend='gpg'`、`gpg_recipient` 或使用 `--backend gpg --recipient <id>`。`encrypted_` 文件支持 `.age` / `.asc`，可叠加 `.tmpl`。加密编辑仅在私有临时目录中解密，编辑成功后重新加密。
 
 模板秘密函数有 `onepassword`、`bitwarden`、`pass`、`gopass`、`vault`、`keyring`、`keepassxc`、`lastpass`、`doppler`、`aws`、`azure`，另有通用 `secret(provider, ...args)`。示例 `{{ onepassword('op://vault/item/password') }}`、`{{ bitwarden('item-id').login.password }}`。各服务复用已认证的官方 CLI；同一进程内相同请求只调用一次，不将秘密缓存落盘。Bitwarden 可使用 `BW_SESSION`，或以 `BW_PASSWORD` 解锁一次；KeePassXC 从 `XYREV_KEEPASS_PASSWORD` 读取口令。服务失败时隐藏其输出。
 
-脚本支持 `run_`、`run_once_`、`run_onchange_`，可叠加 `before_` / `after_` 和 `.tmpl`。before 阶段先执行，普通脚本与文件按解码目标路径穿插执行，after 阶段最后执行。只在成功后记录 once/onchange 状态；失败可重试，已完成文件和成功脚本保留。onchange 记录最近成功内容，A→B→A 会重新执行。提供 `XYREV_SOURCE_DIR` / `XYREV_DEST_DIR` / `XYREV_HOME` / `XYREV_OS` / `XYREV_ARCH`。
+脚本支持 `run_`、`run_once_`、`run_onchange_`，可叠加 `before_` / `after_` 和 `.tmpl`。before 阶段先执行，普通脚本与文件按解码目标路径穿插执行，after 阶段最后执行。只在成功后记录 once/onchange 状态；失败可重试，已完成文件和成功脚本保留。onchange 记录最近成功内容，A→B→A 会重新执行。提供 `XYREV_SOURCE_DIR` / `XYREV_DEST_DIR` / `XYREV_HOME` / `XYREV_OS` / `XYREV_ARCH`，以及当前运行程序绝对路径 `XYREV_EXECUTABLE`。
+
+钩子可以调用 `"$XYREV_EXECUTABLE" dotfile decrypt backup.age --passphrase-file /dev/fd/3` 或 `--identity /path/to/identity`，将解密结果通过管道交给导入工具；独立 `encrypt` / `decrypt` 不争用部署锁，`apply` / `add` 等写操作仍受锁保护。需流式恢复的密钥备份可放在 `.xyrevtemplates/`，该目录不会作为目标文件部署或纳入 archive。将密文摘要包含在 onchange 模板中，备份变更才会触发重新导入。密码保存在密码管理器；采用身份文件模式时，age 私钥必须在仓库外单独保管并预先恢复。不要将 GPG 私钥只加密给自身，否则新机器缺少用于解密的同一把私钥。钩子没有交互 stdin，但可显式通过控制终端隐藏读取密码；受口令保护的 GPG 密钥可能通过 pinentry 提示解锁。
 
 预览不执行 run hooks、不更新目标、部署状态或缓存；渲染模板仍会调用秘密提供器，`modify_` 转换脚本会在私有临时工作目录中执行。部署和预览都应使用可信仓库。diff 和 archive 包含渲染后的明文，请按目标文件的敏感程度保存。
 

@@ -22,7 +22,13 @@ pub fn man(directory: Option<&Path>) -> Result<()> {
 fn write_man(command: &clap::Command, name: &str, directory: &Path) -> Result<()> {
     let mut bytes = Vec::new();
     clap_mangen::Man::new(command.clone().name(name.to_owned())).render(&mut bytes)?;
-    std::fs::write(directory.join(format!("{name}.1")), bytes)?;
+    let text = String::from_utf8(bytes)?;
+    let text = text
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(directory.join(format!("{name}.1")), format!("{text}\n"))?;
     for child in command.get_subcommands() {
         write_man(child, &format!("{name}-{}", child.get_name()), directory)?;
     }

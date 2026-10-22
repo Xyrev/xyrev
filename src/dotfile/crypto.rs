@@ -1,6 +1,6 @@
 use super::process;
 use super::storage::{self, EncryptionSettings};
-use age::secrecy::ExposeSecret;
+use age::secrecy::{ExposeSecret, SecretString};
 use anyhow::{bail, Context, Result};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -63,6 +63,36 @@ pub fn encrypt(settings: &EncryptionSettings, bytes: &[u8]) -> Result<Vec<u8>> {
         }
         _ => bail!("Encryption backend must be age or gpg"),
     }
+}
+
+pub fn encrypt_with_passphrase(passphrase: SecretString, bytes: &[u8]) -> Result<Vec<u8>> {
+    if passphrase.expose_secret().is_empty() {
+        bail!("Passphrase must not be empty");
+    }
+    let mut output = Vec::new();
+    let armor =
+        age::armor::ArmoredWriter::wrap_output(&mut output, age::armor::Format::AsciiArmor)?;
+    let mut writer = age::Encryptor::with_user_passphrase(passphrase).wrap_output(armor)?;
+    writer.write_all(bytes)?;
+    writer.finish()?.finish()?;
+    Ok(output)
+}
+
+pub fn decrypt_with_passphrase(passphrase: &SecretString, bytes: &[u8]) -> Result<Vec<u8>> {
+    if passphrase.expose_secret().is_empty() {
+        bail!("Passphrase must not be empty");
+    }
+    let reader = age::armor::ArmoredReader::new(bytes);
+    let decryptor = age::Decryptor::new(reader).context("Invalid age ciphertext")?;
+    let age::Decryptor::Passphrase(decryptor) = decryptor else {
+        bail!("Age ciphertext requires an identity, not a passphrase");
+    };
+    let mut output = Vec::new();
+    decryptor
+        .decrypt(passphrase, None)
+        .context("Unable to decrypt age ciphertext; check the passphrase")?
+        .read_to_end(&mut output)?;
+    Ok(output)
 }
 
 pub fn decrypt(

@@ -1,6 +1,7 @@
 use super::storage::Paths;
 use super::{crypto, git, scripts, storage, template};
 use crate::cli::dotfile::{CryptoArgs, TemplateArgs};
+use age::secrecy::{ExposeSecret, SecretString};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::io::{self, Read, Write};
@@ -19,6 +20,15 @@ pub fn crypt(paths: &Paths, args: &CryptoArgs, decrypt: bool) -> Result<()> {
     if !args.identity.is_empty() {
         settings.identities = args.identity.clone();
     }
+    let passphrase = if args.passphrase || args.passphrase_file.is_some() {
+        if args.backend.as_deref() == Some("gpg") {
+            bail!("Passphrase options require the age backend");
+        }
+        settings.backend = "age".into();
+        Some(read_passphrase(paths, args, decrypt)?)
+    } else {
+        None
+    };
     let bytes = if args.input == Path::new("-") {
         let mut bytes = Vec::new();
         io::stdin().read_to_end(&mut bytes)?;
@@ -26,7 +36,13 @@ pub fn crypt(paths: &Paths, args: &CryptoArgs, decrypt: bool) -> Result<()> {
     } else {
         fs::read(storage::expand_home(&args.input, &paths.home))?
     };
-    let output = if decrypt {
+    let output = if let Some(passphrase) = passphrase {
+        if decrypt {
+            crypto::decrypt_with_passphrase(&passphrase, &bytes)?
+        } else {
+            crypto::encrypt_with_passphrase(passphrase, &bytes)?
+        }
+    } else if decrypt {
         let extension = args
             .input
             .extension()
@@ -49,6 +65,92 @@ pub fn crypt(paths: &Paths, args: &CryptoArgs, decrypt: bool) -> Result<()> {
         io::stdout().write_all(&output)?;
     }
     Ok(())
+}
+
+fn read_passphrase(paths: &Paths, args: &CryptoArgs, decrypt: bool) -> Result<SecretString> {
+    let passphrase = if let Some(path) = &args.passphrase_file {
+        let path = storage::expand_home(path, &paths.home);
+        let mut text = fs::read_to_string(&path)
+            .with_context(|| format!("Read passphrase file {}", path.display()))?;
+        if text.ends_with('\n') {
+            text.pop();
+            if text.ends_with('\r') {
+                text.pop();
+            }
+        }
+        SecretString::new(text)
+    } else {
+        prompt_passphrase("Enter passphrase: ").context(
+            "Read passphrase privately from the terminal; use --passphrase-file for a pipe",
+        )?
+    };
+    if passphrase.expose_secret().is_empty() {
+        bail!("Passphrase must not be empty");
+    }
+    if passphrase.expose_secret().contains(['\r', '\n']) {
+        bail!("Passphrase must contain exactly one line");
+    }
+    if passphrase.expose_secret().contains('\0') {
+        bail!("Passphrase must not contain NUL bytes");
+    }
+    if args.passphrase && !decrypt {
+        let confirmation = prompt_passphrase("Confirm passphrase: ")
+            .context("Confirm passphrase privately from the terminal")?;
+        if passphrase.expose_secret() != confirmation.expose_secret() {
+            bail!("Passphrases do not match");
+        }
+    }
+    Ok(passphrase)
+}
+
+#[cfg(not(windows))]
+fn prompt_passphrase(prompt: &str) -> io::Result<SecretString> {
+    rpassword::prompt_password(prompt).map(SecretString::new)
+}
+
+#[cfg(windows)]
+fn prompt_passphrase(prompt: &str) -> io::Result<SecretString> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::Console::{
+        GetConsoleMode, SetConsoleMode, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT,
+        ENABLE_PROCESSED_INPUT,
+    };
+
+    struct ConsoleInput {
+        file: fs::File,
+        mode: u32,
+    }
+    impl Drop for ConsoleInput {
+        fn drop(&mut self) {
+            unsafe { SetConsoleMode(self.file.as_raw_handle() as _, self.mode) };
+        }
+    }
+
+    // rpassword 7.3.1 writes a newline to stdout on Windows. Use its buffered
+    // reader with explicit console handles so prompts cannot alter crypto output.
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("CONIN$")?;
+    let mut mode = 0;
+    let handle = file.as_raw_handle() as _;
+    if unsafe { GetConsoleMode(handle, &mut mode) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let hidden_mode = (mode | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT) & !ENABLE_ECHO_INPUT;
+    if unsafe { SetConsoleMode(handle, hidden_mode) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let input = ConsoleInput { file, mode };
+    let mut terminal = fs::OpenOptions::new().write(true).open("CONOUT$")?;
+    let mut reader = io::BufReader::new(&input.file);
+    let password = SecretString::new(rpassword::prompt_password_from_bufread(
+        &mut reader,
+        &mut terminal,
+        prompt,
+    )?);
+    terminal.write_all(b"\r\n")?;
+    Ok(password)
 }
 
 pub fn execute_template(paths: &Paths, args: &TemplateArgs, overrides: &[String]) -> Result<()> {

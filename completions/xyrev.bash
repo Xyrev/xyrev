@@ -585,7 +585,7 @@ _xyrev() {
             return 0
             ;;
         xyrev__dotfile__decrypt)
-            opts="-o -v -h --output --backend --recipient --identity --source --destination --data --verbose --help <INPUT>"
+            opts="-o -v -h --output --backend --recipient --identity --passphrase --passphrase-file --source --destination --data --verbose --help <INPUT>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -608,6 +608,10 @@ _xyrev() {
                     return 0
                     ;;
                 --identity)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --passphrase-file)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -709,7 +713,7 @@ _xyrev() {
             return 0
             ;;
         xyrev__dotfile__encrypt)
-            opts="-o -v -h --output --backend --recipient --identity --source --destination --data --verbose --help <INPUT>"
+            opts="-o -v -h --output --backend --recipient --identity --passphrase --passphrase-file --source --destination --data --verbose --help <INPUT>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -732,6 +736,10 @@ _xyrev() {
                     return 0
                     ;;
                 --identity)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --passphrase-file)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

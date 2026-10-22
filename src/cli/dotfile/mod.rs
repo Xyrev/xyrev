@@ -111,6 +111,12 @@ pub struct CryptoArgs {
     pub recipient: Vec<String>,
     #[arg(long)]
     pub identity: Vec<PathBuf>,
+    /// Use age passphrase encryption; read the password privately from the terminal
+    #[arg(long, conflicts_with_all = ["passphrase_file", "recipient", "identity"])]
+    pub passphrase: bool,
+    /// Read one passphrase line from a file or pipe (such as /dev/fd/3)
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["recipient", "identity"])]
+    pub passphrase_file: Option<PathBuf>,
 }
 
 #[derive(Args, Debug)]

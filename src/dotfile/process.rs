@@ -78,6 +78,10 @@ pub fn script(
         .env("XYREV_HOME", &paths.home)
         .env("XYREV_OS", std::env::consts::OS)
         .env("XYREV_ARCH", std::env::consts::ARCH)
+        .env(
+            "XYREV_EXECUTABLE",
+            std::env::current_exe().context("Locate xyrev executable for hook")?,
+        )
         .current_dir(if transform {
             temporary.path()
         } else {

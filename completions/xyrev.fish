@@ -173,9 +173,11 @@ complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_sub
 gpg\t''"
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -l recipient -r
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -l identity -r -F
+complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -l passphrase-file -d 'Read one passphrase line from a file or pipe (such as /dev/fd/3)' -r -F
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -l source -d 'Local source repository (saved by init)' -r -F
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
+complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -l passphrase -d 'Use age passphrase encryption; read the password privately from the terminal'
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -s v -l verbose -d 'Show more debugging information'
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from encrypt" -s h -l help -d 'Print help'
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -s o -l output -r -F
@@ -183,9 +185,11 @@ complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_sub
 gpg\t''"
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -l recipient -r
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -l identity -r -F
+complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -l passphrase-file -d 'Read one passphrase line from a file or pipe (such as /dev/fd/3)' -r -F
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -l source -d 'Local source repository (saved by init)' -r -F
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
+complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -l passphrase -d 'Use age passphrase encryption; read the password privately from the terminal'
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -s v -l verbose -d 'Show more debugging information'
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from decrypt" -s h -l help -d 'Print help'
 complete -c xyrev -n "__fish_xyrev_using_subcommand dotfile; and __fish_seen_subcommand_from keygen" -l output -r -F

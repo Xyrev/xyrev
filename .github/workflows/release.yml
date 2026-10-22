@@ -142,6 +142,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: xyrev-*
@@ -162,23 +163,16 @@ jobs:
       - name: Create version-specific installation and initialization notes
         shell: bash
         run: |
-          cat > release-notes.md <<EOF
-          Git-backed dotfile initialization, preview, deployment and updates are now available, including templates, script hooks, external resources and Git installation guidance.
-
-          Install this version on macOS or Linux without needing Git or Rust first:
-
-          \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_REF_NAME/install.sh | VERSION=$GITHUB_REF_NAME bash
-          export PATH="\$HOME/.local/bin:\$PATH"
-          xyrev --version
-          xyrev dotfile init https://github.com/szwathub/dotfiles --recurse-submodules
-          xyrev dotfile diff
-          xyrev dotfile apply
-          xyrev dotfile verify
-          \`\`\`
-
-          Windows users can download the x86_64-pc-windows-msvc ZIP below. SHA256SUMS.txt covers all six platform archives.
-          EOF
+          python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+          tag = os.environ['GITHUB_REF_NAME']
+          sections = Path('RELEASE_NOTES.md').read_text().split('# xyrev ')
+          matching = [section for section in sections if section.splitlines() and section.splitlines()[0] == tag]
+          if len(matching) != 1:
+              raise SystemExit(f'Expected exactly one release notes section for {tag}')
+          Path('release-notes.md').write_text('# xyrev ' + matching[0])
+          PYTHON
       - name: Publish release after all checks and uploads succeed
         uses: softprops/action-gh-release@v2
         with:
