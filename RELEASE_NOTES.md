@@ -6,6 +6,7 @@
 - 控制项、模板命名、环境变量和默认目录统一为 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*`、`~/.stool`。旧环境使用显式迁移流程；不隐式改写用户仓库或重新加密 GPG 备份。
 - 新增 `stool dotfile migrate [--from <old-control-dir>] [--dry-run]`，显式迁移旧本机控制目录；需先自行准备新协议 source，不联网或改 tracked 内容，不自动 apply，并保留旧目录供回退。
 - 移除独立加解密子命令。普通 dotfile 继续通过 `add --encrypt`、`edit`、`apply` 管理，GPG 密钥继续使用原生备份/恢复；内部加密和 `keygen` 保留。
+- `stool dotfile gpg backup` 默认备份全部可导出的本地私钥、对应公钥和 ownertrust；`--fingerprint` 改为可选的完整主指纹筛选。包含离线主密钥下的本机私有子密钥及过期/撤销本地密钥，提示缺失/硬件私钥的恢复限制；无可导出私钥或显式选择不可导出组时失败。覆盖保护要求保留既有主/子指纹，既有组含不可导出组件时保守拒绝覆盖，可保留旧备份并使用全新 `--output` 目录。四文件格式及密码/独立 age 身份文件恢复兼容保持不变。
 - `install.sh` / `newinstall.sh` 同源，只安装 stool v0.6.0 起的稳定版本，保留校验、原子替换及错误时保护已有程序；历史版本继续使用其固定 tag 的安装器。
 
 v0.6.0 发布后使用（当前尚不可下载此版本）：

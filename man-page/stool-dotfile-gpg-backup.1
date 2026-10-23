@@ -2,15 +2,15 @@
 .el .ds Aq '
 .TH stool-dotfile-gpg-backup 1  "stool-dotfile-gpg-backup "
 .SH NAME
-stool\-dotfile\-gpg\-backup \- Export selected GPG keys and ownertrust into an encrypted backup
+stool\-dotfile\-gpg\-backup \- Export local GPG private keys and ownertrust into an encrypted backup
 .SH SYNOPSIS
-\fBstool\-dotfile\-gpg\-backup\fR <\fB\-\-fingerprint\fR> [\fB\-\-output\fR] [\fB\-\-identity\fR] [\fB\-\-passphrase\-file\fR] [\fB\-\-gpg\-program\fR] [\fB\-h\fR|\fB\-\-help\fR]
+\fBstool\-dotfile\-gpg\-backup\fR [\fB\-\-fingerprint\fR] [\fB\-\-output\fR] [\fB\-\-identity\fR] [\fB\-\-passphrase\-file\fR] [\fB\-\-gpg\-program\fR] [\fB\-h\fR|\fB\-\-help\fR]
 .SH DESCRIPTION
-Export selected GPG keys and ownertrust into an encrypted backup
+Export local GPG private keys and ownertrust into an encrypted backup
 .SH OPTIONS
 .TP
 \fB\-\-fingerprint\fR \fI<FINGERPRINT>\fR
-Complete primary GPG fingerprint; repeat to select multiple keys
+Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)
 .TP
 \fB\-\-output\fR \fI<OUTPUT>\fR
 Backup directory (defaults to .stooltemplates/gpg in the source)

@@ -302,13 +302,13 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
             [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
         }
         'stool;dotfile;gpg;backup' {
-            [CompletionResult]::new('--fingerprint', '--fingerprint', [CompletionResultType]::ParameterName, 'Complete primary GPG fingerprint; repeat to select multiple keys')
+            [CompletionResult]::new('--fingerprint', '--fingerprint', [CompletionResultType]::ParameterName, 'Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)')
             [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'Backup directory (defaults to .stooltemplates/gpg in the source)')
             [CompletionResult]::new('--identity', '--identity', [CompletionResultType]::ParameterName, 'Separate age identity kept outside the repository')
             [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read the password from private external storage or an inherited pipe')
@@ -337,7 +337,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;dotfile;gpg;help' {
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
             [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
             break
@@ -441,7 +441,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;dotfile;help;gpg' {
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
             [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
             break
         }
@@ -569,7 +569,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;help;dotfile;gpg' {
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export selected GPG keys and ownertrust into an encrypted backup')
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
             [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
             break
         }

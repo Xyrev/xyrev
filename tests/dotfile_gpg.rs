@@ -7,6 +7,7 @@ const PERSONAL: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const WORK: &str = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
 const OTHER: &str = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
 const SUBKEY: &str = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD";
+const WORK_SUBKEY: &str = "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE";
 const PASSWORD: &str = "  fixture's password $(unexecuted)  ";
 const FILES: [&str; 4] = [
     "public.asc",
@@ -78,6 +79,14 @@ impl Fixture {
             .map(|name| fs::read(self.directory().join(name)).unwrap())
             .collect()
     }
+    fn backup_snapshot(&self) -> std::collections::BTreeMap<PathBuf, String> {
+        let directory = self.directory();
+        let mut contents = snapshot(&directory);
+        // Failed staging can update the containing directory's mtime while the
+        // existing backup files, permissions, and modification times stay intact.
+        contents.remove(&directory);
+        contents
+    }
     fn imports(&self) -> String {
         fs::read_to_string(self.s.root.join("imports")).unwrap_or_default()
     }
@@ -119,6 +128,244 @@ impl Fixture {
 }
 
 #[test]
+fn default_backup_discovers_complete_secret_groups_and_only_their_public_keys_and_trust() {
+    let f = Fixture::new();
+    f.backup(&[]);
+    let metadata = fs::read_to_string(f.directory().join("backup-metadata.sh")).unwrap();
+    assert!(metadata.contains(&format!("gpg_backup_fingerprints='{PERSONAL} {WORK}'")));
+    assert!(!metadata.contains(OTHER));
+    assert_eq!(
+        fs::read_to_string(f.directory().join("public.asc")).unwrap(),
+        format!("STOOL-FAKE-PUBLIC\n{PERSONAL}\nsub:{SUBKEY}\n{WORK}\nsub:{WORK_SUBKEY}\n")
+    );
+    assert_eq!(
+        decrypt_age_fixture(PASSWORD, &f.files()[1]),
+        format!("STOOL-FAKE-SECRET\n{PERSONAL}\nsub:{SUBKEY}\n{WORK}\nsub:{WORK_SUBKEY}\n")
+            .as_bytes()
+    );
+    assert_eq!(
+        decrypt_age_fixture(PASSWORD, &f.files()[2]),
+        format!("{PERSONAL}:6:\n{WORK}:6:\n").as_bytes()
+    );
+    let events = fs::read_to_string(f.s.root.join("events")).unwrap();
+    assert!(events.contains("--list-secret-keys"));
+    success(f.restore());
+    assert_eq!(f.imports().lines().count(), 3);
+}
+
+#[test]
+fn explicit_filter_excludes_other_secret_groups_and_rejects_public_only_keys() {
+    let f = Fixture::new();
+    f.backup(&[PERSONAL]);
+    let metadata = fs::read_to_string(f.directory().join("backup-metadata.sh")).unwrap();
+    assert!(metadata.contains(&format!("gpg_backup_fingerprints='{PERSONAL}'")));
+    assert!(!metadata.contains(WORK));
+    let before = f.backup_snapshot();
+    f.assert_failed(f.backup_to(&[PERSONAL, OTHER], None));
+    assert_eq!(f.backup_snapshot(), before);
+    // An omitted filter discovers the additional key and extends the backup.
+    f.backup(&[]);
+    let metadata = fs::read_to_string(f.directory().join("backup-metadata.sh")).unwrap();
+    assert!(metadata.contains(&format!("gpg_backup_fingerprints='{PERSONAL} {WORK}'")));
+}
+
+#[test]
+fn empty_discovery_fails_before_password_input_and_preserves_existing_files() {
+    let f = Fixture::new();
+    fs::write(f.s.root.join("no-secret"), "").unwrap();
+    for existing in [false, true] {
+        if existing {
+            fs::remove_file(f.s.root.join("no-secret")).unwrap();
+            f.backup(&[]);
+            fs::write(f.s.root.join("no-secret"), "").unwrap();
+        }
+        let before = f.backup_snapshot();
+        fs::remove_file(f.s.root.join("events")).ok();
+        let output = f
+            .command()
+            .args(["gpg", "backup", "--gpg-program"])
+            .arg(fake_gpg())
+            .output()
+            .unwrap();
+        let diagnostic = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+        assert!(diagnostic.contains("exportable"), "{diagnostic}");
+        assert!(!diagnostic.contains("gpg backup password"), "{diagnostic}");
+        f.assert_failed(output);
+        assert_eq!(f.backup_snapshot(), before);
+        let events = fs::read_to_string(f.s.root.join("events")).unwrap();
+        assert!(!events.contains("--export"));
+    }
+}
+
+#[test]
+fn default_discovery_cannot_drop_a_key_already_in_a_backup() {
+    let f = Fixture::new();
+    f.backup(&[]);
+    let before = f.backup_snapshot();
+    fs::write(f.s.root.join("only-personal"), "").unwrap();
+    f.assert_failed(f.backup_to(&[], None));
+    assert_eq!(f.backup_snapshot(), before);
+}
+
+#[test]
+fn discovery_export_and_missing_components_fail_without_replacing_a_complete_backup() {
+    let f = Fixture::new();
+    f.backup(&[]);
+    let before = f.backup_snapshot();
+    for marker in [
+        "fail-discovery",
+        "missing-primary-fingerprint",
+        "missing-subkey-fingerprint",
+        "fail-secret-export",
+        "fail-public-export",
+        "fail-trust-export",
+        "partial-export",
+        "partial-secret-primary",
+        "partial-secret-subkey",
+        "partial-public-subkey",
+        "stub-secret-export",
+        "inventory-changed",
+    ] {
+        fs::write(f.s.root.join(marker), "").unwrap();
+        let output = f.backup_to(&[], None);
+        assert!(!output.status.success(), "{marker} unexpectedly succeeded");
+        f.assert_failed(output);
+        assert_eq!(
+            f.backup_snapshot(),
+            before,
+            "{marker} changed the existing backup"
+        );
+        fs::remove_file(f.s.root.join(marker)).unwrap();
+    }
+}
+
+#[test]
+fn partly_available_secret_groups_keep_exportable_primary_or_subkeys_and_warn() {
+    for marker in [
+        "stub-primary",
+        "stub-subkey",
+        "token-primary",
+        "token-subkey",
+    ] {
+        let f = Fixture::new();
+        fs::write(f.s.root.join(marker), "").unwrap();
+        let output = f.backup_to(&[], None);
+        let diagnostic = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+        assert!(
+            diagnostic.contains(&WORK.to_ascii_lowercase()),
+            "{marker}: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("cannot be exported"),
+            "{marker}: {diagnostic}"
+        );
+        success(output);
+        let metadata = fs::read_to_string(f.directory().join("backup-metadata.sh")).unwrap();
+        assert!(metadata.contains(&format!("gpg_backup_fingerprints='{PERSONAL} {WORK}'")));
+        let secret = decrypt_age_fixture(PASSWORD, &f.files()[1]);
+        assert!(
+            String::from_utf8_lossy(&secret).contains(WORK_SUBKEY),
+            "{marker}"
+        );
+    }
+}
+
+#[test]
+fn wholly_unavailable_groups_are_reported_skipped_or_rejected_when_explicit() {
+    for marker in ["stub-only-work", "token-only-work"] {
+        let f = Fixture::new();
+        fs::write(f.s.root.join(marker), "").unwrap();
+        let output = f.backup_to(&[], None);
+        let diagnostic = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+        assert!(
+            diagnostic.contains(&WORK.to_ascii_lowercase()),
+            "{diagnostic}"
+        );
+        assert!(diagnostic.contains("skip"), "{diagnostic}");
+        success(output);
+        let metadata = fs::read_to_string(f.directory().join("backup-metadata.sh")).unwrap();
+        assert!(metadata.contains(&format!("gpg_backup_fingerprints='{PERSONAL}'")));
+        assert!(!metadata.contains(WORK));
+        let before = f.backup_snapshot();
+        f.assert_failed(f.backup_to(&[PERSONAL, WORK], None));
+        assert_eq!(f.backup_snapshot(), before);
+    }
+    let f = Fixture::new();
+    fs::write(f.s.root.join("all-stubs"), "").unwrap();
+    let output = f
+        .command()
+        .args(["gpg", "backup", "--gpg-program"])
+        .arg(fake_gpg())
+        .output()
+        .unwrap();
+    let diagnostic = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+    assert!(diagnostic.contains("exportable"), "{diagnostic}");
+    assert!(!diagnostic.contains("gpg backup password"), "{diagnostic}");
+    f.assert_failed(output);
+    assert!(!f.directory().exists());
+}
+
+#[test]
+fn an_unavailable_key_already_in_a_backup_cannot_be_silently_skipped() {
+    let f = Fixture::new();
+    f.backup(&[]);
+    let before = f.backup_snapshot();
+    for marker in ["stub-only-work", "token-only-work", "all-stubs"] {
+        fs::write(f.s.root.join(marker), "").unwrap();
+        f.assert_failed(f.backup_to(&[], None));
+        assert_eq!(f.backup_snapshot(), before, "{marker}");
+        fs::remove_file(f.s.root.join(marker)).unwrap();
+    }
+}
+
+#[test]
+fn existing_private_primary_or_subkeys_cannot_be_lost_even_when_primary_set_is_unchanged() {
+    let f = Fixture::new();
+    f.backup(&[]);
+    let before = f.backup_snapshot();
+    for marker in [
+        "stub-primary",
+        "stub-subkey",
+        "token-primary",
+        "token-subkey",
+        "dropped-subkey",
+    ] {
+        fs::write(f.s.root.join(marker), "").unwrap();
+        f.assert_failed(f.backup_to(&[], None));
+        assert_eq!(f.backup_snapshot(), before, "{marker}");
+        fs::remove_file(f.s.root.join(marker)).unwrap();
+    }
+    // This is a coherent current keyring/export, so a fresh backup can contain it.
+    fs::write(f.s.root.join("dropped-subkey"), "").unwrap();
+    let fresh = f.s.root.join("fresh backup without the old work subkey");
+    success(f.backup_to(&[], Some(&fresh)));
+    let public = fs::read_to_string(fresh.join("public.asc")).unwrap();
+    assert!(public.contains(WORK));
+    assert!(!public.contains(WORK_SUBKEY));
+    fs::remove_file(f.s.root.join("dropped-subkey")).unwrap();
+    // Existing component evidence is trusted only when its manifest hash agrees.
+    let public_path = f.directory().join("public.asc");
+    let mut corrupted = fs::read(&public_path).unwrap();
+    corrupted.extend_from_slice(b"corrupted public fixture\n");
+    fs::write(public_path, corrupted).unwrap();
+    let corrupted_before = f.backup_snapshot();
+    fs::remove_file(f.s.root.join("events")).unwrap();
+    let output = f
+        .command()
+        .args(["gpg", "backup", "--gpg-program"])
+        .arg(fake_gpg())
+        .output()
+        .unwrap();
+    let diagnostic = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
+    assert!(diagnostic.contains("checksum"), "{diagnostic}");
+    assert!(!diagnostic.contains("gpg backup password"), "{diagnostic}");
+    f.assert_failed(output);
+    assert_eq!(f.backup_snapshot(), corrupted_before);
+    let events = fs::read_to_string(f.s.root.join("events")).unwrap();
+    assert!(!events.contains("--export"));
+}
+
+#[test]
 fn native_password_backup_and_explicit_restore_preserve_all_selected_keys() {
     let f = Fixture::new();
     f.backup(&[WORK, PERSONAL, &WORK.to_ascii_lowercase()]);
@@ -130,7 +377,7 @@ fn native_password_backup_and_explicit_restore_preserve_all_selected_keys() {
     );
     assert_eq!(
         String::from_utf8(private).unwrap(),
-        format!("STOOL-FAKE-SECRET\n{PERSONAL}\n{WORK}\n")
+        format!("STOOL-FAKE-SECRET\n{PERSONAL}\nsub:{SUBKEY}\n{WORK}\nsub:{WORK_SUBKEY}\n")
     );
     let trust = decrypt_age_fixture(
         PASSWORD,

@@ -347,7 +347,7 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (backup)
 _arguments "${_arguments_options[@]}" : \
-'*--fingerprint=[Complete primary GPG fingerprint; repeat to select multiple keys]:FINGERPRINT:_default' \
+'*--fingerprint=[Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)]:FINGERPRINT:_default' \
 '--output=[Backup directory (defaults to .stooltemplates/gpg in the source)]:OUTPUT:_files' \
 '(--passphrase-file)--identity=[Separate age identity kept outside the repository]:IDENTITY:_files' \
 '--passphrase-file=[Read the password from private external storage or an inherited pipe]:PASSPHRASE_FILE:_files' \
@@ -878,7 +878,7 @@ _stool__dotfile__execute-template_commands() {
 (( $+functions[_stool__dotfile__gpg_commands] )) ||
 _stool__dotfile__gpg_commands() {
     local commands; commands=(
-'backup:Export selected GPG keys and ownertrust into an encrypted backup' \
+'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
 'restore:Validate and restore an encrypted GPG key backup' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -892,7 +892,7 @@ _stool__dotfile__gpg__backup_commands() {
 (( $+functions[_stool__dotfile__gpg__help_commands] )) ||
 _stool__dotfile__gpg__help_commands() {
     local commands; commands=(
-'backup:Export selected GPG keys and ownertrust into an encrypted backup' \
+'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
 'restore:Validate and restore an encrypted GPG key backup' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -991,7 +991,7 @@ _stool__dotfile__help__execute-template_commands() {
 (( $+functions[_stool__dotfile__help__gpg_commands] )) ||
 _stool__dotfile__help__gpg_commands() {
     local commands; commands=(
-'backup:Export selected GPG keys and ownertrust into an encrypted backup' \
+'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
 'restore:Validate and restore an encrypted GPG key backup' \
     )
     _describe -t commands 'stool dotfile help gpg commands' commands "$@"
@@ -1204,7 +1204,7 @@ _stool__help__dotfile__execute-template_commands() {
 (( $+functions[_stool__help__dotfile__gpg_commands] )) ||
 _stool__help__dotfile__gpg_commands() {
     local commands; commands=(
-'backup:Export selected GPG keys and ownertrust into an encrypted backup' \
+'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
 'restore:Validate and restore an encrypted GPG key backup' \
     )
     _describe -t commands 'stool help dotfile gpg commands' commands "$@"

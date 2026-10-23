@@ -180,7 +180,7 @@ complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_sub
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -f -a "backup" -d 'Export selected GPG keys and ownertrust into an encrypted backup'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -f -a "backup" -d 'Export local GPG private keys and ownertrust into an encrypted backup'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -f -a "restore" -d 'Validate and restore an encrypted GPG key backup'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from keygen" -l output -r -F

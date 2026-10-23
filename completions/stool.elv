@@ -273,12 +273,12 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand --verbose 'Show more debugging information'
             cand -h 'Print help'
             cand --help 'Print help'
-            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
             cand restore 'Validate and restore an encrypted GPG key backup'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'stool;dotfile;gpg;backup'= {
-            cand --fingerprint 'Complete primary GPG fingerprint; repeat to select multiple keys'
+            cand --fingerprint 'Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)'
             cand --output 'Backup directory (defaults to .stooltemplates/gpg in the source)'
             cand --identity 'Separate age identity kept outside the repository'
             cand --passphrase-file 'Read the password from private external storage or an inherited pipe'
@@ -305,7 +305,7 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand --help 'Print help'
         }
         &'stool;dotfile;gpg;help'= {
-            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
             cand restore 'Validate and restore an encrypted GPG key backup'
             cand help 'Print this message or the help of the given subcommand(s)'
         }
@@ -387,7 +387,7 @@ set edit:completion:arg-completer[stool] = {|@words|
         &'stool;dotfile;help;data'= {
         }
         &'stool;dotfile;help;gpg'= {
-            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
             cand restore 'Validate and restore an encrypted GPG key backup'
         }
         &'stool;dotfile;help;gpg;backup'= {
@@ -485,7 +485,7 @@ set edit:completion:arg-completer[stool] = {|@words|
         &'stool;help;dotfile;data'= {
         }
         &'stool;help;dotfile;gpg'= {
-            cand backup 'Export selected GPG keys and ownertrust into an encrypted backup'
+            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
             cand restore 'Validate and restore an encrypted GPG key backup'
         }
         &'stool;help;dotfile;gpg;backup'= {

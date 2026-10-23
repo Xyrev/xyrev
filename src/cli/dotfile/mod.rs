@@ -160,7 +160,7 @@ pub struct GpgArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum GpgCommands {
-    /// Export selected GPG keys and ownertrust into an encrypted backup
+    /// Export local GPG private keys and ownertrust into an encrypted backup
     Backup(GpgBackupArgs),
     /// Validate and restore an encrypted GPG key backup
     Restore(GpgRestoreArgs),
@@ -168,8 +168,8 @@ pub enum GpgCommands {
 
 #[derive(Args, Debug)]
 pub struct GpgBackupArgs {
-    /// Complete primary GPG fingerprint; repeat to select multiple keys
-    #[arg(long, required = true)]
+    /// Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)
+    #[arg(long)]
     pub fingerprint: Vec<String>,
     /// Backup directory (defaults to .stooltemplates/gpg in the source)
     #[arg(long)]

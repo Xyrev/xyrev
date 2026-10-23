@@ -32,15 +32,38 @@ pub fn fake_gpg() -> &'static Path {
         .1
 }
 
-const FAKE_GPG: &str = r#"
-use std::{env, fs, io::{self, Read, Write}, path::PathBuf};
+const FAKE_GPG: &str = r##"
+use std::{env, fs, io::{self, Read, Write}, path::{Path, PathBuf}};
 const A: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const B: &str = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
 const C: &str = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
 const D: &str = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD";
+const E: &str = "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE";
+const F: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
 fn append(path: PathBuf, value: &str) { let mut f=fs::OpenOptions::new().create(true).append(true).open(path).unwrap(); writeln!(f,"{value}").unwrap(); }
 fn die() -> ! { eprintln!("fixture GPG failed; private output intentionally omitted"); std::process::exit(19); }
-fn packet(kind: &str, keys: &[String]) -> String { format!("STOOL-FAKE-{kind}\n{}\n",keys.join("\n")) }
+fn subkey(key: &str) -> &str { match key { A=>D, B=>E, C=>F, _=>die() } }
+// Column 15 models GnuPG's local secret material, missing stub, or card serial.
+fn record(kind: &str, key: &str, available: &str, fingerprint: bool) {
+ let mut fields=vec!["";18]; fields[0]=kind; fields[1]="u"; fields[2]="256";
+ fields[3]="22"; fields[4]=&key[24..]; fields[11]="scSC"; fields[14]=available;
+ println!("{}",fields.join(":"));
+ if fingerprint { println!("fpr:::::::::{key}:"); }
+}
+fn packet(root: &Path, kind: &str, keys: &[String]) -> String {
+ let mut value=format!("STOOL-FAKE-{kind}\n");
+ for key in keys {
+  if ![A,B,C].contains(&key.as_str()) {die();}
+  if !(kind=="SECRET" && key==B && root.join("partial-secret-primary").exists()) {value.push_str(key); value.push('\n');}
+  let partial=(kind=="SECRET" && root.join("partial-secret-subkey").exists())
+    || (kind=="PUBLIC" && root.join("partial-public-subkey").exists());
+  if !(key==B && (partial || root.join("dropped-subkey").exists())) {
+   let prefix=if kind=="SECRET" && key==B && root.join("stub-secret-export").exists() {"stub-sub:"} else {"sub:"};
+   value.push_str(prefix); value.push_str(subkey(key)); value.push('\n');
+  }
+ }
+ value
+}
 fn main() {
  let args:Vec<String>=env::args().skip(1).collect();
  let root=PathBuf::from(env::var_os("STOOL_TEST_GPG_ROOT").unwrap());
@@ -52,37 +75,63 @@ fn main() {
  }
  append(root.join("events"),&format!("gpg:{}",args.join(" ")));
  let has=|needle:&str| args.iter().any(|a| a==needle);
- if has("--list-keys") {
-   let key=args.last().unwrap();
-   let key=if key==D { A } else {key};
-   if ![A,B,C].contains(&key) {die();}
-   println!("pub:u:256:22:0000:0:::u:::scSC:"); println!("fpr:::::::::{key}:");
-   println!("sub:u:256:22:0001:0:::::s:"); println!("fpr:::::::::{D}:"); return;
+ let marked=|name:&str| root.join(name).exists();
+ if has("--list-secret-keys") {
+   if marked("fail-discovery") {die();}
+   if marked("no-secret") {return;}
+   let changed=marked("inventory-changed") && marked("inventory-seen");
+   if marked("inventory-changed") {fs::write(root.join("inventory-seen"), "").unwrap();}
+   for key in [A,B] {
+    if key==B && marked("only-personal") {continue;}
+    let primary=if marked("all-stubs") || (key==B && (marked("stub-primary") || marked("stub-only-work"))) {"#"}
+      else if key==B && (marked("token-primary") || marked("token-only-work")) {"D2760001240103040000000000010000"} else {"+"};
+    let sub=if (changed && key==B) || marked("all-stubs") || (key==B && (marked("stub-subkey") || marked("stub-only-work"))) {"#"}
+      else if key==B && (marked("token-subkey") || marked("token-only-work")) {"D2760001240103040000000000010000"} else {"+"};
+    record("sec",key,primary,!(key==B && marked("missing-primary-fingerprint")));
+    println!("uid:u::::::::Fixture:");
+    if !(key==B && marked("dropped-subkey")) {record("ssb",subkey(key),sub,!(key==B && marked("missing-subkey-fingerprint")));}
+   }
+   return;
  }
- for (flag,kind) in [("--export-secret-keys","SECRET"),("--export","PUBLIC")] {
+ if has("--list-keys") {
+   let selected=args.last().unwrap();
+   let selected=match selected.as_str() { D=>A, E=>B, F=>C, key=>key };
+   let keys=if selected=="--list-keys" {vec![A,B,C]} else {vec![selected]};
+   for key in keys { if ![A,B,C].contains(&key) {die();} record("pub",key,"",true); record("sub",subkey(key),"",true); }
+   return;
+ }
+ for (flag,kind,failure) in [("--export-secret-keys","SECRET","fail-secret-export"),("--export","PUBLIC","fail-public-export")] {
    if let Some(i)=args.iter().position(|a| a==flag) {
+     if marked(failure) {die();}
      let mut keys=args[i+1..].to_vec();
-     if root.join("partial-export").exists() && kind=="SECRET" {keys.retain(|k| k!=B);}
-     print!("{}",packet(kind,&keys)); return;
+     if marked("partial-export") && kind=="SECRET" {keys.retain(|k| k!=B);}
+     print!("{}",packet(&root,kind,&keys)); return;
    }
  }
- if has("--export-ownertrust") { for key in [A,B,C] {println!("{key}:6:");} return; }
+ if has("--export-ownertrust") {
+   if marked("fail-trust-export") {die();}
+   for key in [A,B,C] {println!("{key}:6:");} return;
+ }
  let mut input=String::new(); io::stdin().read_to_string(&mut input).unwrap();
  if has("show-only") {
    let mut lines=input.lines();
    let kind=match lines.next() {Some("STOOL-FAKE-SECRET")=>"sec",Some("STOOL-FAKE-PUBLIC")=>"pub",_=>die()};
-   for key in lines {if ![A,B,C].contains(&key){die();} println!("{kind}:u:256:22:0000:0:::u:::scSC:");println!("fpr:::::::::{key}:");println!("uid:u::::::::Fixture:");}
+   for line in lines {
+    if let Some(key)=line.strip_prefix("sub:") {if ![D,E,F].contains(&key) {die();} record(if kind=="sec" {"ssb"} else {"sub"},key,"",true);}
+    else if let Some(key)=line.strip_prefix("stub-sub:") {if ![D,E,F].contains(&key) {die();} record("ssb",key,"#",true);}
+    else {if ![A,B,C].contains(&line) {die();} record(kind,line,"",true); println!("uid:u::::::::Fixture:");}
+   }
    return;
  }
  if has("--import") || has("--import-ownertrust") {
-   if root.join("fail-import").exists() {die();}
+   if marked("fail-import") {die();}
    let deployed=PathBuf::from(env::var_os("HOME").unwrap()).join(".seed").exists();
    let kind=if has("--import-ownertrust") {"trust"} else if input.starts_with("STOOL-FAKE-SECRET") {"secret"} else {"public"};
    append(root.join("imports"),&format!("{kind}:deployed={deployed}")); append(root.join("events"),&format!("import:{kind}")); return;
  }
  die();
 }
-"#;
+"##;
 
 pub fn private_write(path: &Path, bytes: &[u8]) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();

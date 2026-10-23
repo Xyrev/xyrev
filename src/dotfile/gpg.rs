@@ -578,6 +578,159 @@ fn read_identity(
     Ok(key)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SecretMaterial {
+    Local,
+    Stub,
+    Token,
+}
+
+/// Primary fingerprint to all of its primary/subkey fingerprints and private material.
+type KeyGroups = BTreeMap<String, BTreeMap<String, SecretMaterial>>;
+
+fn key_groups(bytes: &[u8], kind: &str) -> Result<KeyGroups> {
+    let text = std::str::from_utf8(bytes).context("Invalid GPG key listing")?;
+    let subkind = if kind == "sec" { "ssb" } else { "sub" };
+    let mut groups = KeyGroups::new();
+    let mut seen = BTreeSet::new();
+    let mut current = None;
+    let mut pending = None;
+    for line in text.lines() {
+        let fields: Vec<_> = line.split(':').collect();
+        match fields[0] {
+            "sec" | "pub" | "ssb" | "sub" => {
+                if pending.is_some() {
+                    bail!("GPG key fingerprint is missing");
+                }
+                let primary = fields[0] == kind;
+                if !primary && fields[0] != subkind {
+                    bail!("GPG backup must contain {kind} primary keys and {subkind} subkeys");
+                }
+                if !primary && current.is_none() {
+                    bail!("GPG subkey has no primary key");
+                }
+                // GnuPG's colon field 15 marks missing material with '#', a token
+                // serial for hardware keys, and '+' for local material with
+                // --with-secret. Ordinary exported secret packets leave it empty.
+                let material = if kind == "sec" {
+                    match fields.get(14).copied().unwrap_or("") {
+                        "" | "+" => SecretMaterial::Local,
+                        "#" => SecretMaterial::Stub,
+                        _ => SecretMaterial::Token,
+                    }
+                } else {
+                    SecretMaterial::Local
+                };
+                pending = Some((primary, material));
+            }
+            "fpr" => {
+                let Some((primary, material)) = pending.take() else {
+                    continue;
+                };
+                let key = fields.get(9).context("GPG key fingerprint is missing")?;
+                if !valid_fingerprint(key) || !seen.insert((*key).to_owned()) {
+                    bail!("GPG key listing has an invalid or duplicate fingerprint");
+                }
+                if primary {
+                    groups.insert(
+                        (*key).to_owned(),
+                        BTreeMap::from([((*key).to_owned(), material)]),
+                    );
+                    current = Some((*key).to_owned());
+                } else {
+                    groups
+                        .get_mut(current.as_ref().context("GPG subkey has no primary key")?)
+                        .context("GPG subkey has no primary key")?
+                        .insert((*key).to_owned(), material);
+                }
+            }
+            _ => (),
+        }
+    }
+    if pending.is_some() {
+        bail!("GPG key fingerprint is missing");
+    }
+    Ok(groups)
+}
+
+fn discover_keys(settings: &Settings, paths: &Paths) -> Result<KeyGroups> {
+    let mut command = command(settings, &paths.home, false);
+    command.args([
+        "--with-colons",
+        "--with-secret",
+        "--fingerprint",
+        "--fingerprint",
+        "--list-secret-keys",
+    ]);
+    key_groups(capture(command, None)?.expose_secret(), "sec")
+        .context("List local GPG secret keys for backup")
+}
+
+fn select_keys(inventory: &KeyGroups, requested: &BTreeSet<String>) -> Result<KeyGroups> {
+    let mut selected = KeyGroups::new();
+    if !requested.is_empty() {
+        for key in requested {
+            if !inventory.contains_key(key) {
+                bail!("GPG fingerprint {key} is not a local primary secret key; supply a complete primary fingerprint");
+            }
+        }
+    }
+    for (primary, components) in inventory {
+        if !requested.is_empty() && !requested.contains(primary) {
+            continue;
+        }
+        if !components
+            .values()
+            .any(|material| *material == SecretMaterial::Local)
+        {
+            if requested.contains(primary) {
+                bail!("GPG key {primary} has no exportable local private material; its keys are missing or stored on a hardware token");
+            }
+            eprintln!("Skipping GPG key {primary}: no exportable local private material (missing keys or hardware-token references).");
+            continue;
+        }
+        selected.insert(primary.clone(), components.clone());
+    }
+    if selected.is_empty() {
+        bail!("No exportable local GPG private keys found; no backup was written");
+    }
+    for (primary, components) in &selected {
+        for (key, material) in components {
+            let reason = match material {
+                SecretMaterial::Local => continue,
+                SecretMaterial::Stub => "the private key is missing (secret-key stub)",
+                SecretMaterial::Token => "the private key is stored on a hardware token",
+            };
+            eprintln!("GPG key {primary}: private material for {key} cannot be exported because {reason}; only its local private material will be backed up.");
+        }
+    }
+    Ok(selected)
+}
+
+fn validate_exported_groups(bytes: &[u8], kind: &str, expected: &KeyGroups) -> Result<()> {
+    let actual = key_groups(bytes, kind)?;
+    if !actual.keys().eq(expected.keys()) {
+        bail!("GPG backup fingerprint set mismatch; missing selected primary keys");
+    }
+    for (primary, components) in &actual {
+        let expected = &expected[primary];
+        if !components.keys().eq(expected.keys()) {
+            bail!("GPG backup fingerprint set mismatch for {primary}; missing or unexpected primary keys or subkeys");
+        }
+        if kind == "sec" {
+            // show-only leaves this field empty even for some dummy packets.
+            // It proves structure, while successful export and stable inventory
+            // protect the local-material selection. Reject explicit stubs too.
+            for (key, material) in components {
+                if expected[key] == SecretMaterial::Local && *material != SecretMaterial::Local {
+                    bail!("GPG secret export is missing local private material for {key}");
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn key_set(bytes: &[u8], kind: &str, expected: &BTreeSet<String>) -> Result<()> {
     let text = std::str::from_utf8(bytes).context("Invalid GPG key listing")?;
     let mut seen = BTreeSet::new();
@@ -651,15 +804,20 @@ fn validate_bundle(
     secret: &[u8],
     trust: &[u8],
     restore: bool,
+    expected: Option<&KeyGroups>,
 ) -> Result<()> {
     for (kind, bytes) in [("pub", bundle.public.as_slice()), ("sec", secret)] {
         let mut command = command(settings, &paths.home, restore);
         command.args(["--with-colons", "--import-options", "show-only", "--import"]);
-        key_set(
-            capture(command, Some(bytes))?.expose_secret(),
-            kind,
-            &bundle.metadata.fingerprints,
-        )?;
+        if expected.is_some() {
+            command.args(["--fingerprint", "--fingerprint"]);
+        }
+        let listing = capture(command, Some(bytes))?;
+        if let Some(expected) = expected {
+            validate_exported_groups(listing.expose_secret(), kind, expected)?;
+        } else {
+            key_set(listing.expose_secret(), kind, &bundle.metadata.fingerprints)?;
+        }
     }
     ownertrust(trust, &bundle.metadata.fingerprints, false)?;
     Ok(())
@@ -700,6 +858,7 @@ impl RestorePlan {
             secret.expose_secret(),
             trust.expose_secret(),
             true,
+            None,
         )?;
         for (flag, bytes) in [
             ("--import", self.bundle.public.as_slice()),
@@ -724,13 +883,64 @@ impl RestorePlan {
     }
 }
 
-fn preserve(directory: &Path, selected: &BTreeSet<String>) -> Result<()> {
+fn preserve(
+    directory: &Path,
+    selected: &KeyGroups,
+    settings: &Settings,
+    paths: &Paths,
+) -> Result<()> {
     let manifest = directory.join(FILES[3]);
     match fs::symlink_metadata(&manifest) {
         Ok(_) => {
             let old = metadata(&read_regular(&manifest)?)?;
-            if !old.fingerprints.is_subset(selected) {
-                bail!("Existing GPG backup contains keys omitted from --fingerprint; include every previously backed-up key");
+            let missing = old
+                .fingerprints
+                .iter()
+                .filter(|key| !selected.contains_key(*key))
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" ");
+            if !missing.is_empty() {
+                bail!("Existing GPG backup contains keys omitted from this backup: {missing}; include every previously backed-up key, or keep it and use a new --output directory");
+            }
+            let public = read_regular(&directory.join(FILES[0]))?;
+            if storage::digest(&public) != old.hashes[0] {
+                bail!("Existing GPG backup public-key checksum failed; keep this backup and use a new --output directory");
+            }
+            let mut command = command(settings, &paths.home, false);
+            command.args([
+                "--with-colons",
+                "--fingerprint",
+                "--fingerprint",
+                "--import-options",
+                "show-only",
+                "--import",
+            ]);
+            let groups = key_groups(capture(command, Some(&public))?.expose_secret(), "pub")?;
+            if !groups.keys().eq(old.fingerprints.iter()) {
+                bail!("Existing GPG backup public-key fingerprints do not match its metadata; keep this backup and use a new --output directory");
+            }
+            for (primary, components) in groups {
+                let current = &selected[&primary];
+                let missing = components
+                    .keys()
+                    .filter(|key| !current.contains_key(*key))
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                if !missing.is_empty() {
+                    bail!("Existing GPG backup contains primary keys or subkeys absent from this backup: {missing}; restore their private keys, or keep it and use a new --output directory");
+                }
+                // Old metadata cannot prove which components contained private
+                // material. Conservatively retain an old group unless all of its
+                // current components have local material, even for an old partial
+                // backup. A new output directory can hold a partial snapshot.
+                if current
+                    .values()
+                    .any(|material| *material != SecretMaterial::Local)
+                {
+                    bail!("Existing GPG backup cannot be replaced safely: local private material for {primary} is incomplete and could discard previously backed-up private keys; restore all its private keys, or keep it and use a new --output directory");
+                }
             }
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -776,20 +986,14 @@ fn backup(paths: &Paths, mut settings: Settings, args: &GpgBackupArgs) -> Result
         .iter()
         .map(|key| key.to_ascii_uppercase())
         .collect::<BTreeSet<_>>();
-    if selected.is_empty() || selected.iter().any(|key| !valid_fingerprint(key)) {
+    if selected.iter().any(|key| !valid_fingerprint(key)) {
         bail!("Supply complete primary GPG fingerprints, not short key IDs");
     }
-    for key in &selected {
-        let mut command = command(&settings, &paths.home, false);
-        command.args(["--with-colons", "--fingerprint", "--list-keys", key]);
-        // Listing a subkey selector still yields its parent; require its exact primary.
-        key_set(
-            capture(command, None)?.expose_secret(),
-            "pub",
-            &BTreeSet::from([key.clone()]),
-        )?;
-    }
-    preserve(&directory, &selected)?;
+    let inventory = discover_keys(&settings, paths)?;
+    let selected_inventory = select_keys(&inventory, &selected)?;
+    let filtered = !selected.is_empty();
+    let selected = selected_inventory.keys().cloned().collect::<BTreeSet<_>>();
+    preserve(&directory, &selected_inventory, &settings, paths)?;
     let protection = if let Some(identity) = &args.identity {
         Protection::Identity(read_identity(identity, paths, &directory, true)?)
     } else {
@@ -802,7 +1006,7 @@ fn backup(paths: &Paths, mut settings: Settings, args: &GpgBackupArgs) -> Result
     };
     storage::private_dir(&directory)?;
     let _lock = BackupLock::acquire(&directory)?;
-    preserve(&directory, &selected)?;
+    preserve(&directory, &selected_inventory, &settings, paths)?;
     for name in FILES {
         if fs::symlink_metadata(directory.join(name)).is_ok() {
             template::regular(&directory.join(name))?;
@@ -828,6 +1032,18 @@ fn backup(paths: &Paths, mut settings: Settings, args: &GpgBackupArgs) -> Result
         &selected,
         true,
     )?;
+    // Exporting may involve agent/pinentry interaction. Detect key additions,
+    // removals or changes in local secret material before publishing a snapshot.
+    let mut current_inventory = discover_keys(&settings, paths)?;
+    let expected_inventory = if filtered {
+        current_inventory.retain(|key, _| selected.contains(key));
+        &selected_inventory
+    } else {
+        &inventory
+    };
+    if &current_inventory != expected_inventory {
+        bail!("Local GPG private-key inventory changed during export; retry the backup; no backup was replaced");
+    }
     let encrypted_secret = protection.encrypt(secret.expose_secret())?;
     let encrypted_trust = protection.encrypt(trust.expose_secret())?;
     let mut metadata = Metadata {
@@ -865,6 +1081,7 @@ fn backup(paths: &Paths, mut settings: Settings, args: &GpgBackupArgs) -> Result
         recovered_secret.expose_secret(),
         recovered_trust.expose_secret(),
         false,
+        Some(&selected_inventory),
     )?;
     let fingerprints = metadata
         .fingerprints
@@ -905,4 +1122,54 @@ fn backup(paths: &Paths, mut settings: Settings, args: &GpgBackupArgs) -> Result
     }
     println!("GPG backup ready for {fingerprints}. Only public keys, ciphertext and metadata were written to {}.",directory.display());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PRIMARY: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    const SUBKEY: &str = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+
+    fn record(kind: &str, fingerprint: &str, material: &str, validity: &str) -> String {
+        let mut fields = vec![""; 15];
+        fields[0] = kind;
+        fields[1] = validity;
+        fields[14] = material;
+        format!("{}:\nfpr:::::::::{fingerprint}:\n", fields.join(":"))
+    }
+
+    #[test]
+    fn groups_include_expired_revoked_and_unavailable_components() {
+        let listing = record("sec", PRIMARY, "#", "r") + &record("ssb", SUBKEY, "+", "e");
+        let groups = key_groups(listing.as_bytes(), "sec").unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[PRIMARY][PRIMARY], SecretMaterial::Stub);
+        assert_eq!(groups[PRIMARY][SUBKEY], SecretMaterial::Local);
+
+        for (marker, expected) in [
+            ("", SecretMaterial::Local),
+            ("+", SecretMaterial::Local),
+            ("#", SecretMaterial::Stub),
+            ("D27600012401000000000000", SecretMaterial::Token),
+        ] {
+            let groups = key_groups(record("sec", PRIMARY, marker, "u").as_bytes(), "sec").unwrap();
+            assert_eq!(groups[PRIMARY][PRIMARY], expected);
+        }
+    }
+
+    #[test]
+    fn groups_require_complete_unique_fingerprints_and_primary_context() {
+        for listing in [
+            format!("sec::::::::::::::+:\n{}", record("ssb", SUBKEY, "+", "u")),
+            record("sec", PRIMARY, "+", "u") + "ssb::::::::::::::+:\n",
+            record("ssb", SUBKEY, "+", "u"),
+            record("sec", PRIMARY, "+", "u") + &record("ssb", PRIMARY, "+", "u"),
+            record("sec", "1234", "+", "u"),
+            record("pub", PRIMARY, "+", "u"),
+        ] {
+            assert!(key_groups(listing.as_bytes(), "sec").is_err());
+        }
+        assert!(key_groups(b"tru::1:\n", "sec").unwrap().is_empty());
+    }
 }

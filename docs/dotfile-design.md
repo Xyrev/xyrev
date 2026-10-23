@@ -1,6 +1,6 @@
 # stool dotfile：实现规范、兼容边界与新机器流程
 
-> 校订日期：2026-10-23。当前版本为 stool v0.6.0（待发布），命令与协议按当前源码描述。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
+> 校订日期：2026-10-24。当前版本为 stool v0.6.0（待发布），命令与协议按当前源码描述。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
 >
 > 本文记录 stool 的产品协议、新机器流程、实现证据与长期规划。[产品概览](dotfile-overview.md) 说明能力和边界，[实现说明](dotfile-internals.md) 说明当前 Rust 模块和状态处理。当前使用入口另见 [README](../README.md)，命令选项以 `stool dotfile --help` 及子命令帮助为准。
 >
@@ -24,7 +24,7 @@ stool 在现有单一 Rust crate 中提供 `stool dotfile`：通过完整 Git UR
 | 维护与诊断 | 显式 migrate、add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs) |
 | 脚本 | run/once/onchange、before/during/after 顺序；成功才持久化，失败可重试，onchange 的 A→B→A 再执行 | [scripts.rs](../src/dotfile/scripts.rs)、[钩子测试](../tests/dotfile_crypto_hooks.rs) |
 | 普通文件加密 | 内置 age；本机 GPG 子进程；通过 add --encrypt 导入、edit 编辑、apply 解密部署；保留内部 age 密码处理 | [crypto.rs](../src/dotfile/crypto.rs)、[加密文件测试](../tests/dotfile_advanced.rs) |
-| GPG 密钥备份与恢复 | 多主密钥、age 密码/身份文件保护、清单校验、自动恢复与显式 restore、失败重试 | [gpg.rs](../src/dotfile/gpg.rs)、[命令测试](../tests/dotfile_gpg.rs)、[真实 GPG 测试](../tests/test_gpg_native.py) |
+| GPG 密钥备份与恢复 | 默认备份全部可导出本地私钥、可选完整主指纹筛选、age 密码/身份文件保护、清单校验、原生恢复与失败重试 | [gpg.rs](../src/dotfile/gpg.rs)、[命令测试](../tests/dotfile_gpg.rs)、[真实 GPG 测试](../tests/test_gpg_native.py) |
 | 秘密提供器 | 1Password、Bitwarden、pass/gopass、Vault、Keyring、KeePassXC、LastPass、Doppler、AWS、Azure 及通用命令适配；进程内缓存 | [secrets.rs](../src/dotfile/secrets.rs)、[高级测试](../tests/dotfile_advanced.rs) |
 | 外部资源与归档 | 文件、归档、归档中单文件、Git 资源；TTL、SHA-256、过滤、路径保护；tar/tgz/zip 导出 | [external.rs](../src/dotfile/external.rs)、[archive.rs](../src/dotfile/archive.rs) |
 | 终端和命令文档 | ratatui 冲突确认；由同一 clap 定义生成 shell 补全和递归 man pages | [ui.rs](../src/dotfile/ui.rs)、[CLI 定义](../src/cli/dotfile/mod.rs)、[生成脚本](../scripts/generate-cli-assets.sh) |
@@ -51,7 +51,7 @@ stool dotfile execute-template <template>
 stool dotfile data
 stool dotfile cd [--print]
 stool dotfile keygen --output <identity-file>
-stool dotfile gpg backup --fingerprint <primary-fingerprint> [options]
+stool dotfile gpg backup [--fingerprint <primary-fingerprint>] [options]
 stool dotfile gpg restore [options]
 ```
 
@@ -321,7 +321,11 @@ Git clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出�
 | `ownertrust.txt.age` | age 加密的所选密钥信任数据 |
 | `backup-metadata.sh` | 模式、主指纹与 SHA-256；严格解析的字段数据，不执行 Shell |
 
-`backup --fingerprint` 可重复，只接受完整主指纹，并拒绝覆盖时遗漏已有清单中的密钥。默认隐藏输入和确认 age 备份密码；原私钥口令由 GPG/pinentry 管理。支持仓库外的私有密码文件、独立 age 身份文件和 GPG 路径覆盖。备份也支持读取继承的管道描述符；恢复的密码文件要求为仓库外、非链接的私有普通文件。新密码模式不依赖 agekey，旧身份文件模式仍需其独立身份文件。
+`stool dotfile gpg backup` 默认发现并备份当前 keyring 中全部可导出的本地私钥、对应公钥和 ownertrust，按完整主指纹分组；只有公钥的条目不纳入。过期或撤销的本地密钥仍备份。离线主密钥配有本机私有子密钥时，也会纳入该组并导出可用私钥；缺失或硬件中的私钥只有公开部分可备份，并明确提示这些私钥无法由备份恢复。完全没有本地可导出私钥的组会跳过并提示；空 keyring 或全部不可导出时，在请求密码或改写既有备份前失败。
+
+可选的 `--fingerprint` 只接受完整主指纹，可重复筛选多个主密钥组；不存在或完全不可导出的显式选择会失败。覆盖时拒绝遗漏已有清单中的主密钥及旧 `public.asc` 中的主/子指纹，筛选不能用于缩减既有备份。若既有组当前含有缺失或硬件私钥组件，旧格式未记录私钥可用性，无法证明原私钥材料不丢失，会保守拒绝覆盖。部分私钥组可首次备份到新目录；重复备份需保留旧备份并使用全新 `--output` 目录，不读取旧密码或合并旧私钥密文。
+
+默认隐藏输入和确认 age 备份密码；原私钥口令由 GPG/pinentry 管理。支持仓库外的私有密码文件、独立 age 身份文件和 GPG 路径覆盖。备份也支持读取继承的管道描述符；恢复的密码文件要求为仓库外、非链接的私有普通文件。新密码模式不依赖 agekey，旧身份文件模式仍需其独立身份文件。
 
 恢复先验证三份数据的 SHA-256、清单字段、公私钥完整主指纹集合及 ownertrust 的指纹/值范围，再导入真实 HOME keyring。支持历史单/多主指纹、密码模式、身份模式与缺省模式的旧清单。SHA-256 是一致性校验，不是独立的来源身份认证；仓库与配置仍须可信。
 

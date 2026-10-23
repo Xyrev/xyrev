@@ -247,7 +247,8 @@ fn gpg_backup_accepts_a_password_pipe_without_a_terminal_or_prompt() {
     let cipher = fs::read(sandbox.work.join(".stooltemplates/gpg/secret.asc.age")).unwrap();
     assert_eq!(
         decrypt_age_fixture(password, &cipher),
-        format!("STOOL-FAKE-SECRET\n{PERSONAL}\n").as_bytes()
+        format!("STOOL-FAKE-SECRET\n{PERSONAL}\nsub:DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n")
+            .as_bytes()
     );
     // Explicit restore requires a private regular file rather than a pipe.
     let password_file = sandbox.root.join("private password");

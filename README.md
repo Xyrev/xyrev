@@ -302,18 +302,28 @@ GPG 密钥备份与恢复使用下述原生命令和声明配置，无需仓库�
 
 ## GPG 密钥备份与恢复
 
-在已有私钥的机器上，显式选择完整主密钥指纹；子密钥会随主密钥一起导出：
+在已有私钥的机器上，默认备份当前 GPG keyring 中全部可导出的本地私钥、对应公钥和 ownertrust，按完整主指纹记录：
+
+```bash
+stool dotfile gpg backup
+stool dotfile gpg restore
+```
+
+只有需要筛选时才提供完整主密钥指纹，`--fingerprint` 可重复；子密钥指纹和短 key ID 不可用：
 
 ```bash
 stool dotfile gpg backup --fingerprint PERSONAL_PRIMARY_FINGERPRINT --fingerprint WORK_PRIMARY_FINGERPRINT
-stool dotfile gpg restore
 ```
+
+离线主密钥仍有本机私有子密钥时，也会纳入该主密钥组；过期或撤销的本地密钥仍备份，便于解密历史数据。缺失私钥或硬件中的私钥只有公开部分可备份，工具会提示这些私钥无法由备份恢复。完全没有本地可导出私钥的组会跳过并提示；空 keyring 或全部不可导出时，在请求密码或改写既有备份前失败。显式筛选不存在或完全不可导出的主密钥组也会失败。
 
 备份默认在本机控制终端隐藏输入并确认密码，使用 age 密码加密私钥和 ownertrust。密码保存在密码管理器或离线介质中；GPG 原私钥口令保持原样，系统 pinentry 可能另行要求解锁。`--passphrase-file` 可从仓库外的私有文件提供密码，备份也可从管道描述符读取。密码不会进入参数、环境变量、日志或部署状态，私钥明文只保存在内存和管道中。
 
 默认备份目录为 source 中的 `.stooltemplates/gpg/`，保存公钥、`secret.asc.age`、`ownertrust.txt.age` 和公开清单 `backup-metadata.sh`。stool 将该历史清单作为严格的字段数据解析，不执行其中的 Shell。现有单密钥、多密钥的密码备份及独立 age 身份文件备份均可直接恢复，无需重新加密。`backup --identity /external/private/identity.agekey` 使用已有的独立 age 身份文件；恢复时先从单独备份恢复身份文件。
 
-`--fingerprint` 可重复；备份会拒绝遗漏既有清单中的密钥。恢复前校验 SHA-256、公私钥的完整主指纹集合和 ownertrust，缺少私钥、混入未选密钥、密码错误或数据损坏都会在真实导入之前失败。只导出明确选择的密钥，不复制整个 `~/.gnupg`。`--gpg-program` 可指定 GPG 可执行文件；macOS 优先使用已安装的 GPG Suite。
+覆盖时既要保留既有清单中的主密钥，也要保留旧 `public.asc` 中的主/子指纹，使用 `--fingerprint` 不能缩减既有备份。若既有组当前含有缺失或硬件私钥组件，旧格式无法证明原私钥材料会完整保留，因此拒绝覆盖。部分私钥组可首次备份到新目录；再次备份时保留旧备份并使用全新的 `--output` 目录，工具不会合并旧私钥密文。
+
+恢复前校验 SHA-256、公私钥的完整主指纹集合和 ownertrust；集合不符、混入未选密钥、密码错误或数据损坏都会在真实导入之前失败。备份只导出密钥和所选组的 ownertrust，不复制整个 `~/.gnupg`。`--gpg-program` 可指定 GPG 可执行文件；macOS 优先使用已安装的 GPG Suite。
 
 仓库可用 `.stoolgpg.toml` 或 `.stoolgpg.toml.tmpl` 声明自动恢复（两者只能存在一个）：
 

@@ -35,6 +35,25 @@ def primary_fingerprints(listing):
     return sorted(result)
 
 
+def key_components(listing):
+    """Return complete primary/subkey fingerprints from independent GPG output."""
+    groups, primary, pending = {}, None, None
+    for line in listing.decode().splitlines():
+        fields = line.split(':')
+        if fields[0] in ('sec', 'pub', 'ssb', 'sub'):
+            pending = fields[0]
+        elif fields[0] == 'fpr' and pending:
+            if pending in ('sec', 'pub'):
+                primary = fields[9]
+                groups[primary] = []
+            else:
+                if primary is None:
+                    raise AssertionError('Subkey fingerprint without a primary')
+                groups[primary].append(fields[9])
+            pending = None
+    return {key: sorted(subkeys) for key, subkeys in groups.items()}
+
+
 class NativeGpgTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -107,9 +126,9 @@ class NativeGpgTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
         return result
 
-    def generate(self, identity, passphrase=''):
+    def generate(self, identity, passphrase='', usage='sign'):
         self.gpg(self.origin, '--passphrase', passphrase, '--quick-generate-key', identity,
-                 'ed25519', 'sign', '0')
+                 'ed25519', usage, '0')
         result = self.gpg(self.origin, '--with-colons', '--list-secret-keys', identity)
         return primary_fingerprints(result.stdout)[0]
 
@@ -128,7 +147,7 @@ class NativeGpgTests(unittest.TestCase):
             self.assertNotIn(b'BEGIN PGP PRIVATE KEY BLOCK', result.stdout + result.stderr)
         return result
 
-    def backup(self, keys, identity=False, ok=True):
+    def backup(self, keys=(), identity=False, ok=True):
         args = ['gpg', 'backup', '--gpg-program', self.gpg_program]
         for key in keys:
             args += ['--fingerprint', key]
@@ -220,6 +239,125 @@ class NativeGpgTests(unittest.TestCase):
                 if identity:
                     self.kill_agent(self.restored)
                     shutil.rmtree(self.restored)
+
+    def add_signing_and_encryption_subkeys(self, key):
+        self.gpg(self.origin, '--passphrase', '', '--quick-add-key', key,
+                 'ed25519', 'sign', '0')
+        self.gpg(self.origin, '--passphrase', '', '--quick-add-key', key,
+                 'cv25519', 'encr', '0')
+        listing = self.gpg(self.origin, '--with-colons', '--fingerprint', '--fingerprint',
+                           '--list-secret-keys', key).stdout
+        rows, pending, signing, encryption = listing.decode().splitlines(), None, None, None
+        for line in rows:
+            fields = line.split(':')
+            if fields[0] == 'ssb':
+                pending = fields[11]
+            elif fields[0] == 'fpr' and pending is not None:
+                if 's' in pending:
+                    signing = fields[9]
+                if 'e' in pending:
+                    encryption = fields[9]
+                pending = None
+        self.assertIsNotNone(signing)
+        self.assertIsNotNone(encryption)
+        return signing, encryption
+
+    def assert_subkeys_and_independent_verification(self, expected, signing, encryption, suffix):
+        listing = self.gpg(self.restored, '--with-colons', '--fingerprint', '--fingerprint',
+                           '--list-secret-keys').stdout
+        self.assertEqual(key_components(listing), expected)
+        verifier = self.root / ('public-verifier-' + suffix)
+        verifier.mkdir(mode=0o700)
+        self.addCleanup(self.kill_agent, verifier)
+        public = (self.backup_dir / 'public.asc').read_bytes()
+        inspected = self.gpg(verifier, '--with-colons', '--fingerprint', '--fingerprint',
+                             '--import-options', 'show-only', '--import', input=public).stdout
+        self.assertEqual(key_components(inspected), expected)
+        self.gpg(verifier, '--import', input=public)
+        self.assertEqual(primary_fingerprints(self.gpg(verifier, '--with-colons',
+                                                       '--list-secret-keys').stdout), [])
+        message = b'Independent restored subkey signing and decryption check\n'
+        for primary in expected:
+            sign_key = signing[primary]
+            signed = self.gpg(self.restored, '--passphrase', '', '--local-user', sign_key + '!',
+                              '--clearsign', input=message).stdout
+            verified = self.gpg(verifier, '--status-fd', '1', '--verify', input=signed).stdout
+            self.assertIn(('VALIDSIG ' + sign_key + ' ').encode(), verified)
+            self.assertIn(primary.encode(), verified)
+            encrypted = self.gpg(verifier, '--trust-model', 'always', '--recipient',
+                                 encryption[primary] + '!', '--encrypt', input=message).stdout
+            decrypted = self.gpg(self.restored, '--passphrase', '', '--decrypt', input=encrypted)
+            self.assertEqual(decrypted.stdout, message)
+        trust = self.gpg(self.restored, '--export-ownertrust').stdout
+        trusted = sorted(line.split(b':')[0].decode() for line in trust.splitlines()
+                         if line and not line.startswith(b'#'))
+        self.assertEqual(trusted, sorted(expected))
+
+    def test_default_backup_preserves_two_complete_keys_and_subkeys_in_both_modes(self):
+        work = self.generate('Default Work <default-work@example.invalid>')
+        other = self.generate('Public Only Third Party <public-only@example.invalid>')
+        self.gpg(self.origin, '--yes', '--delete-secret-key', other)
+        signing, encryption = {}, {}
+        for key in (self.personal, work):
+            signing[key], encryption[key] = self.add_signing_and_encryption_subkeys(key)
+        expected = key_components(self.gpg(self.origin, '--with-colons', '--fingerprint',
+                                           '--fingerprint', '--list-secret-keys').stdout)
+        self.assertEqual(sorted(expected), sorted([self.personal, work]))
+        self.assertTrue(all(len(subkeys) == 2 for subkeys in expected.values()))
+        for identity in (True, False):
+            with self.subTest(identity=identity):
+                self.backup(identity=identity)
+                metadata = (self.backup_dir / 'backup-metadata.sh').read_text()
+                self.assertIn("gpg_backup_fingerprints='" + ' '.join(sorted(expected)) + "'", metadata)
+                self.assertNotIn(other, metadata)
+                self.restore(identity=identity)
+                self.assert_subkeys_and_independent_verification(
+                    expected, signing, encryption, 'default-' + str(identity))
+                if identity:
+                    self.kill_agent(self.restored)
+                    shutil.rmtree(self.restored)
+
+    def test_default_backup_keeps_local_subkeys_when_the_offline_primary_is_a_stub(self):
+        offline = self.generate('Offline Master <offline-master@example.invalid>', usage='cert')
+        sign_key, encrypt_key = self.add_signing_and_encryption_subkeys(offline)
+        exported = self.gpg(self.origin, '--passphrase', '',
+                            '--export-secret-subkeys', offline).stdout
+        self.gpg(self.origin, '--yes', '--delete-secret-key', offline)
+        self.gpg(self.origin, '--import', input=exported)
+        listing = self.gpg(self.origin, '--with-colons', '--with-secret', '--fingerprint',
+                           '--fingerprint', '--list-secret-keys', offline).stdout
+        primary = next(line.split(':') for line in listing.decode().splitlines()
+                       if line.startswith('sec:'))
+        self.assertEqual(primary[14], '#', 'This test must have an offline primary stub')
+        result = self.backup()
+        diagnostic = result.stderr.decode(errors='replace').lower()
+        self.assertIn(offline.lower(), diagnostic)
+        self.assertIn('cannot be exported', diagnostic)
+        self.restore()
+        self.assertEqual(self.restored_keys(), sorted([self.personal, offline]))
+        restored = self.gpg(self.restored, '--with-colons', '--with-secret', '--fingerprint',
+                            '--fingerprint', '--list-secret-keys', offline).stdout
+        self.assertEqual(key_components(restored), key_components(listing))
+        primary = next(line.split(':') for line in restored.decode().splitlines()
+                       if line.startswith('sec:'))
+        self.assertEqual(primary[14], '#')
+        # Independently verify the exact restored signing subkey without any secret key.
+        verifier = self.root / 'offline-public-verifier'
+        verifier.mkdir(mode=0o700)
+        self.addCleanup(self.kill_agent, verifier)
+        self.gpg(verifier, '--import', input=(self.backup_dir / 'public.asc').read_bytes())
+        self.assertEqual(primary_fingerprints(self.gpg(verifier, '--with-colons',
+                                                       '--list-secret-keys').stdout), [])
+        message = b'Offline master local subkey backup check\n'
+        signed = self.gpg(self.restored, '--passphrase', '', '--local-user', sign_key + '!',
+                          '--clearsign', input=message).stdout
+        verified = self.gpg(verifier, '--status-fd', '1', '--verify', input=signed).stdout
+        self.assertIn(('VALIDSIG ' + sign_key + ' ').encode(), verified)
+        self.assertIn(offline.encode(), verified)
+        encrypted = self.gpg(verifier, '--trust-model', 'always', '--recipient', encrypt_key + '!',
+                             '--encrypt', input=message).stdout
+        self.assertEqual(self.gpg(self.restored, '--passphrase', '', '--decrypt',
+                                   input=encrypted).stdout, message)
 
     def test_existing_password_bundle_auto_restores_without_reencrypting(self):
         keys = self.legacy_backup('password-plural')
