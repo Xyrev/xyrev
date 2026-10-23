@@ -146,7 +146,7 @@ impl Sandbox {
     }
 
     pub fn command(&self) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_xyrev"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_stool"));
         command
             .current_dir(&self.root)
             .env("HOME", &self.home)
@@ -157,8 +157,8 @@ impl Sandbox {
             )
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_ALLOW_PROTOCOL", "file")
-            .env_remove("XYREV_AGE_PASSPHRASE")
-            .env_remove("XYREV_AGE_PASSPHRASE_FILE")
+            .env_remove("STOOL_AGE_PASSPHRASE")
+            .env_remove("STOOL_AGE_PASSPHRASE_FILE")
             .arg("dotfile");
         command
     }
@@ -187,7 +187,7 @@ impl Sandbox {
     }
 
     pub fn control(&self) -> PathBuf {
-        self.home.join(".xyrev/dotfile")
+        self.home.join(".stool/dotfile")
     }
 }
 

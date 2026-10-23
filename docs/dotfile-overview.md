@@ -1,8 +1,8 @@
-# xyrev dotfile 产品概览
+# stool dotfile 产品概览
 
-> 更新日期：2026-10-23。本文描述当前 develop；其中 v0.5.0 之后的变更尚未发布。已发布 v0.5.0 的安装地址和二进制行为保持不变。
+> 更新日期：2026-10-23。本文描述 stool v0.6.0 开发版本，尚未发布。历史 xyrev v0.5.0 的 tag、安装脚本、资源及二进制行为保持原样。
 
-`xyrev dotfile` 从 Git URL 获取配置仓库，按 xyrev 路径协议和 MiniJinja 模板计算目标文件，预览差异后部署到用户目录，并在后续更新中保护本地修改。
+`stool dotfile` 从 Git URL 获取配置仓库，按 stool 路径协议和 MiniJinja 模板计算目标文件，预览差异后部署到用户目录，并在后续更新中保护本地修改。
 
 使用步骤和配置详见 [README](../README.md)；完整协议、新机器流程与长期规划见 [设计文档](dotfile-design.md)；Rust 模块及状态处理见 [实现说明](dotfile-internals.md)。
 
@@ -26,7 +26,7 @@
 | 初始化与更新 | init 保存来源和本机配置；update 检查工作树、仅允许快进，再重新部署 |
 | 路径协议 | 文件/目录权限、模板、加密、创建、转换、删除、exact、literal 与 external 子树 |
 | 模板 | MiniJinja、严格缺失变量、include、初始化提示、嵌套数据覆盖、编码与换行指令 |
-| 维护 | diff/status/managed/apply、add/edit/unmanaged、verify/doctor/data/execute-template/cd |
+| 维护 | 显式 migrate、diff/status/managed/apply、add/edit/unmanaged、verify/doctor/data/execute-template/cd |
 | 脚本 | run/once/onchange、before/during/after；成功后记账、失败重试、内容变化后重跑 |
 | 密文与秘密 | 内置 age、本机 GPG；加密导入/编辑/部署，以及 README 列出的秘密服务适配 |
 | GPG 密钥管理 | 显式选择多把主密钥、密码或独立 age 身份保护、完整性校验、原生恢复与成功摘要 |
@@ -34,19 +34,19 @@
 | 冲突与备份 | 三方比较、全计划冲突预检、覆盖前备份、单文件原子替换和部分成功记录 |
 | 归档与交互 | tar/tgz/zip 导出、终端冲突确认、由 CLI 定义生成补全和 man pages |
 
-控制项统一使用 `.xyrev*`，包括 `.xyrevignore`、`.xyrevdata.*`、`.xyrev.toml.tmpl`、`.xyrevtemplates/`、`.xyrevexternal.*`、`.xyrevroot`、`.xyrevversion` 和 `.xyrevgpg.toml[.tmpl]`。模板数据使用 `xyrev.*` 命名空间，模板指令使用 `xyrev:template:`。
+控制项统一使用 `.stool*`，包括 `.stoolignore`、`.stooldata.*`、`.stool.toml.tmpl`、`.stooltemplates/`、`.stoolexternal.*`、`.stoolroot`、`.stoolversion` 和 `.stoolgpg.toml[.tmpl]`。模板数据使用 `stool.*` 命名空间，模板指令使用 `stool:template:`。
 
 ## 3. 当前 develop 的待发布变更
 
-当前 develop 仅识别 xyrev 控制命名，不自动读取旧命名的控制项或模板指令；升级前应手动将仓库改为 `.xyrev*` 和 `xyrev:template:`，再检查本机数据、模板及资源路径。工具不会自动重命名或修改远端仓库。
+当前 develop 仅识别 stool 控制命名、`STOOL_*` 环境变量和 `~/.stool` 默认目录，不自动读取旧命名；升级旧环境应走[显式迁移流程](dotfile-design.md#14-旧控制目录迁移)，并核对 `.stool*`、`stool.*` 与 `stool:template:` 及资源引用。migrate 先检查已准备的新协议 source，不联网、不改 tracked source，也不自动 apply；保留旧控制目录供回退，只继承能证明等价的成功记录。工具不会隐式修改远端仓库。
 
-独立 `xyrev dotfile encrypt` / `xyrev dotfile decrypt` 子命令已移除。普通 dotfile 继续通过 `add --encrypt`、`edit` 和 `apply` 管理，GPG 密钥使用 `gpg backup` / `gpg restore` 及原生恢复声明；其他文件加解密由相应工具处理。内部 age/GPG 能力、既有密文、备份格式和 `keygen` 保留。
+独立 `stool dotfile encrypt` / `stool dotfile decrypt` 子命令已移除。普通 dotfile 继续通过 `add --encrypt`、`edit` 和 `apply` 管理，GPG 密钥使用 `gpg backup` / `gpg restore` 及原生恢复声明；其他文件加解密由相应工具处理。内部 age/GPG 能力、既有密文、备份格式和 `keygen` 保留。
 
-这些是 v0.5.0 之后尚未发布的变更；原发行包和 tag 不变。迁移细节见 [设计文档](dotfile-design.md#13-待发布兼容性变更)。
+改名及这些接口调整属于尚未发布的 v0.6.0；历史 xyrev 发行包和 tag 不变。迁移细节见 [设计文档](dotfile-design.md#13-待发布兼容性变更)。
 
 ## 4. 新机器流程
 
-`Xyrev/xyrev` 和发行包公开，`szwathub/dotfiles` 是私有仓库。新机器先安装公开 xyrev，准备 Git/Command Line Tools，通过凭据助手完成 HTTPS 认证，再初始化、预览和部署；已有 SSH 认证可使用 SSH URL。完整步骤见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
+`szwathub/stool` 仓库公开，v0.6.0 发行包尚未发布；`szwathub/dotfiles` 是私有仓库。新机器先构建 stool（发布后可直接下载安装包），准备 Git/Command Line Tools，通过凭据助手完成 HTTPS 认证，再初始化、预览和部署；已有 SSH 认证可使用 SSH URL。完整步骤见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
 
 GitHub 凭据用于下载仓库，原 GPG 备份密码用于一次恢复个人和 Work 两把主密钥，原 GPG 私钥口令用于签名等操作。首次 Git 登录不能依赖尚未下载的备份；恢复既有备份无需重新加密。
 

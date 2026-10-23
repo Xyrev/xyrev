@@ -5,23 +5,23 @@ use std::io::Write;
 #[test]
 fn template_data_initial_config_include_and_overrides() {
     let s = Sandbox::new(&[
-        (".xyrevdata.toml", "name='repo'\n[settings]\ncolor='blue'\n"),
-        (".xyrevdata/nested.json", r#"{"nested":{"answer":42}}"#),
+        (".stooldata.toml", "name='repo'\n[settings]\ncolor='blue'\n"),
+        (".stooldata/nested.json", r#"{"nested":{"answer":42}}"#),
         (
-            ".xyrev.toml.tmpl",
+            ".stool.toml.tmpl",
             "[data]\nname='{{ prompt_string(\"Name\", \"local\") }}'\n",
         ),
         (
-            ".xyrevtemplates/shared",
+            ".stooltemplates/shared",
             "{{ name }}:{{ settings.color }}:{{ nested.answer }}",
         ),
         (
             "dot_profile.tmpl",
-            "{% include 'shared' %}:{{ xyrev.os }}\n",
+            "{% include 'shared' %}:{{ stool.os }}\n",
         ),
         (
-            ".xyrevignore.tmpl",
-            "{% if xyrev.os != 'unknown' %}skip{% endif %}\n",
+            ".stoolignore.tmpl",
+            "{% if stool.os != 'unknown' %}skip{% endif %}\n",
         ),
         ("skip", "skip"),
     ]);
@@ -44,9 +44,9 @@ fn template_data_initial_config_include_and_overrides() {
 #[test]
 fn template_directives_and_source_root_version() {
     let s = Sandbox::new(&[
-        (".xyrevroot", "payload\n"),
-        (".xyrevversion", ">=0.2.0\n"),
-        ("payload/dot_config.tmpl", "# xyrev:template: left-delimiter='[[' right-delimiter=']]' line-ending=crlf encoding=utf-16le\n[[ xyrev.version ]]\n"),
+        (".stoolroot", "payload\n"),
+        (".stoolversion", ">=0.2.0\n"),
+        ("payload/dot_config.tmpl", "# stool:template: left-delimiter='[[' right-delimiter=']]' line-ending=crlf encoding=utf-16le\n[[ stool.version ]]\n"),
         ("outside", "not deployed"),
     ]);
     success(s.init(&["--apply"]));
@@ -60,10 +60,10 @@ fn template_directives_and_source_root_version() {
     .unwrap();
     assert_eq!(text, format!("{}\r\n", env!("CARGO_PKG_VERSION")));
     assert!(!s.destination.join("outside").exists());
-    write(&s.source.join(".xyrevversion"), ">9.0.0");
+    write(&s.source.join(".stoolversion"), ">9.0.0");
     failure(s.cli(&["diff"]), "version");
-    write(&s.source.join(".xyrevversion"), "0.2.0");
-    write(&s.source.join(".xyrevroot"), "../escape");
+    write(&s.source.join(".stoolversion"), "0.2.0");
+    write(&s.source.join(".stoolroot"), "../escape");
     failure(s.cli(&["diff"]), "inside");
 }
 
@@ -82,7 +82,7 @@ fn add_recursive_literals_and_unmanaged() {
     write(&s.destination.join("other"), "unmanaged");
     assert!(success(s.cli(&["unmanaged"])).contains("other"));
     // A literal suffix must survive when the imported file itself is a template.
-    write(&s.destination.join("named.tmpl"), "{{ xyrev.version }}");
+    write(&s.destination.join("named.tmpl"), "{{ stool.version }}");
     success(s.cli(&["add", "--template", "named.tmpl"]));
     success(s.cli(&["apply"]));
     assert_eq!(
@@ -113,7 +113,7 @@ fn age_encrypted_add_edit_and_roundtrip() {
     .trim()
     .to_owned();
     write(
-        &s.work.join(".xyrev.toml.tmpl"),
+        &s.work.join(".stool.toml.tmpl"),
         &format!(
             "[encryption]\nrecipients=['{recipient}']\nidentities=['{}']\n",
             identity.display()
@@ -155,11 +155,11 @@ fn age_encrypted_add_edit_and_roundtrip() {
 #[test]
 fn scripts_phases_once_onchange_preview_and_failures() {
     let s=Sandbox::new(&[
-        ("run_before_00.sh", "#!/bin/sh\ntest ! -e \"$XYREV_DEST_DIR/.seed\" || true\nprintf 'before\\n' >> \"$XYREV_DEST_DIR/log\"\n"),
+        ("run_before_00.sh", "#!/bin/sh\ntest ! -e \"$STOOL_DEST_DIR/.seed\" || true\nprintf 'before\\n' >> \"$STOOL_DEST_DIR/log\"\n"),
         ("dot_seed","seed"),
-        ("run_once_after_once.sh","#!/bin/sh\nprintf 'once\\n' >> \"$XYREV_DEST_DIR/log\"\n"),
-        ("run_onchange_after_change.sh","#!/bin/sh\nprintf 'change-A\\n' >> \"$XYREV_DEST_DIR/log\"\n"),
-        (".xyrevscripts/after_extra.sh","#!/bin/sh\nprintf 'extra\\n' >> \"$XYREV_DEST_DIR/log\"\n"),
+        ("run_once_after_once.sh","#!/bin/sh\nprintf 'once\\n' >> \"$STOOL_DEST_DIR/log\"\n"),
+        ("run_onchange_after_change.sh","#!/bin/sh\nprintf 'change-A\\n' >> \"$STOOL_DEST_DIR/log\"\n"),
+        (".stoolscripts/after_extra.sh","#!/bin/sh\nprintf 'extra\\n' >> \"$STOOL_DEST_DIR/log\"\n"),
     ]);
     success(s.init(&[]));
     let before = snapshot(&s.root);
@@ -185,7 +185,7 @@ fn scripts_phases_once_onchange_preview_and_failures() {
             .count(),
         2
     );
-    write(&s.source.join("run_once_after_retry.sh"),"#!/bin/sh\nset -e\ntest -e \"$XYREV_DEST_DIR/allow\"\nprintf 'retry\\n' >> \"$XYREV_DEST_DIR/log\"\n");
+    write(&s.source.join("run_once_after_retry.sh"),"#!/bin/sh\nset -e\ntest -e \"$STOOL_DEST_DIR/allow\"\nprintf 'retry\\n' >> \"$STOOL_DEST_DIR/log\"\n");
     failure(s.cli(&["apply"]), "failed");
     write(&s.destination.join("allow"), "yes");
     success(s.cli(&["apply"]));
@@ -209,7 +209,7 @@ fn create_modify_remove_exact_readonly_and_backups() {
         ("remove_oldfile", ""),
         ("exact_dot_config/keep", "managed"),
         ("readonly_readonlydir/file", "first"),
-        (".xyrevremove.tmpl", "{{ 'obsolete' }}\n"),
+        (".stoolremove.tmpl", "{{ 'obsolete' }}\n"),
     ]);
     write(&s.destination.join("keep"), "existing");
     write(&s.destination.join("transform"), "old\n");
@@ -255,7 +255,7 @@ fn create_modify_remove_exact_readonly_and_backups() {
 #[test]
 fn archive_all_formats_are_rendered_without_deploying() {
     let s = Sandbox::new(&[
-        ("dot_config/app.tmpl", "{{ xyrev.version }}"),
+        ("dot_config/app.tmpl", "{{ stool.version }}"),
         ("empty_empty", ""),
     ]);
     success(s.init(&[]));
@@ -317,7 +317,7 @@ fn external_cache_checksum_archives_and_path_guards() {
         }
         zip.finish().unwrap();
     }
-    write(&s.work.join(".xyrevexternal.toml"),&format!("[download]\nurl='{}'\nrefreshPeriod='24h'\n[tools]\ntype='archive'\nurl='{}'\nstripComponents=1\nexclude=['skip']\nexact=true\n",file_url(&payload),file_url(&zip_path)));
+    write(&s.work.join(".stoolexternal.toml"),&format!("[download]\nurl='{}'\nrefreshPeriod='24h'\n[tools]\ntype='archive'\nurl='{}'\nstripComponents=1\nexclude=['skip']\nexact=true\n",file_url(&payload),file_url(&zip_path)));
     s.push();
     success(s.init(&[]));
     let before = snapshot(&s.root);
@@ -337,7 +337,7 @@ fn external_cache_checksum_archives_and_path_guards() {
         "download v1"
     );
     write(
-        &s.source.join(".xyrevexternal.toml"),
+        &s.source.join(".stoolexternal.toml"),
         &format!(
             "[download]\nurl='{}'\nrefreshPeriod='0s'\n[download.checksum]\nsha256='bad'\n",
             file_url(&payload)
@@ -356,7 +356,7 @@ fn external_cache_checksum_archives_and_path_guards() {
         zip.finish().unwrap();
     }
     write(
-        &s.source.join(".xyrevexternal.toml"),
+        &s.source.join(".stoolexternal.toml"),
         &format!(
             "[tools]\ntype='archive'\nurl='{}'\nrefreshPeriod='0s'\n",
             file_url(&zip_path)
@@ -416,17 +416,17 @@ fn doctor_cd_prompt_and_runtime_documentation() {
     failure(s.cli(&["apply", "--prompt", "always"]), "terminal");
     failure(s.cli(&["verify"]), "verification failed");
     let completion = success(
-        Command::new(env!("CARGO_BIN_EXE_xyrev"))
+        Command::new(env!("CARGO_BIN_EXE_stool"))
             .args(["completions", "bash"])
             .output()
             .unwrap(),
     );
     assert!(completion.contains("execute-template"));
     for name in ["gpg", "add", "edit", "keygen"] {
-        assert!(completion.contains(&format!("xyrev__dotfile__{name}")));
+        assert!(completion.contains(&format!("stool__dotfile__{name}")));
     }
     for name in ["encrypt", "decrypt"] {
-        assert!(!completion.contains(&format!("xyrev__dotfile__{name}")));
+        assert!(!completion.contains(&format!("stool__dotfile__{name}")));
     }
     let help = success(s.cli(&["--help"]));
     let commands = help
@@ -441,17 +441,17 @@ fn doctor_cd_prompt_and_runtime_documentation() {
     }
     let pages = s.root.join("man");
     success(
-        Command::new(env!("CARGO_BIN_EXE_xyrev"))
+        Command::new(env!("CARGO_BIN_EXE_stool"))
             .args(["man", "--output"])
             .arg(&pages)
             .output()
             .unwrap(),
     );
     for name in ["gpg", "gpg-backup", "gpg-restore", "add", "edit", "keygen"] {
-        assert!(pages.join(format!("xyrev-dotfile-{name}.1")).is_file());
+        assert!(pages.join(format!("stool-dotfile-{name}.1")).is_file());
     }
     for name in ["encrypt", "decrypt"] {
-        assert!(!pages.join(format!("xyrev-dotfile-{name}.1")).exists());
+        assert!(!pages.join(format!("stool-dotfile-{name}.1")).exists());
     }
 }
 
@@ -477,8 +477,8 @@ fn builtin_git_clone_branch_fast_forward_and_preserved_metadata() {
     git(&s.work, &["branch", "alternate"]);
     git(&s.work, &["push", "origin", "alternate"]);
     success(s.init(&["--builtin", "--branch", "alternate", "--apply"]));
-    assert!(s.source.join(".git/xyrev-builtin").is_file());
-    git(&s.source, &["config", "xyrev.custom", "preserved"]);
+    assert!(s.source.join(".git/stool-builtin").is_file());
+    git(&s.source, &["config", "stool.custom", "preserved"]);
     write(&s.source.join(".git/hooks/local-hook"), "keep this hook");
     git(&s.source, &["branch", "local-reference"]);
     git(&s.work, &["checkout", "alternate"]);
@@ -489,7 +489,7 @@ fn builtin_git_clone_branch_fast_forward_and_preserved_metadata() {
         fs::read_to_string(s.destination.join(".seed")).unwrap(),
         "second"
     );
-    assert_eq!(git(&s.source, &["config", "xyrev.custom"]), "preserved\n");
+    assert_eq!(git(&s.source, &["config", "stool.custom"]), "preserved\n");
     assert_eq!(
         fs::read_to_string(s.source.join(".git/hooks/local-hook")).unwrap(),
         "keep this hook"
@@ -527,7 +527,7 @@ fn lfs_and_gpg_external_tools_are_exercised_without_real_credentials() {
             "version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 7\n",
         ),
         (
-            ".xyrev.toml.tmpl",
+            ".stool.toml.tmpl",
             "[git]\nlfs=true\n[encryption]\nbackend='gpg'\ngpg_recipient='test'\n",
         ),
     ]);
@@ -632,7 +632,7 @@ fn secret_adapters_and_bitwarden_unlock_are_cached_per_process() {
             .env("PROVIDER_LOG", &log)
             .env("BW_PASSWORD", "test-password")
             .env_remove("BW_SESSION")
-            .env("XYREV_KEEPASS_PASSWORD", "test-password")
+            .env("STOOL_KEEPASS_PASSWORD", "test-password")
             .args(["execute-template", template])
             .output()
             .unwrap(),
@@ -648,11 +648,11 @@ fn secret_adapters_and_bitwarden_unlock_are_cached_per_process() {
 #[test]
 fn scripts_are_ordered_and_before_failure_preserves_targets_and_retries() {
     let s=Sandbox::new(&[
-        ("run_once_before_bootstrap.sh","#!/bin/sh\nset -e\ntest -e \"$XYREV_HOME/allow\"\nprintf bootstrap >> \"$XYREV_HOME/log\"\n"),
+        ("run_once_before_bootstrap.sh","#!/bin/sh\nset -e\ntest -e \"$STOOL_HOME/allow\"\nprintf bootstrap >> \"$STOOL_HOME/log\"\n"),
         ("a","first"),
-        ("run_b.sh","#!/bin/sh\nset -e\ntest -e \"$XYREV_DEST_DIR/a\"\ntest ! -e \"$XYREV_DEST_DIR/z\"\n"),
+        ("run_b.sh","#!/bin/sh\nset -e\ntest -e \"$STOOL_DEST_DIR/a\"\ntest ! -e \"$STOOL_DEST_DIR/z\"\n"),
         ("z","last"),
-        ("run_once_after_done.sh","#!/bin/sh\nset -e\ntest -e \"$XYREV_DEST_DIR/z\"\n"),
+        ("run_once_after_done.sh","#!/bin/sh\nset -e\ntest -e \"$STOOL_DEST_DIR/z\"\n"),
     ]);
     success(s.init(&[]));
     failure(s.cli(&["apply"]), "failed");
@@ -675,9 +675,9 @@ fn removal_empty_guard_and_protected_removal_patterns() {
     fs::remove_file(s.destination.join("old/keep")).unwrap();
     success(s.cli(&["apply"]));
     assert!(!s.destination.join("old").exists());
-    write(&s.source.join(".xyrevremove"), "../escape");
+    write(&s.source.join(".stoolremove"), "../escape");
     failure(s.cli(&["apply", "--force"]), "inside destination");
-    write(&s.source.join(".xyrevremove"), ".xyrev");
+    write(&s.source.join(".stoolremove"), ".stool");
     failure(
         s.command()
             .arg("--destination")
@@ -704,7 +704,7 @@ fn external_git_and_archive_file_and_symlink_ancestry() {
         tar.append_data(&mut header, "tool", &b"tool"[..]).unwrap();
         tar.finish().unwrap();
     }
-    write(&s.work.join(".xyrevexternal.toml"),&format!("[vendor]\ntype='git-repo'\nurl='{}'\n[tool]\ntype='archive-file'\nurl='{}'\npath='tool'\n",resource.url(),file_url(&archive)));
+    write(&s.work.join(".stoolexternal.toml"),&format!("[vendor]\ntype='git-repo'\nurl='{}'\n[tool]\ntype='archive-file'\nurl='{}'\npath='tool'\n",resource.url(),file_url(&archive)));
     s.push();
     success(s.init(&["--apply"]));
     assert_eq!(
@@ -727,7 +727,7 @@ fn external_git_and_archive_file_and_symlink_ancestry() {
         zip.finish().unwrap();
     }
     write(
-        &s.source.join(".xyrevexternal.toml"),
+        &s.source.join(".stoolexternal.toml"),
         &format!(
             "[attack]\ntype='archive'\nurl='{}'\nrefreshPeriod='0s'\n",
             file_url(&archive)
@@ -766,7 +766,7 @@ fn external_http_fetch_refresh_and_failed_download_preserve_deployment() {
     });
     let s = Sandbox::new(&[("dot_seed", "seed")]);
     write(
-        &s.work.join(".xyrevexternal.toml"),
+        &s.work.join(".stoolexternal.toml"),
         &format!("[download]\nurl='{url}'\nrefreshPeriod='0s'\n"),
     );
     s.push();
@@ -818,7 +818,7 @@ fn add_dot_literal_prefix_and_template_initial_prompt_boundaries() {
         s.cli(&["execute-template", "{{ prompt_string('forbidden', 'x') }}"]),
         "Render template",
     );
-    failure(s.cli(&["--data", "xyrev.os=other", "data"]), "reserved");
+    failure(s.cli(&["--data", "stool.os=other", "data"]), "reserved");
 }
 
 #[cfg(unix)]
@@ -935,11 +935,11 @@ fn data_scalar_paths_and_init_config_errors_are_reported_without_panics() {
         s.cli(&["--data", "a=1", "--data", "a.b=2", "data"]),
         "scalar",
     );
-    write(&s.source.join(".xyrev.toml.tmpl"), "data = 1\n");
+    write(&s.source.join(".stool.toml.tmpl"), "data = 1\n");
     failure(s.init(&["--apply"]), "data must be an object");
     assert!(!s.destination.exists());
     write(
-        &s.source.join(".xyrev.toml.tmpl"),
+        &s.source.join(".stool.toml.tmpl"),
         "repo = 'file:///override'\n",
     );
     failure(s.init(&["--apply"]), "unknown field");
@@ -972,7 +972,7 @@ fn external_literal_tree_and_template_include_directory_confinement() {
     );
     let outside = s.root.join("outside-templates");
     write(&outside.join("secret"), "outside");
-    std::os::unix::fs::symlink(outside, s.source.join(".xyrevtemplates")).unwrap();
+    std::os::unix::fs::symlink(outside, s.source.join(".stooltemplates")).unwrap();
     write(&s.source.join("leak.tmpl"), "{% include 'secret' %}");
     failure(s.cli(&["apply"]), "Render template");
     assert!(!s.destination.join("leak").exists());

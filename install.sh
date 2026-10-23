@@ -2,7 +2,7 @@
 # Canonical installer; newinstall.sh is an identical compatibility entry point.
 set -euo pipefail
 
-repo='Xyrev/xyrev'
+repo='szwathub/stool'
 work_dir=''
 staged_binary=''
 cleanup() {
@@ -23,14 +23,14 @@ if command -v curl >/dev/null 2>&1; then
 elif command -v wget >/dev/null 2>&1; then
     downloader=wget
 else
-    fail 'Install curl or wget before installing xyrev.'
+    fail 'Install curl or wget before installing stool.'
 fi
 if command -v sha256sum >/dev/null 2>&1; then
     hasher=sha256sum
 elif command -v shasum >/dev/null 2>&1; then
     hasher=shasum
 else
-    fail 'Install sha256sum or shasum before installing xyrev; SHA256 verification is required.'
+    fail 'Install sha256sum or shasum before installing stool; SHA256 verification is required.'
 fi
 
 download() {
@@ -50,7 +50,7 @@ case "$machine" in
     *) fail "Unsupported architecture: $machine" ;;
 esac
 suffix='.tar.gz'
-binary_name=xyrev
+binary_name=stool
 case "$system" in
     Darwin) target="$arch-apple-darwin" ;;
     Linux)
@@ -69,33 +69,38 @@ case "$system" in
         [ "$arch" = x86_64 ] || fail 'Only Windows x86_64 release assets are available.'
         target=x86_64-pc-windows-msvc
         suffix='.zip'
-        binary_name=xyrev.exe
+        binary_name=stool.exe
         ;;
     *) fail "Unsupported operating system: $system" ;;
 esac
 if [ "$suffix" = .zip ]; then
-    command -v unzip >/dev/null 2>&1 || fail 'Install unzip before installing xyrev.'
+    command -v unzip >/dev/null 2>&1 || fail 'Install unzip before installing stool.'
 else
-    command -v tar >/dev/null 2>&1 || fail 'Install tar before installing xyrev.'
+    command -v tar >/dev/null 2>&1 || fail 'Install tar before installing stool.'
 fi
 
-work_dir=$(mktemp -d "${TMPDIR:-/tmp}/xyrev-install.XXXXXX")
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/stool-install.XXXXXX")
 version=${VERSION:-latest}
 if [ "$version" = latest ]; then
     latest_url="https://github.com/$repo/releases/latest"
     if [ "$downloader" = curl ]; then
-        resolved=$(curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --retry 2 --connect-timeout 15 "$latest_url" --output /dev/null --write-out '%{url_effective}') || fail 'Could not find the latest xyrev release.'
+        resolved=$(curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 --retry 2 --connect-timeout 15 "$latest_url" --output /dev/null --write-out '%{url_effective}') || fail 'Could not find the latest stool release.'
     else
-        resolved=$(wget --https-only --server-response --spider "$latest_url" 2>&1 | awk 'tolower($1) == "location:" { url = $2 } END { print url }') || fail 'Could not find the latest xyrev release.'
+        resolved=$(wget --https-only --server-response --spider "$latest_url" 2>&1 | awk 'tolower($1) == "location:" { url = $2 } END { print url }') || fail 'Could not find the latest stool release.'
     fi
     case "$resolved" in
         */releases/tag/*) version=${resolved##*/} ;;
-        *) fail 'Could not determine the latest xyrev release tag.' ;;
+        *) fail 'Could not determine the latest stool release tag.' ;;
     esac
 fi
 case "$version" in v*) ;; *) version="v$version" ;; esac
-[[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VERSION must be latest or a release version such as v0.4.0.'
-base="xyrev-$version-$target"
+[[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'VERSION must be latest or a release version such as v0.6.0.'
+version_numbers=${version#v}
+IFS=. read -r version_major version_minor version_patch <<< "$version_numbers"
+if [ "$version_major" -eq 0 ] && [ "$version_minor" -lt 6 ]; then
+    fail 'This installer requires stool v0.6.0 or newer. For xyrev v0.5.0 use its fixed historical installer: https://raw.githubusercontent.com/Xyrev/xyrev/v0.5.0/install.sh with VERSION=v0.5.0.'
+fi
+base="stool-$version-$target"
 package="$base$suffix"
 url="https://github.com/$repo/releases/download/$version"
 download "$url/$package" "$work_dir/$package" || fail "Could not download $package."
@@ -107,29 +112,29 @@ if [ "$hasher" = sha256sum ]; then
 else
     actual=$(shasum -a 256 "$work_dir/$package" | awk '{ print tolower($1) }')
 fi
-[ "$actual" = "$expected" ] || fail 'SHA256 checksum mismatch; the existing xyrev was preserved.'
+[ "$actual" = "$expected" ] || fail 'SHA256 checksum mismatch; the existing stool was preserved.'
 
 mkdir -p "$work_dir/extract"
 if [ "$suffix" = .zip ]; then
-    unzip -q "$work_dir/$package" "$base/$binary_name" -d "$work_dir/extract" || fail 'Could not extract the xyrev executable.'
+    unzip -q "$work_dir/$package" "$base/$binary_name" -d "$work_dir/extract" || fail 'Could not extract the stool executable.'
 else
-    tar -xzf "$work_dir/$package" -C "$work_dir/extract" "$base/$binary_name" || fail 'Could not extract the xyrev executable.'
+    tar -xzf "$work_dir/$package" -C "$work_dir/extract" "$base/$binary_name" || fail 'Could not extract the stool executable.'
 fi
 binary="$work_dir/extract/$base/$binary_name"
-[ -f "$binary" ] && [ ! -L "$binary" ] || fail 'The release archive has no regular xyrev executable.'
+[ -f "$binary" ] && [ ! -L "$binary" ] || fail 'The release archive has no regular stool executable.'
 chmod 755 "$binary"
 reported_version=$("$binary" --version) || fail 'The downloaded executable could not run on this machine.'
-[ "$reported_version" = "xyrev ${version#v}" ] || fail "Executable version does not match $version: $reported_version"
+[ "$reported_version" = "stool ${version#v}" ] || fail "Executable version does not match $version: $reported_version"
 
 install_dir="${PREFIX:-${HOME:?Set HOME or PREFIX}/.local}/bin"
 mkdir -p "$install_dir" || fail "Cannot create $install_dir; set PREFIX to a directory you own."
-staged_binary=$(mktemp "$install_dir/.xyrev-install.XXXXXX")
+staged_binary=$(mktemp "$install_dir/.stool-install.XXXXXX")
 cp "$binary" "$staged_binary"
 chmod 755 "$staged_binary"
 mv -f -- "$staged_binary" "$install_dir/$binary_name"
 staged_binary=''
-printf 'Installed xyrev %s to %s/%s\n' "${version#v}" "$install_dir" "$binary_name"
+printf 'Installed stool %s to %s/%s\n' "${version#v}" "$install_dir" "$binary_name"
 case ":${PATH:-}:" in
     *":$install_dir:"*) ;;
-    *) printf 'Add %s to your PATH to run xyrev.\n' "$install_dir" ;;
+    *) printf 'Add %s to your PATH to run stool.\n' "$install_dir" ;;
 esac

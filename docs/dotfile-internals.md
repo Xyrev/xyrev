@@ -1,8 +1,8 @@
-# xyrev dotfile 实现说明
+# stool dotfile 实现说明
 
-> 更新日期：2026-10-23。本文依据当前 Rust 实现描述模块、状态及执行边界。当前 develop 的控制命名调整和独立加解密命令移除尚未发布；已发布 v0.5.0 不受文档改名影响。
+> 更新日期：2026-10-23。本文描述 stool v0.6.0 的 Rust 开发版本、状态与安全边界；本版本尚未发布，历史 xyrev v0.5.0 的发行包和行为保持原样。
 
-产品能力见 [概览](dotfile-overview.md)，协议与新机器流程见 [设计文档](dotfile-design.md)，命令参数见 [README](../README.md) 和 `xyrev dotfile --help`。
+产品能力见 [概览](dotfile-overview.md)，协议与新机器流程见 [设计文档](dotfile-design.md)，命令参数见 [README](../README.md) 和 `stool dotfile --help`。
 
 ## 1. 模块与数据流
 
@@ -12,6 +12,7 @@
 |---|---|
 | clap 参数与子命令 | [src/cli/dotfile/mod.rs](../src/cli/dotfile/mod.rs) |
 | 命令编排、锁和分发 | [mod.rs](../src/dotfile/mod.rs) |
+| 显式旧状态迁移与回退 | [migrate.rs](../src/dotfile/migrate.rs) |
 | 配置、路径、权限和状态 | [storage.rs](../src/dotfile/storage.rs) |
 | source 属性及控制项扫描 | [source.rs](../src/dotfile/source.rs) |
 | MiniJinja、数据与初始化提示 | [template.rs](../src/dotfile/template.rs) |
@@ -40,11 +41,11 @@ Git source + 本机配置 + --data
 
 ## 2. source 协议与模板
 
-解析器逐目录分量处理 xyrev 路径属性，校验类型和顺序，构造文件、目录、链接、删除或脚本条目。`dot_` 解码点文件名，`private_`、`readonly_`、`executable_` 表达权限，`encrypted_` 和 `.tmpl` 触发内容处理。`create_`、`modify_`、`remove_`、`exact_` 和 `external_` 有各自的适用对象；完整集合见 [设计协议](dotfile-design.md#21-路径和控制文件)。
+解析器逐目录分量处理 stool 路径属性，校验类型和顺序，构造文件、目录、链接、删除或脚本条目。`dot_` 解码点文件名，`private_`、`readonly_`、`executable_` 表达权限，`encrypted_` 和 `.tmpl` 触发内容处理。`create_`、`modify_`、`remove_`、`exact_` 和 `external_` 有各自的适用对象；完整集合见 [设计协议](dotfile-design.md#21-路径和控制文件)。
 
-当前 develop 的控制扫描只读取 `.xyrev*`，初始化配置入口为 `.xyrev.toml.tmpl`，模板指令入口为 `xyrev:template:`。旧命名不作为兼容入口自动加载；改名和引用调整应在 source 中由用户完成。
+当前 develop 的控制扫描只读取 `.stool*`，初始化配置入口为 `.stool.toml.tmpl`，模板指令入口为 `stool:template:`。旧命名不作为公开兼容入口自动加载，运行目录及环境变量使用 `~/.stool` 与 `STOOL_*`。旧环境通过显式迁移流程处理，source 改名和引用仍需核对。
 
-MiniJinja 引擎提供严格缺失变量、受控 include、编码/换行指令及数据合并。覆盖顺序为仓库数据、本机 `[data]`、本次 `--data`；`xyrev` 命名空间保留。初始化提示只在初始化配置阶段开放，非终端提示要求默认值。模板与资源求值可能涉及外部程序或网络，应把 source 视为可信输入。
+MiniJinja 引擎提供严格缺失变量、受控 include、编码/换行指令及数据合并。覆盖顺序为仓库数据、本机 `[data]`、本次 `--data`；`stool` 命名空间保留。初始化提示只在初始化配置阶段开放，非终端提示要求默认值。模板与资源求值可能涉及外部程序或网络，应把 source 视为可信输入。
 
 ## 3. Plan 与冲突
 
@@ -63,7 +64,7 @@ MiniJinja 引擎提供严格缺失变量、受控 include、编码/换行指令�
 
 ## 4. 状态与并发
 
-默认控制目录为 `~/.xyrev/dotfile/`：
+默认控制目录为 `~/.stool/dotfile/`：
 
 | 存储 | 内容 |
 |---|---|
@@ -76,6 +77,12 @@ MiniJinja 引擎提供严格缺失变量、受控 include、编码/换行指令�
 namespace 根据 source/destination 配对生成，防止隔离试运行与真实 HOME 共用基线。写操作持有命令锁；JSON 使用私有权限和原子替换，脚本预览读取 redb 临时快照，避免写打开原数据库。
 
 `run_once_` 按成功内容摘要跳过，`run_onchange_` 保留最近成功内容，所以 A→B→A 会再次执行。失败不记录成功，阶段顺序和幂等条件分别处理。
+
+### 4.1 显式迁移
+
+`stool dotfile migrate` 在普通命令配置加载前单独分发，从旧控制目录读取保存路径，默认目标为 `~/.stool/dotfile`，拒绝 source/destination/data 覆盖。用户先把 source 准备为新协议，迁移自身不联网、不修改 tracked 内容、不部署目标。
+
+迁移通过暂存和原子发布建立新控制根并保留旧根，任何已存在的目标均停止，同一收据识别出的已完成迁移除外。状态映射只继承可证明纯改名等价的基线或成功记录；未知 namespace 保留，不能证明等价的 hooks/GPG 保持 pending。业务目录（例如 `~/.config/xyrev`）不会自动改名；涉及这类路径变化的脚本必须重新执行，不能只按品牌词替换继承成功。dry-run 不写入、不调用 hooks/GPG/秘密服务，不求值 env()/prompt 模板函数。使用方法见 [设计文档](dotfile-design.md#14-旧控制目录迁移)。
 
 ## 5. 普通文件加密与秘密
 
@@ -96,13 +103,13 @@ namespace 根据 source/destination 配对生成，防止隔离试运行与真�
 | `ownertrust.txt.age` | 所选密钥的信任数据密文 |
 | `backup-metadata.sh` | 模式、完整主指纹和摘要；严格解析的数据，不执行 Shell |
 
-`.xyrevgpg.toml[.tmpl]` 决定是否恢复、支持目录和 GPG/凭据路径。计划准备只读公开清单与密文摘要；执行时才读取备份密码或独立 age 身份文件，校验摘要、公私钥主指纹集合与 ownertrust 后导入 HOME keyring。
+`.stoolgpg.toml[.tmpl]` 决定是否恢复、支持目录和 GPG/凭据路径。计划准备只读公开清单与密文摘要；执行时才读取备份密码或独立 age 身份文件，校验摘要、公私钥主指纹集合与 ownertrust 后导入 HOME keyring。
 
 密码和私钥明文只在受控内存及进程管道中处理，不写入 argv、环境变量、日志、普通状态或明文临时文件。密码文件需在仓库外、为私有普通文件且不是链接；备份另支持继承的管道描述符。GPG 原私钥口令由 GPG/pinentry 处理。
 
 完整恢复成功后才保存公开摘要；相同备份与配置不重复导入，A→B→A 会再恢复。显式 `gpg restore` 可重新导入。失败可能已导入部分数据，不承诺 keyring 回滚；四份备份数据发布也不是跨文件事务，中断会由后续一致性校验发现。
 
-默认 `.xyrevtemplates/gpg/` 位于控制目录，不作为普通目标部署或归档；自定义备份目录应放在控制目录或显式忽略。独立 destination 跳过自动恢复。`verify` 检查记录和计划，不执行签名或保证 keyring 未被事后修改。
+默认 `.stooltemplates/gpg/` 位于控制目录，不作为普通目标部署或归档；自定义备份目录应放在控制目录或显式忽略。独立 destination 跳过自动恢复。`verify` 检查记录和计划，不执行签名或保证 keyring 未被事后修改。
 
 ## 7. 预览、归档与外部操作
 

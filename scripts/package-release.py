@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a built xyrev binary using the installer's version/target convention."""
+"""Package a built stool binary using the installer's version/target convention."""
 import argparse
 from pathlib import Path
 import re
@@ -28,20 +28,20 @@ def main():
     if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?', args.tag):
         parser.error('--tag must be vMAJOR.MINOR.PATCH, optionally with a prerelease suffix')
     root = Path(__file__).resolve().parents[1]
-    binary_name = 'xyrev.exe' if args.target.endswith('-windows-msvc') else 'xyrev'
+    binary_name = 'stool.exe' if args.target.endswith('-windows-msvc') else 'stool'
     binary = args.binary or root / 'target' / args.target / 'release' / binary_name
     if not binary.is_file():
         parser.error(f'binary not found: {binary}')
     args.output.mkdir(parents=True, exist_ok=True)
-    basename = f'xyrev-{args.tag}-{args.target}'
-    with tempfile.TemporaryDirectory(prefix='xyrev-package-') as temporary:
+    basename = f'stool-{args.tag}-{args.target}'
+    with tempfile.TemporaryDirectory(prefix='stool-package-') as temporary:
         package = Path(temporary) / basename
         package.mkdir()
         shutil.copy2(binary, package / binary_name)
         (package / binary_name).chmod(0o755)
         for filename in ('README.md', 'LICENSE'):
             shutil.copy2(root / filename, package / filename)
-        for directory in ('completions', 'man-page'):
+        for directory in ('completions', 'man-page', 'docs'):
             shutil.copytree(root / directory, package / directory,
                             ignore=shutil.ignore_patterns('.DS_Store', '__pycache__', '*.pyc'))
         if args.target.endswith('-windows-msvc'):

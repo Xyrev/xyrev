@@ -4315,8 +4315,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "xyrev"
-version = "0.5.0"
+name = "stool"
+version = "0.6.0"
 dependencies = [
  "age",
  "anyhow",

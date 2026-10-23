@@ -112,7 +112,7 @@ pub fn available(name: &str) -> bool {
 pub fn doctor(paths: &Paths, overrides: &[String]) -> Result<()> {
     let mut failures = 0;
     println!(
-        "xyrev {} / {} / {}",
+        "stool {} / {} / {}",
         env!("CARGO_PKG_VERSION"),
         std::env::consts::OS,
         std::env::consts::ARCH

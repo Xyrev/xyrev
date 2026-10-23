@@ -367,7 +367,7 @@ pub fn edit(paths: &Paths, engine: &Engine, args: &EditArgs) -> Result<()> {
             origin.is_dir(),
         )?;
         if attr.encrypted {
-            let directory = tempfile::Builder::new().prefix("xyrev-edit-").tempdir()?;
+            let directory = tempfile::Builder::new().prefix("stool-edit-").tempdir()?;
             let plaintext = directory.path().join(attr.name);
             let bytes = crypto::decrypt(
                 &paths.encryption(),

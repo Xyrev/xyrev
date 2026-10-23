@@ -1,0 +1,22 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH stool-init 1  "stool-init "
+.SH NAME
+stool\-init \- Create a new configuration folder or reinitialize the existing one
+.SH SYNOPSIS
+\fBstool\-init\fR [\fB\-f\fR|\fB\-\-force\fR] [\fB\-C\fR|\fB\-\-clean\fR] [\fB\-h\fR|\fB\-\-help\fR]
+.SH DESCRIPTION
+Create a new configuration folder or reinitialize the existing one
+.SH OPTIONS
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Force reinitialize configuration (overwrite existing)
+.TP
+\fB\-C\fR, \fB\-\-clean\fR
+Clean and reinitialize (remove all existing data)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.SH EXTRA
+For example:
+  stool dotfile init https://github.com/YOUR_NAME/dotfiles

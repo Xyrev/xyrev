@@ -31,7 +31,7 @@ pub fn merge(target: &mut Value, overlay: Value) {
 
 pub fn source_root(paths: &Paths) -> Result<PathBuf> {
     let mut root = paths.source.clone();
-    let path = paths.source.join(".xyrevroot");
+    let path = paths.source.join(".stoolroot");
     if path.exists() {
         regular(&path)?;
         let value = fs::read_to_string(path)?;
@@ -49,7 +49,7 @@ pub fn source_root(paths: &Paths) -> Result<PathBuf> {
         bail!("Source root is not a directory: {}", root.display());
     }
     for version_root in [&paths.source, &root] {
-        let path = version_root.join(".xyrevversion");
+        let path = version_root.join(".stoolversion");
         if path.exists() {
             regular(&path)?;
             let requirement = fs::read_to_string(path)?;
@@ -60,7 +60,7 @@ pub fn source_root(paths: &Paths) -> Result<PathBuf> {
             };
             if !matches {
                 bail!(
-                    "Repository requires xyrev {}, current version is {current}",
+                    "Repository requires stool {}, current version is {current}",
                     requirement.trim()
                 );
             }
@@ -79,11 +79,21 @@ pub fn regular(path: &Path) -> Result<()> {
 
 impl Engine {
     pub fn new(paths: &Paths, overrides: &[String], init: bool) -> Result<Self> {
+        Self::build(paths, overrides, init, false)
+    }
+
+    /// Migration may render pure templates, but must never unlock providers,
+    /// consult dynamic environment data, prompt, or start external commands.
+    pub(super) fn for_migration(paths: &Paths) -> Result<Self> {
+        Self::build(paths, &[], false, true)
+    }
+
+    fn build(paths: &Paths, overrides: &[String], init: bool, migration: bool) -> Result<Self> {
         let root = source_root(paths)?;
         let mut env = Environment::new();
         env.set_keep_trailing_newline(true);
         env.set_undefined_behavior(UndefinedBehavior::Strict);
-        let directory = root.join(".xyrevtemplates");
+        let directory = root.join(".stooltemplates");
         let template_root = root.clone();
         env.set_loader(move |name| {
             let relative = storage::relative_path(Path::new(name)).map_err(error)?;
@@ -101,9 +111,11 @@ impl Engine {
             }
             Ok(None)
         });
-        env.add_function("env", |name: String| {
-            std::env::var(name).unwrap_or_default()
-        });
+        if !migration {
+            env.add_function("env", |name: String| {
+                std::env::var(name).unwrap_or_default()
+            });
+        }
         env.add_function("join_path", |parts: Rest<String>| {
             parts
                 .iter()
@@ -133,44 +145,14 @@ impl Engine {
         env.add_filter("to_toml", |value: TemplateValue| {
             toml::to_string(&value).map_err(error)
         });
-        let secrets = Secrets::default();
-        let generic = secrets.clone();
-        env.add_function(
-            "secret",
-            move |provider: String,
-                  args: Rest<TemplateValue>|
-                  -> std::result::Result<TemplateValue, Error> {
-                let args: Vec<_> = args
-                    .iter()
-                    .map(|value| {
-                        value
-                            .as_str()
-                            .map(str::to_owned)
-                            .unwrap_or_else(|| value.to_string())
-                    })
-                    .collect();
-                Ok(TemplateValue::from_serialize(
-                    generic.get(&provider, &args).map_err(error)?,
-                ))
-            },
-        );
-        for provider in [
-            "bitwarden",
-            "pass",
-            "gopass",
-            "onepassword",
-            "keyring",
-            "vault",
-            "keepassxc",
-            "lastpass",
-            "doppler",
-            "aws",
-            "azure",
-        ] {
-            let secrets = secrets.clone();
+        if !migration {
+            let secrets = Secrets::default();
+            let generic = secrets.clone();
             env.add_function(
-                provider,
-                move |args: Rest<TemplateValue>| -> std::result::Result<TemplateValue, Error> {
+                "secret",
+                move |provider: String,
+                      args: Rest<TemplateValue>|
+                      -> std::result::Result<TemplateValue, Error> {
                     let args: Vec<_> = args
                         .iter()
                         .map(|value| {
@@ -181,12 +163,44 @@ impl Engine {
                         })
                         .collect();
                     Ok(TemplateValue::from_serialize(
-                        secrets.get(provider, &args).map_err(error)?,
+                        generic.get(&provider, &args).map_err(error)?,
                     ))
                 },
             );
+            for provider in [
+                "bitwarden",
+                "pass",
+                "gopass",
+                "onepassword",
+                "keyring",
+                "vault",
+                "keepassxc",
+                "lastpass",
+                "doppler",
+                "aws",
+                "azure",
+            ] {
+                let secrets = secrets.clone();
+                env.add_function(
+                    provider,
+                    move |args: Rest<TemplateValue>| -> std::result::Result<TemplateValue, Error> {
+                        let args: Vec<_> = args
+                            .iter()
+                            .map(|value| {
+                                value
+                                    .as_str()
+                                    .map(str::to_owned)
+                                    .unwrap_or_else(|| value.to_string())
+                            })
+                            .collect();
+                        Ok(TemplateValue::from_serialize(
+                            secrets.get(provider, &args).map_err(error)?,
+                        ))
+                    },
+                );
+            }
         }
-        if init {
+        if init && !migration {
             env.add_function(
                 "prompt_string",
                 |message: String, default: Option<String>| prompt(&message, default).map_err(error),
@@ -229,12 +243,16 @@ impl Engine {
                 },
             );
         }
-        let hostname = std::process::Command::new("hostname")
-            .output()
-            .ok()
-            .filter(|o| o.status.success())
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
-            .unwrap_or_default();
+        let hostname = if migration {
+            String::new()
+        } else {
+            std::process::Command::new("hostname")
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                .unwrap_or_default()
+        };
         let builtin = json!({"os": std::env::consts::OS, "arch": std::env::consts::ARCH,
             "hostname": hostname, "username": std::env::var("USER").or_else(|_| std::env::var("USERNAME")).unwrap_or_default(),
             "home_dir": paths.home, "source_dir": root, "dest_dir": paths.destination,
@@ -247,18 +265,18 @@ impl Engine {
             .unwrap_or_else(storage::empty_object);
         let mut engine = Self {
             env,
-            data: json!({"xyrev": builtin.clone()}),
+            data: json!({"stool": builtin.clone()}),
         };
         let mut data_files = Vec::new();
         for extension in ["json", "yaml", "yml", "toml"] {
             for suffix in ["", ".tmpl"] {
-                let path = root.join(format!(".xyrevdata.{extension}{suffix}"));
+                let path = root.join(format!(".stooldata.{extension}{suffix}"));
                 if path.exists() {
                     data_files.push(path);
                 }
             }
         }
-        let directory = root.join(".xyrevdata");
+        let directory = root.join(".stooldata");
         if directory.exists() {
             collect_data(&directory, &mut data_files)?;
         }
@@ -280,13 +298,13 @@ impl Engine {
             }
             merge(&mut engine.data, value);
             merge(&mut engine.data, local.clone());
-            engine.data["xyrev"] = builtin.clone();
+            engine.data["stool"] = builtin.clone();
         }
         merge(&mut engine.data, local);
         for entry in overrides {
             let (name, raw) = entry.split_once('=').context("--data requires key=value")?;
-            if name.split('.').any(str::is_empty) || name == "xyrev" || name.starts_with("xyrev.") {
-                bail!("--data cannot replace reserved xyrev data");
+            if name.split('.').any(str::is_empty) || name == "stool" || name.starts_with("stool.") {
+                bail!("--data cannot replace reserved stool data");
             }
             let value = serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.to_owned()));
             let mut target = &mut engine.data;
@@ -307,7 +325,7 @@ impl Engine {
             }
             target[components[components.len() - 1]] = value;
         }
-        engine.data["xyrev"] = builtin;
+        engine.data["stool"] = builtin;
         Ok(engine)
     }
 
@@ -317,7 +335,7 @@ impl Engine {
         let mut source = String::new();
         let mut directives = std::collections::BTreeMap::new();
         for line in text.split_inclusive('\n') {
-            if let Some(index) = line.find("xyrev:template:") {
+            if let Some(index) = line.find("stool:template:") {
                 let tail = &line[index..];
                 let tail = tail
                     .split_once("template:")
@@ -463,7 +481,7 @@ pub fn initialize_config(paths: &Paths, overrides: &[String]) -> Result<bool> {
         editor: Option<String>,
     }
     let root = source_root(paths)?;
-    let name = ".xyrev.toml.tmpl";
+    let name = ".stool.toml.tmpl";
     let file = root.join(name);
     if !file.exists() {
         return Ok(false);

@@ -57,7 +57,7 @@ fn executable(path: &Path, contents: &str) {
 fn after_hook_uses_the_running_binary_without_requiring_it_in_path() {
     let sandbox = Sandbox::new(&[
         ("dot_seed", "seed"),
-        ("run_once_after_check.sh", "#!/bin/sh\nset -eu\nif command -v xyrev >/dev/null 2>&1; then exit 83; fi\ntest -f \"$XYREV_DEST_DIR/.seed\"\n\"$XYREV_EXECUTABLE\" --version > \"$XYREV_DEST_DIR/running-version\"\n"),
+        ("run_once_after_check.sh", "#!/bin/sh\nset -eu\nif command -v stool >/dev/null 2>&1; then exit 83; fi\ntest -f \"$STOOL_DEST_DIR/.seed\"\n\"$STOOL_EXECUTABLE\" --version > \"$STOOL_DEST_DIR/running-version\"\n"),
     ]);
     success(sandbox.init(&[]));
     let before = snapshot(&sandbox.root);
@@ -66,20 +66,20 @@ fn after_hook_uses_the_running_binary_without_requiring_it_in_path() {
     let bin = sandbox.root.join("hook tools");
     executable(
         &bin.join("git"),
-        "#!/bin/sh\nPATH=\"$XYREV_TEST_REAL_PATH\" exec git \"$@\"\n",
+        "#!/bin/sh\nPATH=\"$STOOL_TEST_REAL_PATH\" exec git \"$@\"\n",
     );
     success(
         sandbox
             .command()
             .arg("apply")
             .env("PATH", &bin)
-            .env("XYREV_TEST_REAL_PATH", std::env::var_os("PATH").unwrap())
-            .env("XYREV_EXECUTABLE", "/missing/older-xyrev")
+            .env("STOOL_TEST_REAL_PATH", std::env::var_os("PATH").unwrap())
+            .env("STOOL_EXECUTABLE", "/missing/older-stool")
             .output()
             .unwrap(),
     );
     let version = fs::read_to_string(sandbox.destination.join("running-version")).unwrap();
-    assert_eq!(version, format!("xyrev {}\n", env!("CARGO_PKG_VERSION")));
+    assert_eq!(version, format!("stool {}\n", env!("CARGO_PKG_VERSION")));
     success(sandbox.cli(&["verify"]));
     assert!(success(sandbox.cli(&["apply"])).contains("Applied 0 change(s)"));
     assert_eq!(

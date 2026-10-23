@@ -40,11 +40,11 @@ const C: &str = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
 const D: &str = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD";
 fn append(path: PathBuf, value: &str) { let mut f=fs::OpenOptions::new().create(true).append(true).open(path).unwrap(); writeln!(f,"{value}").unwrap(); }
 fn die() -> ! { eprintln!("fixture GPG failed; private output intentionally omitted"); std::process::exit(19); }
-fn packet(kind: &str, keys: &[String]) -> String { format!("XYREV-FAKE-{kind}\n{}\n",keys.join("\n")) }
+fn packet(kind: &str, keys: &[String]) -> String { format!("STOOL-FAKE-{kind}\n{}\n",keys.join("\n")) }
 fn main() {
  let args:Vec<String>=env::args().skip(1).collect();
- let root=PathBuf::from(env::var_os("XYREV_TEST_GPG_ROOT").unwrap());
- if let Some(i)=args.iter().position(|a| a=="--xyrev-hook") {
+ let root=PathBuf::from(env::var_os("STOOL_TEST_GPG_ROOT").unwrap());
+ if let Some(i)=args.iter().position(|a| a=="--stool-hook") {
    let phase=&args[i+1]; append(root.join("events"),&format!("hook:{phase}"));
    if phase=="before" { fs::write(root.join("before"),"").unwrap(); }
    if phase=="after" { if !root.join("imports").exists() { die(); } fs::write(root.join("after"),"").unwrap(); }
@@ -70,14 +70,14 @@ fn main() {
  let mut input=String::new(); io::stdin().read_to_string(&mut input).unwrap();
  if has("show-only") {
    let mut lines=input.lines();
-   let kind=match lines.next() {Some("XYREV-FAKE-SECRET")=>"sec",Some("XYREV-FAKE-PUBLIC")=>"pub",_=>die()};
+   let kind=match lines.next() {Some("STOOL-FAKE-SECRET")=>"sec",Some("STOOL-FAKE-PUBLIC")=>"pub",_=>die()};
    for key in lines {if ![A,B,C].contains(&key){die();} println!("{kind}:u:256:22:0000:0:::u:::scSC:");println!("fpr:::::::::{key}:");println!("uid:u::::::::Fixture:");}
    return;
  }
  if has("--import") || has("--import-ownertrust") {
    if root.join("fail-import").exists() {die();}
    let deployed=PathBuf::from(env::var_os("HOME").unwrap()).join(".seed").exists();
-   let kind=if has("--import-ownertrust") {"trust"} else if input.starts_with("XYREV-FAKE-SECRET") {"secret"} else {"public"};
+   let kind=if has("--import-ownertrust") {"trust"} else if input.starts_with("STOOL-FAKE-SECRET") {"secret"} else {"public"};
    append(root.join("imports"),&format!("{kind}:deployed={deployed}")); append(root.join("events"),&format!("import:{kind}")); return;
  }
  die();
@@ -98,7 +98,7 @@ pub fn private_write(path: &Path, bytes: &[u8]) {
         // runner's inherited temporary-directory ACL.
         let script = r#"
 $ErrorActionPreference = 'Stop'
-$path = $env:XYREV_TEST_PASSWORD_PATH
+$path = $env:STOOL_TEST_PASSWORD_PATH
 $acl = Get-Acl -LiteralPath $path
 $acl.SetAccessRuleProtection($true, $false)
 foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRuleSpecific($rule) }
@@ -117,7 +117,7 @@ Set-Acl -LiteralPath $path -AclObject $acl
             .unwrap_or_else(|| "powershell.exe".into());
         let out = Command::new(powershell)
             .args(["-NoProfile", "-NonInteractive", "-Command", script])
-            .env("XYREV_TEST_PASSWORD_PATH", path)
+            .env("STOOL_TEST_PASSWORD_PATH", path)
             .env_remove("PSModulePath")
             .output()
             .unwrap();

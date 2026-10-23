@@ -42,7 +42,7 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
     let mut resources: BTreeMap<String, Resource> = BTreeMap::new();
     for extension in ["json", "yaml", "yml", "toml"] {
         for suffix in ["", ".tmpl"] {
-            let name = format!(".xyrevexternal.{extension}{suffix}");
+            let name = format!(".stoolexternal.{extension}{suffix}");
             let path = tree.root.join(&name);
             if path.exists() {
                 template::regular(&path)?;
@@ -52,7 +52,7 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
             }
         }
     }
-    let directory = tree.root.join(".xyrevexternals");
+    let directory = tree.root.join(".stoolexternals");
     if directory.exists() {
         if fs::symlink_metadata(&directory)?.file_type().is_symlink() {
             bail!("External definitions directory cannot be a symlink");
@@ -101,7 +101,7 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
             .and_then(|bytes| serde_json::from_slice::<Cache>(&bytes).ok())
             .is_some_and(|metadata| now.saturating_sub(metadata.fetched_at) < ttl);
         let temp = tempfile::Builder::new()
-            .prefix("xyrev-external-")
+            .prefix("stool-external-")
             .tempdir()?;
         if kind == "git-repo" {
             let repository = if fresh && cache.join("repository").is_dir() {

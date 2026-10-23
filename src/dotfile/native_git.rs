@@ -9,16 +9,16 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
 pub fn enabled(source: &Path) -> bool {
-    source.join(".git/xyrev-builtin").is_file()
+    source.join(".git/stool-builtin").is_file()
 }
 pub fn mark(source: &Path) -> Result<()> {
-    storage::atomic_write(&source.join(".git/xyrev-builtin"), b"1\n", 0o600)
+    storage::atomic_write(&source.join(".git/stool-builtin"), b"1\n", 0o600)
 }
 
 pub fn clone(url: &str, destination: &Path, branch: Option<&str>) -> Result<()> {
     let mut fetch = gix::prepare_clone(url, destination)
         .context("Prepare built-in Git clone")?
-        .with_in_memory_config_overrides(["user.name=xyrev", "user.email=xyrev@localhost"]);
+        .with_in_memory_config_overrides(["user.name=stool", "user.email=stool@localhost"]);
     let interrupt = AtomicBool::new(false);
     let (mut checkout, _) = fetch
         .fetch_then_checkout(gix::progress::Discard, &interrupt)
@@ -34,7 +34,7 @@ pub fn clone(url: &str, destination: &Path, branch: Option<&str>) -> Result<()> 
             full.as_str(),
             id,
             gix::refs::transaction::PreviousValue::Any,
-            "xyrev clone branch",
+            "stool clone branch",
         )?;
         storage::atomic_write(
             &repo.git_dir().join("HEAD"),
@@ -195,7 +195,7 @@ pub fn update(paths: &Paths) -> Result<()> {
     clean(&paths.source)?;
     let old = gix::open(&paths.source)?.head_id()?.detach();
     let temp = tempfile::Builder::new()
-        .prefix(".xyrev-update-")
+        .prefix(".stool-update-")
         .tempdir_in(paths.source.parent().context("Source has no parent")?)?;
     let stage = temp.path().join("repository");
     clone(&config.repo, &stage, Some(&config.branch))?;
@@ -227,21 +227,21 @@ pub fn update(paths: &Paths) -> Result<()> {
     let mut repo = gix::open(&stage)?;
     if repo.committer().is_none() {
         let mut snapshot = repo.config_snapshot_mut();
-        snapshot.set_value(&gix::config::tree::User::NAME, "xyrev")?;
-        snapshot.set_value(&gix::config::tree::User::EMAIL, "xyrev@localhost")?;
+        snapshot.set_value(&gix::config::tree::User::NAME, "stool")?;
+        snapshot.set_value(&gix::config::tree::User::EMAIL, "stool@localhost")?;
         snapshot.commit()?;
     }
     repo.reference(
         format!("refs/heads/{}", config.branch).as_str(),
         new,
         gix::refs::transaction::PreviousValue::MustExistAndMatch(old.into()),
-        "xyrev fast-forward",
+        "stool fast-forward",
     )?;
     repo.reference(
         format!("refs/remotes/origin/{}", config.branch).as_str(),
         new,
         gix::refs::transaction::PreviousValue::Any,
-        "xyrev fetch",
+        "stool fetch",
     )?;
     drop(repo);
     clean(&paths.source)?;

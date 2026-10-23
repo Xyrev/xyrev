@@ -5,13 +5,13 @@ use std::io::Write;
 use std::path::Path;
 
 pub fn completions(shell: clap_complete::Shell) {
-    clap_complete::generate(shell, &mut Cli::command(), "xyrev", &mut std::io::stdout());
+    clap_complete::generate(shell, &mut Cli::command(), "stool", &mut std::io::stdout());
 }
 pub fn man(directory: Option<&Path>) -> Result<()> {
     let command = Cli::command();
     if let Some(directory) = directory {
         std::fs::create_dir_all(directory)?;
-        write_man(&command, "xyrev", directory)?;
+        write_man(&command, "stool", directory)?;
     } else {
         let mut bytes = Vec::new();
         clap_mangen::Man::new(command).render(&mut bytes)?;

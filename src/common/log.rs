@@ -6,7 +6,7 @@ use termcolor::{Color, ColorChoice as TermColorChoice, ColorSpec, StandardStream
 /// # Examples
 ///
 /// ```
-/// use xyrev::infolog;
+/// use stool::infolog;
 ///
 /// infolog!("服务启动成功");
 /// infolog!("监听端口: {}", 8080);
@@ -35,7 +35,7 @@ pub enum LogLevel {
 /// # Examples
 ///
 /// ```
-/// use xyrev::common::log::Span;
+/// use stool::common::log::Span;
 /// use termcolor::Color;
 ///
 /// // Plain text (default color)
@@ -80,13 +80,13 @@ impl Span {
 /// # Examples
 ///
 /// ```
-/// use xyrev::common::log::{log_rich, Span};
+/// use stool::common::log::{log_rich, Span};
 /// use termcolor::Color;
 ///
 /// // Multi-color output in a single line
 /// log_rich(&[
 ///     Span::new("已安装 ").color(Color::Green),
-///     Span::new("xyrev v0.2.3").color(Color::Cyan).bold(),
+///     Span::new("stool v0.2.3").color(Color::Cyan).bold(),
 ///     Span::new(" 到 "),
 ///     Span::new("/usr/local/bin").color(Color::Yellow),
 /// ]).unwrap();

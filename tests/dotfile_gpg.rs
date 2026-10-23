@@ -39,7 +39,7 @@ impl Fixture {
     }
     fn command(&self) -> Command {
         let mut command = self.s.command();
-        command.env("XYREV_TEST_GPG_ROOT", &self.s.root);
+        command.env("STOOL_TEST_GPG_ROOT", &self.s.root);
         command
     }
     fn backup_to(&self, keys: &[&str], output: Option<&Path>) -> Output {
@@ -70,7 +70,7 @@ impl Fixture {
             .unwrap()
     }
     fn directory(&self) -> PathBuf {
-        self.s.source.join(".xyrevtemplates/gpg")
+        self.s.source.join(".stooltemplates/gpg")
     }
     fn files(&self) -> Vec<Vec<u8>> {
         FILES
@@ -83,9 +83,9 @@ impl Fixture {
     }
     fn declaration_at(&self, root: &Path) {
         write(
-            &root.join(".xyrevgpg.toml"),
+            &root.join(".stoolgpg.toml"),
             &format!(
-                "enabled=true\ndirectory='.xyrevtemplates/gpg'\nprogram={}\npassphrase_file={}\n",
+                "enabled=true\ndirectory='.stooltemplates/gpg'\nprogram={}\npassphrase_file={}\n",
                 serde_json::to_string(fake_gpg()).unwrap(),
                 serde_json::to_string(&self.password).unwrap()
             ),
@@ -113,7 +113,7 @@ impl Fixture {
         );
         for stream in [&out.stdout, &out.stderr] {
             assert!(!String::from_utf8_lossy(stream).contains(PASSWORD));
-            assert!(!String::from_utf8_lossy(stream).contains("XYREV-FAKE-SECRET"));
+            assert!(!String::from_utf8_lossy(stream).contains("STOOL-FAKE-SECRET"));
         }
     }
 }
@@ -130,7 +130,7 @@ fn native_password_backup_and_explicit_restore_preserve_all_selected_keys() {
     );
     assert_eq!(
         String::from_utf8(private).unwrap(),
-        format!("XYREV-FAKE-SECRET\n{PERSONAL}\n{WORK}\n")
+        format!("STOOL-FAKE-SECRET\n{PERSONAL}\n{WORK}\n")
     );
     let trust = decrypt_age_fixture(
         PASSWORD,
@@ -152,7 +152,7 @@ fn native_password_backup_and_explicit_restore_preserve_all_selected_keys() {
     assert_eq!(f.imports().lines().count(), 6);
     for bytes in f.files() {
         assert!(!String::from_utf8_lossy(&bytes).contains(PASSWORD));
-        assert!(!String::from_utf8_lossy(&bytes).contains("XYREV-FAKE-SECRET"));
+        assert!(!String::from_utf8_lossy(&bytes).contains("STOOL-FAKE-SECRET"));
     }
 }
 
@@ -165,7 +165,7 @@ fn preview_does_not_call_gpg_and_native_restore_runs_between_files_and_after_hoo
         write(
             &f.s.source.join(format!("run_once_{phase}_order")),
             &format!(
-                "#!{} --xyrev-hook {phase}\n",
+                "#!{} --stool-hook {phase}\n",
                 serde_json::to_string(fake_gpg()).unwrap()
             ),
         );
@@ -175,7 +175,7 @@ fn preview_does_not_call_gpg_and_native_restore_runs_between_files_and_after_hoo
     let source = snapshot(&f.s.source);
     for args in [vec!["diff"], vec!["status"], vec!["apply", "--dry-run"]] {
         let out = success(f.command().args(args).output().unwrap());
-        assert!(!out.contains("XYREV-FAKE-SECRET"));
+        assert!(!out.contains("STOOL-FAKE-SECRET"));
         assert!(!out.contains(PASSWORD));
     }
     f.assert_failed(f.command().arg("verify").output().unwrap());
@@ -191,7 +191,7 @@ fn preview_does_not_call_gpg_and_native_restore_runs_between_files_and_after_hoo
     for entry in archive.entries().unwrap() {
         let entry = entry.unwrap();
         let name = entry.path().unwrap().to_string_lossy().into_owned();
-        assert!(!name.contains(".xyrev"));
+        assert!(!name.contains(".stool"));
         assert!(!FILES.iter().any(|file| name.contains(file)));
     }
     assert_eq!(snapshot(&f.s.control()), before);
@@ -231,7 +231,7 @@ fn failed_import_is_retried_and_only_success_marks_the_backup_restored() {
 #[test]
 fn git_update_adds_the_work_key_and_imports_the_changed_backup_once() {
     let f = Fixture::new();
-    let output = f.s.work.join(".xyrevtemplates/gpg");
+    let output = f.s.work.join(".stooltemplates/gpg");
     success(f.backup_to(&[PERSONAL], Some(&output)));
     f.declaration_at(&f.s.work);
     f.s.push();
@@ -280,18 +280,18 @@ fn wrong_password_corruption_and_semantically_wrong_bundles_stop_before_import()
     f.assert_failed(f.restore());
     assert!(f.imports().is_empty());
     let cases = [
-        ("secret.asc.age", format!("XYREV-FAKE-SECRET\n{PERSONAL}\n")),
+        ("secret.asc.age", format!("STOOL-FAKE-SECRET\n{PERSONAL}\n")),
         (
             "secret.asc.age",
-            format!("XYREV-FAKE-SECRET\n{PERSONAL}\n{WORK}\n{OTHER}\n"),
+            format!("STOOL-FAKE-SECRET\n{PERSONAL}\n{WORK}\n{OTHER}\n"),
         ),
         (
             "secret.asc.age",
-            format!("XYREV-FAKE-PUBLIC\n{PERSONAL}\n{WORK}\n"),
+            format!("STOOL-FAKE-PUBLIC\n{PERSONAL}\n{WORK}\n"),
         ),
         (
             "public.asc",
-            format!("XYREV-FAKE-PUBLIC\n{PERSONAL}\n{OTHER}\n"),
+            format!("STOOL-FAKE-PUBLIC\n{PERSONAL}\n{OTHER}\n"),
         ),
         ("ownertrust.txt.age", format!("{PERSONAL}:6:\n{OTHER}:6:\n")),
         (

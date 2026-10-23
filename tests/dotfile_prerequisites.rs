@@ -42,7 +42,7 @@ fn missing_git_has_platform_installation_guidance_before_creating_source() {
     };
     assert!(stderr.contains(expected), "{stderr}");
     assert!(stderr.contains("git --version"));
-    assert!(stderr.contains("rerun the same xyrev dotfile init command"));
+    assert!(stderr.contains("rerun the same stool dotfile init command"));
     assert_not_initialized(&sandbox);
     // Once Git is available, the same initialization can be retried normally.
     let path = std::env::var_os("PATH").unwrap();
@@ -103,10 +103,10 @@ fn unusable_git_stops_before_clone_and_repair_can_be_retried() {
     let log = sandbox.root.join("git-log");
     executable(
         &bin.join("git"),
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$XYREV_TEST_GIT_LOG\"\nprintf '%s\\n' 'broken Git fixture' >&2\nexit 19\n",
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$STOOL_TEST_GIT_LOG\"\nprintf '%s\\n' 'broken Git fixture' >&2\nexit 19\n",
     );
     let output = init_command(&sandbox, &bin)
-        .env("XYREV_TEST_GIT_LOG", &log)
+        .env("STOOL_TEST_GIT_LOG", &log)
         .output()
         .unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -117,13 +117,13 @@ fn unusable_git_stops_before_clone_and_repair_can_be_retried() {
 
     executable(
         &bin.join("git"),
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$XYREV_TEST_GIT_LOG\"\nPATH=\"$XYREV_TEST_REAL_PATH\" exec git \"$@\"\n",
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$STOOL_TEST_GIT_LOG\"\nPATH=\"$STOOL_TEST_REAL_PATH\" exec git \"$@\"\n",
     );
     fs::write(&log, "").unwrap();
     success(
         init_command(&sandbox, &bin)
-            .env("XYREV_TEST_GIT_LOG", &log)
-            .env("XYREV_TEST_REAL_PATH", std::env::var_os("PATH").unwrap())
+            .env("STOOL_TEST_GIT_LOG", &log)
+            .env("STOOL_TEST_REAL_PATH", std::env::var_os("PATH").unwrap())
             .output()
             .unwrap(),
     );
@@ -167,11 +167,11 @@ fn apple_git_launcher_without_developer_tools_only_shows_installation_guide() {
     let log = sandbox.root.join("xcode-select-log");
     executable(
         &bin.join("xcode-select"),
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$XYREV_TEST_TOOLS_LOG\"\nexit 2\n",
+        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$STOOL_TEST_TOOLS_LOG\"\nexit 2\n",
     );
     failure(
         init_command(&sandbox, &bin)
-            .env("XYREV_TEST_TOOLS_LOG", &log)
+            .env("STOOL_TEST_TOOLS_LOG", &log)
             .output()
             .unwrap(),
         "xcode-select --install",

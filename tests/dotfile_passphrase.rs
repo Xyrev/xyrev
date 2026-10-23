@@ -11,13 +11,13 @@ fn legacy_environment_passphrase_deploys_encrypted_source_without_persisting_sec
     sandbox.push();
     success(sandbox.init(&[]));
     let missing = sandbox.command().arg("apply").output().unwrap();
-    failure(missing, "XYREV_AGE_PASSPHRASE");
+    failure(missing, "STOOL_AGE_PASSPHRASE");
     assert!(!sandbox.destination.exists());
     success(
         sandbox
             .command()
             .arg("apply")
-            .env("XYREV_AGE_PASSPHRASE", password)
+            .env("STOOL_AGE_PASSPHRASE", password)
             .output()
             .unwrap(),
     );
@@ -31,7 +31,7 @@ fn legacy_environment_passphrase_deploys_encrypted_source_without_persisting_sec
     let failed = sandbox
         .command()
         .arg("apply")
-        .env("XYREV_AGE_PASSPHRASE", password.trim())
+        .env("STOOL_AGE_PASSPHRASE", password.trim())
         .output()
         .unwrap();
     for output in [&failed.stdout, &failed.stderr] {

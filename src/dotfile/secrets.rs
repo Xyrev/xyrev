@@ -106,8 +106,8 @@ impl Secrets {
                 input = Some(
                     format!(
                         "{}\n",
-                        std::env::var("XYREV_KEEPASS_PASSWORD")
-                            .context("Set XYREV_KEEPASS_PASSWORD for KeePassXC")?
+                        std::env::var("STOOL_KEEPASS_PASSWORD")
+                            .context("Set STOOL_KEEPASS_PASSWORD for KeePassXC")?
                     )
                     .into_bytes(),
                 );
@@ -152,7 +152,7 @@ impl Secrets {
             }
             _ => bail!("Unknown secret provider: {provider}"),
         };
-        command.env("XYREV_SECRET_REQUEST", "1");
+        command.env("STOOL_SECRET_REQUEST", "1");
         let output = process::capture(command, input.as_deref()).with_context(|| {
             format!("Read secret using {provider}; install/authenticate its CLI first")
         })?;
@@ -186,10 +186,10 @@ fn keyring_command(service: &str, account: &str) -> Command {
 #[cfg(windows)]
 fn keyring_command(service: &str, account: &str) -> Command {
     let mut command = Command::new("powershell.exe");
-    command.args(["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; [Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime] > $null; $v=New-Object Windows.Security.Credentials.PasswordVault; $c=$v.Retrieve($env:XYREV_KEYRING_SERVICE,$env:XYREV_KEYRING_ACCOUNT); $c.RetrievePassword(); [Console]::Write($c.Password)"]);
+    command.args(["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; [Windows.Security.Credentials.PasswordVault,Windows.Security.Credentials,ContentType=WindowsRuntime] > $null; $v=New-Object Windows.Security.Credentials.PasswordVault; $c=$v.Retrieve($env:STOOL_KEYRING_SERVICE,$env:STOOL_KEYRING_ACCOUNT); $c.RetrievePassword(); [Console]::Write($c.Password)"]);
     command
-        .env("XYREV_KEYRING_SERVICE", service)
-        .env("XYREV_KEYRING_ACCOUNT", account);
+        .env("STOOL_KEYRING_SERVICE", service)
+        .env("STOOL_KEYRING_ACCOUNT", account);
     command
 }
 #[cfg(not(any(unix, windows)))]

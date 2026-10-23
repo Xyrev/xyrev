@@ -1,1 +1,1 @@
-pub const ROOT_DIR: &str = "xyrev";
+pub const ROOT_DIR: &str = ".stool";

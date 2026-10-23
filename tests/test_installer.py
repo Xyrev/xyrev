@@ -14,7 +14,7 @@ import unittest
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = 'v0.4.0'
+VERSION = 'v0.6.0'
 DOWNLOAD = r'''
 import json, os, pathlib, shutil, sys
 args = sys.argv[1:]
@@ -22,11 +22,11 @@ url = next(arg for arg in args if arg.startswith('https://'))
 with open(os.environ['INSTALL_TEST_LOG'], 'a') as stream:
     stream.write(json.dumps(url) + '\n')
 if '--write-out' in args:
-    assert url == 'https://github.com/Xyrev/xyrev/releases/latest'
-    print('https://github.com/Xyrev/xyrev/releases/tag/v0.4.0', end='')
+    assert url == 'https://github.com/szwathub/stool/releases/latest'
+    print('https://github.com/szwathub/stool/releases/tag/' + os.environ.get('INSTALL_TEST_LATEST_VERSION', 'v0.6.0'), end='')
     raise SystemExit(0)
 if '--spider' in args:
-    print('  Location: https://github.com/Xyrev/xyrev/releases/tag/v0.4.0 [following]', file=sys.stderr)
+    print('  Location: https://github.com/szwathub/stool/releases/tag/' + os.environ.get('INSTALL_TEST_LATEST_VERSION', 'v0.6.0') + ' [following]', file=sys.stderr)
     raise SystemExit(0)
 if '--output' in args:
     output = args[args.index('--output') + 1]
@@ -48,7 +48,7 @@ def executable(path, text):
 @unittest.skipIf(os.name == 'nt', 'Unix Bash installer; Windows assets are checked with a simulated Git Bash')
 class InstallerTests(unittest.TestCase):
     def setUp(self):
-        temporary = tempfile.TemporaryDirectory(prefix='xyrev-installer-test-')
+        temporary = tempfile.TemporaryDirectory(prefix='stool-installer-test-')
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
         self.home = self.root / 'home'
@@ -78,17 +78,17 @@ class InstallerTests(unittest.TestCase):
     def platform(self, system, arch, libc='glibc'):
         self.env.update(INSTALL_TEST_OS=system, INSTALL_TEST_ARCH=arch, INSTALL_TEST_LIBC=libc)
 
-    def fixture(self, target='aarch64-apple-darwin', checksum='valid', executable_version='0.4.0'):
-        base = 'xyrev-' + VERSION + '-' + target
+    def fixture(self, target='aarch64-apple-darwin', checksum='valid', executable_version='0.6.0'):
+        base = 'stool-' + VERSION + '-' + target
         windows = target.endswith('windows-msvc')
         name = base + ('.zip' if windows else '.tar.gz')
-        program = ('#!/bin/sh\nprintf "xyrev ' + executable_version + '\\n"\n').encode()
+        program = ('#!/bin/sh\nprintf "stool ' + executable_version + '\\n"\n').encode()
         if windows:
             with zipfile.ZipFile(self.assets / name, 'w') as archive:
-                archive.writestr(base + '/xyrev.exe', program)
+                archive.writestr(base + '/stool.exe', program)
         else:
             with tarfile.open(self.assets / name, 'w:gz') as archive:
-                info = tarfile.TarInfo(base + '/xyrev')
+                info = tarfile.TarInfo(base + '/stool')
                 info.size = len(program)
                 info.mode = 0o755
                 archive.addfile(info, io.BytesIO(program))
@@ -116,42 +116,42 @@ class InstallerTests(unittest.TestCase):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
 
     def existing_binary(self):
-        path = Path(self.env.get('PREFIX', self.home / '.local')) / 'bin/xyrev'
+        path = Path(self.env.get('PREFIX', self.home / '.local')) / 'bin/stool'
         executable(path, 'existing binary\n')
         return path
 
     def test_fresh_machine_without_git_installs_verified_release(self):
         name = self.fixture()
         self.assertIsNone(shutil.which('git', path=self.env['PATH']))
-        self.env['VERSION'] = '0.4.0'
+        self.env['VERSION'] = '0.6.0'
         self.run_installer()
-        binary = self.home / '.local/bin/xyrev'
+        binary = self.home / '.local/bin/stool'
         result = subprocess.check_output([str(binary), '--version'], text=True)
-        self.assertEqual(result, 'xyrev 0.4.0\n')
+        self.assertEqual(result, 'stool 0.6.0\n')
         self.assertEqual(stat.S_IMODE(binary.stat().st_mode), 0o755)
         self.assertEqual(self.downloads(), [
-            'https://github.com/Xyrev/xyrev/releases/download/v0.4.0/' + name,
-            'https://github.com/Xyrev/xyrev/releases/download/v0.4.0/SHA256SUMS.txt',
+            'https://github.com/szwathub/stool/releases/download/v0.6.0/' + name,
+            'https://github.com/szwathub/stool/releases/download/v0.6.0/SHA256SUMS.txt',
         ])
-        self.assertEqual(list(binary.parent.glob('.xyrev-install.*')), [])
+        self.assertEqual(list(binary.parent.glob('.stool-install.*')), [])
 
     def test_legacy_entrypoint_has_the_same_verified_behavior(self):
         self.assertEqual((ROOT / 'install.sh').read_bytes(), (ROOT / 'newinstall.sh').read_bytes())
         self.fixture()
         self.env['PREFIX'] = str(self.root / 'custom prefix')
         self.run_installer('newinstall.sh')
-        self.assertTrue((self.root / 'custom prefix/bin/xyrev').is_file())
+        self.assertTrue((self.root / 'custom prefix/bin/stool').is_file())
         # macOS may create Library while running downloaded executables. Check
         # the installer's promised boundaries rather than OS-managed entries.
         for relative in ['.bashrc', '.bash_profile', '.profile', '.zshrc', '.zprofile',
-                         '.config/fish/config.fish', '.local/bin/xyrev']:
+                         '.config/fish/config.fish', '.local/bin/stool']:
             self.assertFalse((self.home / relative).exists(), relative)
 
     def test_latest_uses_the_release_redirect_without_a_github_api_call(self):
         self.fixture()
         self.env.pop('VERSION')
         self.run_installer()
-        self.assertEqual(self.downloads()[0], 'https://github.com/Xyrev/xyrev/releases/latest')
+        self.assertEqual(self.downloads()[0], 'https://github.com/szwathub/stool/releases/latest')
         self.assertFalse(any('api.github.com' in url for url in self.downloads()))
 
     def test_wget_can_install_latest_without_curl(self):
@@ -160,7 +160,24 @@ class InstallerTests(unittest.TestCase):
         executable(self.bin / 'wget', '#!' + sys.executable + '\n' + DOWNLOAD)
         self.env['VERSION'] = 'latest'
         self.run_installer()
-        self.assertTrue((self.home / '.local/bin/xyrev').exists())
+        self.assertTrue((self.home / '.local/bin/stool').exists())
+
+    def test_old_explicit_release_is_rejected_without_downloading_or_overwriting(self):
+        binary = self.existing_binary()
+        self.env['VERSION'] = 'v0.5.0'
+        result = self.run_installer(ok=False)
+        self.assertIn('requires stool v0.6.0', result.stderr)
+        self.assertEqual(self.downloads(), [])
+        self.assertEqual(binary.read_text(), 'existing binary\n')
+
+    def test_old_latest_release_is_rejected_without_downloading_an_old_package(self):
+        binary = self.existing_binary()
+        self.env['VERSION'] = 'latest'
+        self.env['INSTALL_TEST_LATEST_VERSION'] = 'v0.5.0'
+        result = self.run_installer(ok=False)
+        self.assertIn('requires stool v0.6.0', result.stderr)
+        self.assertEqual(self.downloads(), ['https://github.com/szwathub/stool/releases/latest'])
+        self.assertEqual(binary.read_text(), 'existing binary\n')
 
     def test_target_selection_matches_all_release_assets(self):
         cases = [
@@ -187,7 +204,7 @@ class InstallerTests(unittest.TestCase):
                 self.fixture(checksum=mode)
                 self.run_installer(ok=False)
                 self.assertEqual(binary.read_text(), 'existing binary\n')
-                self.assertEqual(list(binary.parent.glob('.xyrev-install.*')), [])
+                self.assertEqual(list(binary.parent.glob('.stool-install.*')), [])
 
     def test_download_failure_preserves_the_existing_binary(self):
         binary = self.existing_binary()

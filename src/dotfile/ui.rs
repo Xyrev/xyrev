@@ -37,7 +37,7 @@ pub fn confirm(plan: &Plan, prompt: Prompt) -> Result<bool> {
     loop {
         terminal.draw(|frame| {
             let text=format!("Conflicting destination entries:\n\n{paths}\n\n[y] Back up and overwrite\n[n / Esc / Enter] Cancel");
-            frame.render_widget(Paragraph::new(text).block(Block::default().title("xyrev dotfile").borders(Borders::ALL)).wrap(Wrap {trim:false}),frame.size());
+            frame.render_widget(Paragraph::new(text).block(Block::default().title("stool dotfile").borders(Borders::ALL)).wrap(Wrap {trim:false}),frame.size());
         })?;
         if let Event::Key(key) = event::read()? {
             if key.kind != KeyEventKind::Press {

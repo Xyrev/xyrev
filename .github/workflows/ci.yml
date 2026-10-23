@@ -36,7 +36,7 @@ jobs:
       - name: Test native GPG backup and restore with disposable keys
         if: runner.os != 'Windows'
         env:
-          XYREV_BIN: target/debug/xyrev
+          STOOL_BIN: target/debug/stool
         run: python -m unittest discover -s tests -p 'test_gpg_native.py' -v
       - name: Check generated CLI assets
         if: runner.os == 'macOS'

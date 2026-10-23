@@ -36,7 +36,7 @@ pub fn script(
     input: Option<&[u8]>,
     transform: bool,
 ) -> Result<Vec<u8>> {
-    let temporary = tempfile::Builder::new().prefix("xyrev-script-").tempdir()?;
+    let temporary = tempfile::Builder::new().prefix("stool-script-").tempdir()?;
     let path = temporary.path().join(if name.ends_with(".ps1") {
         "script.ps1"
     } else {
@@ -73,14 +73,14 @@ pub fn script(
     command
         .args(&argv[1..])
         .arg(&path)
-        .env("XYREV_SOURCE_DIR", &paths.source)
-        .env("XYREV_DEST_DIR", &paths.destination)
-        .env("XYREV_HOME", &paths.home)
-        .env("XYREV_OS", std::env::consts::OS)
-        .env("XYREV_ARCH", std::env::consts::ARCH)
+        .env("STOOL_SOURCE_DIR", &paths.source)
+        .env("STOOL_DEST_DIR", &paths.destination)
+        .env("STOOL_HOME", &paths.home)
+        .env("STOOL_OS", std::env::consts::OS)
+        .env("STOOL_ARCH", std::env::consts::ARCH)
         .env(
-            "XYREV_EXECUTABLE",
-            std::env::current_exe().context("Locate xyrev executable for hook")?,
+            "STOOL_EXECUTABLE",
+            std::env::current_exe().context("Locate stool executable for hook")?,
         )
         .current_dir(if transform {
             temporary.path()

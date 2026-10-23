@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "xyrev",
+    name = "stool",
     about = "Developer environment and Git-backed dotfile management",
     version,
     disable_help_subcommand = false,

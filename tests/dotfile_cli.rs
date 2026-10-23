@@ -6,7 +6,7 @@ fn git_url_init_preview_apply_update_and_idempotency() {
     let sandbox = Sandbox::new(&[
         ("dot_gitconfig", "[user]\nname = Test\n"),
         ("dot_config/fish/config.fish", "set -gx EDITOR vim\n"),
-        (".xyrevignore", "README.md\n"),
+        (".stoolignore", "README.md\n"),
         ("README.md", "repository documentation"),
     ]);
     success(sandbox.init(&[]));
@@ -139,7 +139,7 @@ fn malformed_features_and_duplicate_targets_fail_before_writing() {
             "invalid order",
             "Invalid attribute order",
         ),
-        (".xyrevunknown", "invalid control", "Unsupported control"),
+        (".stoolunknown", "invalid control", "Unsupported control"),
     ] {
         let sandbox = Sandbox::new(&[("dot_aaa", "first\n"), (name, contents)]);
         failure(sandbox.init(&["--apply"]), expected);
@@ -154,13 +154,13 @@ fn malformed_features_and_duplicate_targets_fail_before_writing() {
 fn ignore_rules_use_target_paths_nested_rules_and_exception_priority() {
     let sandbox = Sandbox::new(&[
         (
-            ".xyrevignore",
+            ".stoolignore",
             "README.md # comment\n.cache/**\n!.cache/keep.txt\n.cache/*\n",
         ),
         ("README.md", "ignored\n"),
         ("dot_cache/drop.txt", "ignored\n"),
         ("dot_cache/keep.txt", "keep\n"),
-        ("dot_config/.xyrevignore", "omit\n"),
+        ("dot_config/.stoolignore", "omit\n"),
         ("dot_config/omit", "ignored\n"),
         ("dot_config/keep", "keep\n"),
         ("literal_dot_literal", "literal name\n"),
@@ -450,10 +450,10 @@ fn default_directories_and_saved_configuration_work_without_overrides() {
 }
 
 #[test]
-fn source_cannot_overwrite_xyrev_control_storage() {
+fn source_cannot_overwrite_stool_control_storage() {
     let mut sandbox = Sandbox::new(&[
         ("dot_aaa", "new\n"),
-        ("dot_xyrev/dotfile/config.toml", "malicious\n"),
+        ("dot_stool/dotfile/config.toml", "malicious\n"),
     ]);
     sandbox.destination = sandbox.home.clone();
     failure(

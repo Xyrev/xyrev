@@ -1,3 +1,4 @@
+use crate::common::constants::ROOT_DIR;
 use anyhow::{bail, Context, Result};
 use fs2::FileExt;
 use serde::{Deserialize, Serialize};
@@ -131,7 +132,7 @@ impl Paths {
             .or_else(|| std::env::var_os("USERPROFILE"))
             .context("Cannot determine user home directory")?;
         let home = resolve(Path::new(&home))?;
-        let root = resolve(&home.join(".xyrev/dotfile"))?;
+        let root = resolve(&home.join(ROOT_DIR).join("dotfile"))?;
         let config: Option<Config> = match fs::read_to_string(root.join("config.toml")) {
             Ok(text) => {
                 let cfg: Config = toml::from_str(&text).context("Invalid dotfile config.toml")?;
@@ -160,10 +161,10 @@ impl Paths {
                 .unwrap_or(&home)
         }))?;
         if destination.starts_with(&source) || root.starts_with(&source) {
-            bail!("Source must not contain the destination or xyrev control directory");
+            bail!("Source must not contain the destination or stool control directory");
         }
         if destination.starts_with(&root) {
-            bail!("Destination must not be inside the xyrev control directory");
+            bail!("Destination must not be inside the stool control directory");
         }
         let key = digest(&serde_json::to_vec(&(&source, &destination))?);
         Ok(Self {
@@ -356,10 +357,10 @@ pub fn set_mode(path: &Path, mode: u32) -> Result<()> {
     // Keep all path values in the environment, never interpolate them as code.
     let script = r#"
 $ErrorActionPreference = 'Stop'
-$path = $env:XYREV_ACL_PATH
+$path = $env:STOOL_ACL_PATH
 $item = Get-Item -LiteralPath $path -Force
 $directory = $item.PSIsContainer
-$mode = [Convert]::ToInt32($env:XYREV_ACL_MODE, 8)
+$mode = [Convert]::ToInt32($env:STOOL_ACL_MODE, 8)
 $acl = Get-Acl -LiteralPath $path
 $acl.SetAccessRuleProtection($true, $false)
 foreach ($rule in @($acl.Access)) {
@@ -401,8 +402,8 @@ if (!$directory -and (($mode -band 128) -ne 0)) {
 }
 "#;
     let output = powershell(script)
-        .env("XYREV_ACL_PATH", path)
-        .env("XYREV_ACL_MODE", format!("{mode:o}"))
+        .env("STOOL_ACL_PATH", path)
+        .env("STOOL_ACL_MODE", format!("{mode:o}"))
         .output()
         .context("Set Windows ACL")?;
     if !output.status.success() {
@@ -444,7 +445,7 @@ pub fn path_mode(_path: &Path, meta: &fs::Metadata) -> Result<u32> {
 #[cfg(windows)]
 fn acl_command(path: &Path, script: &str) -> Result<std::process::Output> {
     let output = powershell(script)
-        .env("XYREV_ACL_PATH", path)
+        .env("STOOL_ACL_PATH", path)
         .output()
         .context("Run Windows ACL helper")?;
     if !output.status.success() {
@@ -464,7 +465,7 @@ pub fn path_mode(path: &Path, meta: &fs::Metadata) -> Result<u32> {
         path,
         r#"
 $ErrorActionPreference = 'Stop'
-$acl = Get-Acl -LiteralPath $env:XYREV_ACL_PATH
+$acl = Get-Acl -LiteralPath $env:STOOL_ACL_PATH
 $me = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $private = $true
 $write = $false

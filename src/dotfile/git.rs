@@ -149,7 +149,7 @@ pub fn lfs(paths: &Paths) -> Result<()> {
 pub fn verify(source: &Path) -> Result<()> {
     if !source.join(".git").exists() {
         bail!(
-            "Source is not an initialized Git repository: {}. Run xyrev dotfile init <git-url>",
+            "Source is not an initialized Git repository: {}. Run stool dotfile init <git-url>",
             source.display()
         );
     }
@@ -222,7 +222,7 @@ pub fn initialize(paths: &Paths, args: &InitArgs) -> Result<()> {
         let parent = paths.source.parent().context("Source has no parent")?;
         fs::create_dir_all(parent)?;
         let temporary = tempfile::Builder::new()
-            .prefix(".xyrev-clone-")
+            .prefix(".stool-clone-")
             .tempdir_in(parent)?;
         let checkout = temporary.path().join("repository");
         if args.builtin {
@@ -277,7 +277,7 @@ pub fn initialize(paths: &Paths, args: &InitArgs) -> Result<()> {
         paths.destination.display()
     );
     if !args.apply {
-        println!("Next: xyrev dotfile diff; xyrev dotfile apply");
+        println!("Next: stool dotfile diff; stool dotfile apply");
     }
     Ok(())
 }
@@ -303,7 +303,7 @@ pub fn update(paths: &Paths) -> Result<()> {
     let config = paths
         .config
         .as_ref()
-        .context("Run xyrev dotfile init <git-url> before update")?;
+        .context("Run stool dotfile init <git-url> before update")?;
     validate_url(&config.repo)?;
     if config.source != paths.source {
         bail!("Selected source differs from saved configuration; initialize it first");

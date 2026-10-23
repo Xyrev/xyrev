@@ -39,7 +39,7 @@ jobs:
           if tag != 'v' + version:
               raise SystemExit(f'Tag {tag} does not match Cargo version {version}')
           packages = tomllib.loads(Path('Cargo.lock').read_text())['package']
-          if not any(p['name'] == 'xyrev' and p['version'] == version for p in packages):
+          if not any(p['name'] == 'stool' and p['version'] == version for p in packages):
               raise SystemExit('Cargo.lock does not match the package version')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write(f'version={version}\nprerelease={str("-" in version).lower()}\n')
@@ -79,7 +79,7 @@ jobs:
       - name: Test native GPG backup and restore with disposable keys
         if: runner.os != 'Windows'
         env:
-          XYREV_BIN: target/debug/xyrev
+          STOOL_BIN: target/debug/stool
         run: python -m unittest discover -s tests -p 'test_gpg_native.py' -v
       - name: Check generated CLI assets
         if: runner.os == 'macOS'
@@ -135,9 +135,9 @@ jobs:
           TARGET: ${{ matrix.target }}
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          binary="target/$TARGET/release/xyrev"
+          binary="target/$TARGET/release/stool"
           case "$TARGET" in *-windows-*) binary="$binary.exe" ;; esac
-          test "$("$binary" --version)" = "xyrev $VERSION"
+          test "$("$binary" --version)" = "stool $VERSION"
           "$binary" dotfile init --help
           "$binary" dotfile gpg backup --help
           "$binary" dotfile gpg restore --help
@@ -149,7 +149,7 @@ jobs:
           python scripts/package-release.py --target "$TARGET" --tag "$GITHUB_REF_NAME" --output artifacts
       - uses: actions/upload-artifact@v4
         with:
-          name: xyrev-${{ matrix.target }}
+          name: stool-${{ matrix.target }}
           path: artifacts/*
           if-no-files-found: error
 
@@ -162,7 +162,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          pattern: xyrev-*
+          pattern: stool-*
           path: artifacts
           merge-multiple: true
       - name: Validate every platform artifact and create checksums
@@ -172,7 +172,7 @@ jobs:
           for target in x86_64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows-msvc; do
             suffix=tar.gz
             case "$target" in *-windows-*) suffix=zip ;; esac
-            test -s "artifacts/xyrev-$GITHUB_REF_NAME-$target.$suffix"
+            test -s "artifacts/stool-$GITHUB_REF_NAME-$target.$suffix"
           done
           cd artifacts
           sha256sum *.tar.gz *.zip | sort -k2 > SHA256SUMS.txt
@@ -181,14 +181,14 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PYTHON'
-          import os
+          import os, re
           from pathlib import Path
           tag = os.environ['GITHUB_REF_NAME']
-          sections = Path('RELEASE_NOTES.md').read_text().split('# xyrev ')
-          matching = [section for section in sections if section.splitlines() and section.splitlines()[0] == tag]
+          sections = re.split(r'(?m)^# ', Path('RELEASE_NOTES.md').read_text())
+          matching = [section for section in sections if section.splitlines() and section.splitlines()[0] == 'stool ' + tag]
           if len(matching) != 1:
-              raise SystemExit(f'Expected exactly one release notes section for {tag}')
-          Path('release-notes.md').write_text('# xyrev ' + matching[0])
+              raise SystemExit(f'Expected exactly one stool release notes section for {tag}')
+          Path('release-notes.md').write_text('# ' + matching[0])
           PYTHON
       - name: Publish release after all checks and uploads succeed
         uses: softprops/action-gh-release@v2

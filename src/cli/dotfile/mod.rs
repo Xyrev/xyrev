@@ -21,6 +21,8 @@ pub struct DotfileCommand {
 pub enum Commands {
     /// Clone a Git URL and save configuration
     Init(InitArgs),
+    /// Explicitly copy legacy xyrev state into stool without deploying files
+    Migrate(MigrateArgs),
     /// Preview content and permission changes without writing
     Diff,
     /// List pending changes and conflicts
@@ -59,6 +61,16 @@ pub enum Commands {
         #[arg(long)]
         print: bool,
     },
+}
+
+#[derive(Args, Debug)]
+pub struct MigrateArgs {
+    /// Previous control directory (defaults to ~/.xyrev/dotfile)
+    #[arg(long)]
+    pub from: Option<PathBuf>,
+    /// Inspect the migration without writing files or running hooks
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Args, Debug)]
@@ -159,7 +171,7 @@ pub struct GpgBackupArgs {
     /// Complete primary GPG fingerprint; repeat to select multiple keys
     #[arg(long, required = true)]
     pub fingerprint: Vec<String>,
-    /// Backup directory (defaults to .xyrevtemplates/gpg in the source)
+    /// Backup directory (defaults to .stooltemplates/gpg in the source)
     #[arg(long)]
     pub output: Option<PathBuf>,
     /// Separate age identity kept outside the repository
@@ -175,7 +187,7 @@ pub struct GpgBackupArgs {
 
 #[derive(Args, Debug)]
 pub struct GpgRestoreArgs {
-    /// Backup directory (defaults to .xyrevtemplates/gpg in the source)
+    /// Backup directory (defaults to .stooltemplates/gpg in the source)
     #[arg(long)]
     pub input: Option<PathBuf>,
     /// Separate age identity for identity-encrypted backups

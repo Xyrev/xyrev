@@ -143,8 +143,8 @@ pub fn decrypt(
                 .read_to_end(&mut output)?;
         }
         age::Decryptor::Passphrase(decryptor) => {
-            let passphrase = std::env::var("XYREV_AGE_PASSPHRASE")
-                .context("Set XYREV_AGE_PASSPHRASE for passphrase-encrypted age files")?;
+            let passphrase = std::env::var("STOOL_AGE_PASSPHRASE")
+                .context("Set STOOL_AGE_PASSPHRASE for passphrase-encrypted age files")?;
             decryptor
                 .decrypt(&age::secrecy::Secret::new(passphrase), None)?
                 .read_to_end(&mut output)?;

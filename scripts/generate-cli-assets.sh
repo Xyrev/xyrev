@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
-# Run after building xyrev when changing the clap command definitions.
-xyrev_binary=${1:-target/debug/xyrev}
-"$xyrev_binary" completions bash > completions/xyrev.bash
-"$xyrev_binary" completions zsh > completions/_xyrev
-"$xyrev_binary" completions fish > completions/xyrev.fish
-"$xyrev_binary" completions powershell > completions/_xyrev.ps1
-"$xyrev_binary" completions elvish > completions/xyrev.elv
-"$xyrev_binary" man --output man-page
+# Run after building stool when changing the clap command definitions.
+stool_binary=${1:-target/debug/stool}
+"$stool_binary" completions bash > completions/stool.bash
+"$stool_binary" completions zsh > completions/_stool
+"$stool_binary" completions fish > completions/stool.fish
+"$stool_binary" completions powershell > completions/_stool.ps1
+"$stool_binary" completions elvish > completions/stool.elv
+"$stool_binary" man --output man-page

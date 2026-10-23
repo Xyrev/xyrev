@@ -6,7 +6,7 @@ use std::fs;
 #[derive(Args, Debug)]
 #[command(
     about = "Create a new configuration folder or reinitialize the existing one",
-    after_help = "For example:\n  xyrev build --release"
+    after_help = "For example:\n  stool dotfile init https://github.com/YOUR_NAME/dotfiles"
 )]
 pub struct InitCommand {
     #[arg(
@@ -31,7 +31,7 @@ impl InitCommand {
         }
 
         if let Ok(home_dir) = env::var("HOME").or_else(|_| env::var("USERPROFILE")) {
-            let _xyrev_dir = std::path::Path::new(&home_dir).join(ROOT_DIR);
+            let _stool_dir = std::path::Path::new(&home_dir).join(ROOT_DIR);
         } else {
             println!("无法获取用户主目录");
         }
@@ -44,22 +44,22 @@ impl InitCommand {
         // 获取用户家目录
         let home_dir = env::var("HOME").or_else(|_| env::var("USERPROFILE"))?;
 
-        let xyrev_dir = std::path::Path::new(&home_dir).join(".xyrev");
+        let stool_dir = std::path::Path::new(&home_dir).join(ROOT_DIR);
 
         // 处理 --clean 选项
-        if self.clean & xyrev_dir.exists() {
-            fs::remove_dir_all(&xyrev_dir)?;
+        if self.clean & stool_dir.exists() {
+            fs::remove_dir_all(&stool_dir)?;
         }
 
-        if xyrev_dir.exists() {
+        if stool_dir.exists() {
             if self.force {
-                fs::remove_dir_all(&xyrev_dir)?;
-                fs::create_dir(&xyrev_dir)?;
+                fs::remove_dir_all(&stool_dir)?;
+                fs::create_dir(&stool_dir)?;
             } else if !self.clean {
                 return Ok(());
             }
         } else {
-            fs::create_dir(&xyrev_dir)?;
+            fs::create_dir(&stool_dir)?;
         }
 
         Ok(())

@@ -321,7 +321,7 @@ fn parse_rules(text: &str, base: &Path, label: &str) -> Result<Vec<Rule>> {
 }
 fn rules(directory: &Path, base: &Path, engine: &Engine) -> Result<Vec<Rule>> {
     let mut result = Vec::new();
-    for name in [".xyrevignore", ".xyrevignore.tmpl"] {
+    for name in [".stoolignore", ".stoolignore.tmpl"] {
         let path = directory.join(name);
         if path.exists() {
             template::regular(&path)?;
@@ -407,7 +407,7 @@ pub fn scan(paths: &Paths, engine: &Engine, materialize: bool) -> Result<Tree> {
         materialize,
         &mut tree,
     )?;
-    for name in [".xyrevremove", ".xyrevremove.tmpl"] {
+    for name in [".stoolremove", ".stoolremove.tmpl"] {
         let path = root.join(name);
         if path.exists() {
             template::regular(&path)?;
@@ -447,8 +447,8 @@ fn walk(
             .map_err(|_| anyhow::anyhow!("Non-UTF-8 source filename"))?;
         let source = child.path();
         let meta = fs::symlink_metadata(&source)?;
-        if raw.starts_with(".xyrev") {
-            if raw == ".xyrevscripts" {
+        if raw.starts_with(".stool") {
+            if raw == ".stoolscripts" {
                 if !meta.is_dir() || meta.file_type().is_symlink() {
                     bail!("Scripts directory must be a regular directory");
                 }
@@ -649,10 +649,10 @@ fn scripts_directory(
 }
 
 pub fn known_control(name: &str) -> bool {
-    if [".xyrevgpg.toml", ".xyrevgpg.toml.tmpl"].contains(&name) {
+    if [".stoolgpg.toml", ".stoolgpg.toml.tmpl"].contains(&name) {
         return true;
     }
-    let Some(stripped) = name.strip_prefix(".xyrev") else {
+    let Some(stripped) = name.strip_prefix(".stool") else {
         return false;
     };
     matches!(

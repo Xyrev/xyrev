@@ -21,7 +21,7 @@ fn command(sandbox: &Sandbox, operation: &str) -> Command {
         .arg(&sandbox.home)
         .args(["gpg", operation, "--gpg-program"])
         .arg(fake_gpg())
-        .env("XYREV_TEST_GPG_ROOT", &sandbox.root);
+        .env("STOOL_TEST_GPG_ROOT", &sandbox.root);
     if operation == "backup" {
         command.args(["--fingerprint", PERSONAL]);
     }
@@ -174,8 +174,8 @@ fn gpg_password_terminal_input_is_hidden_confirmed_and_restore_prompts_once() {
     assert!(backed_up.status.success(), "{}", backed_up.transcript);
     assert!(!backed_up.transcript.contains(password));
     assert!(!String::from_utf8_lossy(&backed_up.stdout).contains(password));
-    let secret = fs::read(sandbox.work.join(".xyrevtemplates/gpg/secret.asc.age")).unwrap();
-    assert!(!String::from_utf8_lossy(&secret).contains("XYREV-FAKE-SECRET"));
+    let secret = fs::read(sandbox.work.join(".stooltemplates/gpg/secret.asc.age")).unwrap();
+    assert!(!String::from_utf8_lossy(&secret).contains("STOOL-FAKE-SECRET"));
     let restored = terminal(command(&sandbox, "restore"), &[password]);
     assert!(restored.status.success(), "{}", restored.transcript);
     assert!(!restored.transcript.contains(password));
@@ -244,10 +244,10 @@ fn gpg_backup_accepts_a_password_pipe_without_a_terminal_or_prompt() {
     );
     assert!(backed_up.stderr.is_empty());
     assert!(!String::from_utf8_lossy(&backed_up.stdout).contains(password));
-    let cipher = fs::read(sandbox.work.join(".xyrevtemplates/gpg/secret.asc.age")).unwrap();
+    let cipher = fs::read(sandbox.work.join(".stooltemplates/gpg/secret.asc.age")).unwrap();
     assert_eq!(
         decrypt_age_fixture(password, &cipher),
-        format!("XYREV-FAKE-SECRET\n{PERSONAL}\n").as_bytes()
+        format!("STOOL-FAKE-SECRET\n{PERSONAL}\n").as_bytes()
     );
     // Explicit restore requires a private regular file rather than a pipe.
     let password_file = sandbox.root.join("private password");

@@ -1,6 +1,6 @@
 """Native GPG integration using disposable keys and fixed test-only legacy fixtures.
 
-Run after `cargo build`, with XYREV_BIN if the executable is elsewhere.
+Run after `cargo build`, with STOOL_BIN if the executable is elsewhere.
 """
 import json
 import os
@@ -40,10 +40,10 @@ class NativeGpgTests(unittest.TestCase):
     def setUpClass(cls):
         if os.name != 'posix':
             raise unittest.SkipTest('Real GPG integration uses Unix disposable keyrings')
-        default = Path(__file__).resolve().parents[1] / 'target/debug/xyrev'
-        binary = Path(os.environ.get('XYREV_BIN', str(default)))
+        default = Path(__file__).resolve().parents[1] / 'target/debug/stool'
+        binary = Path(os.environ.get('STOOL_BIN', str(default)))
         if not binary.is_file():
-            raise unittest.SkipTest('Build xyrev or set XYREV_BIN')
+            raise unittest.SkipTest('Build stool or set STOOL_BIN')
         cls.binary = str(binary.resolve())
         suite = Path('/usr/local/MacGPG2/bin/gpg')
         cls.gpg_program = str(suite if suite.is_file() else shutil.which('gpg') or '')
@@ -53,7 +53,7 @@ class NativeGpgTests(unittest.TestCase):
 
     def setUp(self):
         # Short socket paths are necessary for gpg-agent on macOS.
-        self.temporary = tempfile.TemporaryDirectory(prefix='xyrev-ngpg-', dir='/tmp')
+        self.temporary = tempfile.TemporaryDirectory(prefix='stool-ngpg-', dir='/tmp')
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.home, self.origin = self.root / 'home', self.root / 'origin'
@@ -70,7 +70,7 @@ class NativeGpgTests(unittest.TestCase):
         self.env.pop('GIT_WORK_TREE', None)
         self.env.pop('GPG_AGENT_INFO', None)
         self.env.pop('GPG_TTY', None)
-        self.env.pop('XYREV_AGE_PASSPHRASE', None)
+        self.env.pop('STOOL_AGE_PASSPHRASE', None)
         subprocess.run(['git', '-C', str(self.source), 'init', '--quiet'], env=self.env,
                        capture_output=True, check=True, timeout=30)
         subprocess.run(['git', '-C', str(self.source), '-c', 'user.name=Native Test',
@@ -85,7 +85,7 @@ class NativeGpgTests(unittest.TestCase):
         self.password_file.chmod(0o600)
         self.identity = self.root / 'keys' / 'restore.agekey'
         self.identity.parent.mkdir(mode=0o700)
-        self.backup_dir = self.source / '.xyrevtemplates/gpg'
+        self.backup_dir = self.source / '.stooltemplates/gpg'
         self.personal = self.generate('Native Personal <personal@example.invalid>')
 
     def kill_agent(self, home):
@@ -117,7 +117,7 @@ class NativeGpgTests(unittest.TestCase):
         return [self.binary, 'dotfile', '--source', str(self.source),
                 '--destination', str(self.home), *args]
 
-    def xyrev(self, *args, input=None, ok=True):
+    def stool(self, *args, input=None, ok=True):
         result = subprocess.run(self.command(*args), env=self.env, cwd=self.root,
                                 input=input, capture_output=True, timeout=90)
         if ok:
@@ -134,13 +134,13 @@ class NativeGpgTests(unittest.TestCase):
             args += ['--fingerprint', key]
         args += ['--identity', str(self.identity)] if identity else [
             '--passphrase-file', str(self.password_file)]
-        return self.xyrev(*args, ok=ok)
+        return self.stool(*args, ok=ok)
 
     def restore(self, identity=False, ok=True):
         args = ['gpg', 'restore', '--gpg-program', self.gpg_program]
         args += ['--identity', str(self.identity)] if identity else [
             '--passphrase-file', str(self.password_file)]
-        return self.xyrev(*args, ok=ok)
+        return self.stool(*args, ok=ok)
 
     def restored_keys(self):
         if not self.restored.exists():
@@ -182,10 +182,10 @@ class NativeGpgTests(unittest.TestCase):
 
     def initialize_repository(self):
         (self.source / 'dot_seed').write_text('managed seed\n')
-        settings = ('enabled=true\ndirectory=".xyrevtemplates/gpg"\nprogram=' +
+        settings = ('enabled=true\ndirectory=".stooltemplates/gpg"\nprogram=' +
                     json.dumps(self.gpg_program) + '\npassphrase_file=' +
                     json.dumps(str(self.password_file)) + '\n')
-        (self.source / '.xyrevgpg.toml').write_text(settings)
+        (self.source / '.stoolgpg.toml').write_text(settings)
         def git(*args):
             subprocess.run(['git', '-C', str(self.source), *args], env=self.env,
                            capture_output=True, check=True, timeout=30)
@@ -196,8 +196,8 @@ class NativeGpgTests(unittest.TestCase):
             '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'legacy fixture')
         upstream = self.source
         self.source = self.root / 'cloned source'
-        self.backup_dir = self.source / '.xyrevtemplates/gpg'
-        self.xyrev('init', upstream.as_uri())
+        self.backup_dir = self.source / '.stooltemplates/gpg'
+        self.stool('init', upstream.as_uri())
 
     def test_native_multiple_key_backup_restores_and_signs_in_both_modes(self):
         work = self.generate('Native Work <work@example.invalid>')
@@ -226,17 +226,17 @@ class NativeGpgTests(unittest.TestCase):
         before = {name: (self.backup_dir / name).read_bytes() for name in FILES}
         self.initialize_repository()
         for command in [('diff',), ('status',), ('apply', '--dry-run')]:
-            result = self.xyrev(*command)
+            result = self.stool(*command)
             self.assertNotIn(b'BEGIN PGP PRIVATE KEY BLOCK', result.stdout)
         self.assertEqual(self.restored_keys(), [])
-        self.xyrev('apply')
+        self.stool('apply')
         self.assert_signing(keys)
         self.assertEqual({name: (self.backup_dir / name).read_bytes() for name in FILES}, before)
-        state = list((self.home / '.xyrev/dotfile/state').glob('*.json'))
+        state = list((self.home / '.stool/dotfile/state').glob('*.json'))
         self.assertEqual(len(state), 1)
         previous = state[0].read_bytes()
-        self.xyrev('apply')
-        self.xyrev('verify')
+        self.stool('apply')
+        self.stool('verify')
         self.assertEqual(state[0].read_bytes(), previous)
 
     def test_legacy_identity_singular_without_mode_still_restores(self):
@@ -248,10 +248,10 @@ class NativeGpgTests(unittest.TestCase):
         keys = self.legacy_backup('password-singular')
         self.initialize_repository()
         self.password_file.write_text('incorrect synthetic password')
-        self.xyrev('apply', ok=False)
+        self.stool('apply', ok=False)
         self.assertEqual(self.restored_keys(), [])
         self.password_file.write_bytes(self.password.encode() + b'\r\n')
-        self.xyrev('apply')
+        self.stool('apply')
         self.assert_signing(keys)
 
     def test_missing_private_work_key_does_not_replace_a_complete_backup(self):
@@ -263,7 +263,7 @@ class NativeGpgTests(unittest.TestCase):
         self.backup([self.personal, work], ok=False)
         self.assertEqual({name: (self.backup_dir / name).read_bytes() for name in FILES}, before)
 
-    def test_protected_gpg_key_uses_pinentry_without_sending_its_passphrase_to_xyrev(self):
+    def test_protected_gpg_key_uses_pinentry_without_sending_its_passphrase_to_stool(self):
         # These are generated test credentials, never the user's GPG passphrase.
         original = 'synthetic-original-gpg-key-password'
         key = self.generate('Protected Work <protected@example.invalid>', original)

@@ -32,7 +32,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             enabled: true,
-            directory: ".xyrevtemplates/gpg".into(),
+            directory: ".stooltemplates/gpg".into(),
             program: None,
             identity: None,
             passphrase_file: None,
@@ -76,11 +76,11 @@ fn data_path(engine: &Engine, key: &str) -> Option<PathBuf> {
 fn settings(paths: &Paths, engine: &Engine) -> Result<(Settings, bool)> {
     let root = template::source_root(paths)?;
     let mut found = None;
-    for name in [".xyrevgpg.toml", ".xyrevgpg.toml.tmpl"] {
+    for name in [".stoolgpg.toml", ".stoolgpg.toml.tmpl"] {
         let path = root.join(name);
         if fs::symlink_metadata(&path).is_ok() {
             if found.is_some() {
-                bail!("Use only one .xyrevgpg.toml or .xyrevgpg.toml.tmpl declaration");
+                bail!("Use only one .stoolgpg.toml or .stoolgpg.toml.tmpl declaration");
             }
             template::regular(&path)?;
             let bytes = fs::read(path)?;
@@ -377,7 +377,7 @@ fn command(settings: &Settings, home: &Path, restore: bool) -> Command {
     let mut command = Command::new(program(settings, home));
     command
         .args(["--no-options", "--batch"])
-        .env_remove("XYREV_AGE_PASSPHRASE");
+        .env_remove("STOOL_AGE_PASSPHRASE");
     if restore {
         command.arg("--homedir").arg(home.join(".gnupg"));
         command.env("GNUPGHOME", home.join(".gnupg"));
@@ -666,6 +666,15 @@ fn validate_bundle(
 }
 
 impl RestorePlan {
+    /// Public, checksum-validated inputs only. Migration never decrypts a bundle.
+    pub(super) fn migration_material(&self) -> Result<(Vec<u8>, PathBuf, Vec<u8>)> {
+        Ok((
+            serde_json::to_vec(&self.settings)?,
+            self.directory.clone(),
+            self.bundle.manifest.clone(),
+        ))
+    }
+
     pub fn restore(&self, paths: &Paths) -> Result<()> {
         if paths.destination != paths.home {
             bail!("GPG restore requires the home destination");
@@ -803,11 +812,11 @@ fn backup(paths: &Paths, mut settings: Settings, args: &GpgBackupArgs) -> Result
     public.args(["--armor", "--export"]).args(&selected);
     let public = capture(public, None)?.expose_secret().clone();
     // Preserve pinentry interaction for protected exports, as in the legacy
-    // helper; password input belongs to the GPG agent, never xyrev argv/env.
+    // helper; password input belongs to the GPG agent, never stool argv/env.
     let mut secret_command = Command::new(program(&settings, &paths.home));
     secret_command
         .arg("--no-options")
-        .env_remove("XYREV_AGE_PASSPHRASE");
+        .env_remove("STOOL_AGE_PASSPHRASE");
     secret_command
         .args(["--armor", "--export-secret-keys"])
         .args(&selected);
@@ -864,7 +873,7 @@ fn backup(paths: &Paths, mut settings: Settings, args: &GpgBackupArgs) -> Result
         .collect::<Vec<_>>()
         .join(" ");
     let first = metadata.fingerprints.iter().next().unwrap();
-    let mut manifest=format!("# Public metadata only; managed by xyrev dotfile gpg.\ngpg_backup_mode='{}'\ngpg_backup_fingerprint='{first}'\ngpg_backup_fingerprints='{fingerprints}'\n",metadata.mode);
+    let mut manifest=format!("# Public metadata only; managed by stool dotfile gpg.\ngpg_backup_mode='{}'\ngpg_backup_fingerprint='{first}'\ngpg_backup_fingerprints='{fingerprints}'\n",metadata.mode);
     if let Some(recipient) = metadata.recipient.take() {
         manifest.push_str(&format!("gpg_backup_recipient='{recipient}'\n"));
     }

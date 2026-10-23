@@ -694,7 +694,7 @@ fn write_entry(change: &Change, target: &Path) -> Result<()> {
         Content::File(bytes) => storage::atomic_write(target, bytes, change.entry.mode)?,
         Content::Symlink(link) => {
             let temporary = tempfile::Builder::new()
-                .prefix(".xyrev-link-")
+                .prefix(".stool-link-")
                 .tempdir_in(target.parent().unwrap())?;
             let staged = temporary.path().join("link");
             symlink(link, &staged, target.parent().unwrap())?;

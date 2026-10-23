@@ -4,10 +4,10 @@ use std::process::Command;
 
 fn git_installation_guide(os: &str) -> &'static str {
     match os {
-        "macos" => "Install Apple's Command Line Tools (including Git):\n  xcode-select --install\nComplete the installer, then verify with `git --version` and rerun the same xyrev dotfile init command.\nhttps://developer.apple.com/documentation/xcode/installing-the-command-line-tools",
-        "windows" => "Install Git for Windows:\n  winget install --id Git.Git -e --source winget\nOr use https://git-scm.com/install/windows. Reopen your terminal, verify with `git --version`, then rerun the same xyrev dotfile init command.",
-        "linux" => "Install Git with your distribution's package manager:\n  Debian/Ubuntu: sudo apt-get install git\n  Fedora: sudo dnf install git\n  Arch: sudo pacman -S git\n  Alpine: sudo apk add git\nVerify with `git --version`, then rerun the same xyrev dotfile init command.\nhttps://git-scm.com/install/linux",
-        _ => "Install Git from https://git-scm.com/install/ and make it available on PATH.\nVerify with `git --version`, then rerun the same xyrev dotfile init command.",
+        "macos" => "Install Apple's Command Line Tools (including Git):\n  xcode-select --install\nComplete the installer, then verify with `git --version` and rerun the same stool dotfile init command.\nhttps://developer.apple.com/documentation/xcode/installing-the-command-line-tools",
+        "windows" => "Install Git for Windows:\n  winget install --id Git.Git -e --source winget\nOr use https://git-scm.com/install/windows. Reopen your terminal, verify with `git --version`, then rerun the same stool dotfile init command.",
+        "linux" => "Install Git with your distribution's package manager:\n  Debian/Ubuntu: sudo apt-get install git\n  Fedora: sudo dnf install git\n  Arch: sudo pacman -S git\n  Alpine: sudo apk add git\nVerify with `git --version`, then rerun the same stool dotfile init command.\nhttps://git-scm.com/install/linux",
+        _ => "Install Git from https://git-scm.com/install/ and make it available on PATH.\nVerify with `git --version`, then rerun the same stool dotfile init command.",
     }
 }
 
@@ -86,7 +86,7 @@ mod tests {
             let guide = git_installation_guide(os);
             assert!(guide.contains(command));
             assert!(guide.contains("git --version"));
-            assert!(guide.contains("rerun the same xyrev dotfile init command"));
+            assert!(guide.contains("rerun the same stool dotfile init command"));
         }
     }
 }
