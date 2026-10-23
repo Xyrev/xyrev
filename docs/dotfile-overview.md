@@ -1,6 +1,6 @@
 # stool dotfile 产品概览
 
-> 更新日期：2026-10-24。本文描述 stool v0.6.0 开发版本，尚未发布。历史 xyrev v0.5.0 的 tag、安装脚本、资源及二进制行为保持原样。
+> 更新日期：2026-10-24。本文描述 stool v0.6.0。历史 xyrev v0.5.0 的 tag、安装脚本、资源及二进制行为保持原样。
 
 `stool dotfile` 从 Git URL 获取配置仓库，按 stool 路径协议和 MiniJinja 模板计算目标文件，预览差异后部署到用户目录，并在后续更新中保护本地修改。
 
@@ -26,7 +26,7 @@
 | 初始化与更新 | init 保存来源和本机配置；update 检查工作树、仅允许快进，再重新部署 |
 | 路径协议 | 文件/目录权限、模板、加密、创建、转换、删除、exact、literal 与 external 子树 |
 | 模板 | MiniJinja、严格缺失变量、include、初始化提示、嵌套数据覆盖、编码与换行指令 |
-| 维护 | 显式 migrate、diff/status/managed/apply、add/edit/unmanaged、verify/doctor/data/execute-template/cd |
+| 维护 | diff/status/managed/apply、add/edit/unmanaged、verify/doctor/data/execute-template/cd |
 | 脚本 | run/once/onchange、before/during/after；成功后记账、失败重试、内容变化后重跑 |
 | 密文与秘密 | 内置 age、本机 GPG；加密导入/编辑/部署，以及 README 列出的秘密服务适配 |
 | GPG 密钥管理 | 默认备份全部可导出本地私钥、可选完整主指纹筛选、密码或独立 age 身份保护、完整性校验与原生恢复 |
@@ -36,19 +36,19 @@
 
 控制项统一使用 `.stool*`，包括 `.stoolignore`、`.stooldata.*`、`.stool.toml.tmpl`、`.stooltemplates/`、`.stoolexternal.*`、`.stoolroot`、`.stoolversion` 和 `.stoolgpg.toml[.tmpl]`。模板数据使用 `stool.*` 命名空间，模板指令使用 `stool:template:`。
 
-## 3. 当前 develop 的待发布变更
+## 3. v0.6.0 的兼容性变更
 
-当前 develop 仅识别 stool 控制命名、`STOOL_*` 环境变量和 `~/.stool` 默认目录，不自动读取旧命名；升级旧环境应走[显式迁移流程](dotfile-design.md#14-旧控制目录迁移)，并核对 `.stool*`、`stool.*` 与 `stool:template:` 及资源引用。migrate 先检查已准备的新协议 source，不联网、不改 tracked source，也不自动 apply；保留旧控制目录供回退，只继承能证明等价的成功记录。工具不会隐式修改远端仓库。
+stool 仅识别新控制命名、`STOOL_*` 环境变量和 `~/.stool` 默认目录。旧环境按[重新初始化流程](dotfile-design.md#14-旧控制目录迁移)准备新协议 source 并重新 `init`，检查 `.stool*`、`stool.*`、`stool:template:`、资源路径及目标冲突后部署。不提供旧本机状态迁移命令，不继承旧配置、基线或脚本/GPG 成功记录；旧目录保留，新环境中的初始化步骤可能重新执行。既有 GPG 备份保持兼容，工具不会隐式改写远端仓库。
 
 独立 `stool dotfile encrypt` / `stool dotfile decrypt` 子命令已移除。普通 dotfile 继续通过 `add --encrypt`、`edit` 和 `apply` 管理，GPG 密钥使用 `gpg backup` / `gpg restore` 及原生恢复声明；其他文件加解密由相应工具处理。内部 age/GPG 能力、既有密文、备份格式和 `keygen` 保留。
 
 `stool dotfile gpg backup` 默认备份当前 keyring 中全部可导出的本地私钥及对应公钥和 ownertrust，可选 `--fingerprint` 按完整主指纹筛选。离线主密钥下的本机私有子密钥、过期或撤销的本地密钥也会备份；缺失或硬件私钥无法由备份恢复，完全不可导出的组会提示并跳过。无可导出私钥时在请求密码或改写备份前失败，显式选择不存在或完全不可导出的组也会失败。覆盖保护还要求保留既有主/子指纹；既有组含不可导出组件时拒绝覆盖，部分私钥组重复备份需保留旧备份并使用全新 `--output` 目录。旧密码与独立 age 身份文件备份继续兼容。
 
-改名及这些接口调整属于尚未发布的 v0.6.0；历史 xyrev 发行包和 tag 不变。迁移细节见 [设计文档](dotfile-design.md#13-待发布兼容性变更)。
+改名及这些接口调整属于 v0.6.0；历史 xyrev 发行包和 tag 不变。迁移细节见 [设计文档](dotfile-design.md#13-本版兼容性变更)。
 
 ## 4. 新机器流程
 
-`szwathub/stool` 仓库公开，v0.6.0 发行包尚未发布；`szwathub/dotfiles` 是私有仓库。新机器先构建 stool（发布后可直接下载安装包），准备 Git/Command Line Tools，通过凭据助手完成 HTTPS 认证，再初始化、预览和部署；已有 SSH 认证可使用 SSH URL。完整步骤见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
+`szwathub/stool` 仓库和 v0.6.0 发行包公开；`szwathub/dotfiles` 是私有仓库。新机器先安装 stool，准备 Git/Command Line Tools，通过凭据助手完成 HTTPS 认证，再初始化、预览和部署；已有 SSH 认证可使用 SSH URL。完整步骤见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
 
 GitHub 凭据用于下载仓库，原 GPG 备份密码用于一次恢复个人和 Work 两把主密钥，原 GPG 私钥口令用于签名等操作。首次 Git 登录不能依赖尚未下载的备份；恢复既有备份无需重新加密。
 

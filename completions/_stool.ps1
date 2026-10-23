@@ -107,7 +107,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Clone a Git URL and save configuration')
-            [CompletionResult]::new('migrate', 'migrate', [CompletionResultType]::ParameterValue, 'Explicitly copy legacy xyrev state into stool without deploying files')
             [CompletionResult]::new('diff', 'diff', [CompletionResultType]::ParameterValue, 'Preview content and permission changes without writing')
             [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'List pending changes and conflicts')
             [CompletionResult]::new('apply', 'apply', [CompletionResultType]::ParameterValue, 'Deploy the local source repository')
@@ -135,18 +134,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('--apply', '--apply', [CompletionResultType]::ParameterName, 'Deploy after cloning')
             [CompletionResult]::new('--recurse-submodules', '--recurse-submodules', [CompletionResultType]::ParameterName, 'recurse-submodules')
             [CompletionResult]::new('--builtin', '--builtin', [CompletionResultType]::ParameterName, 'Clone using the built-in Git backend')
-            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
-            break
-        }
-        'stool;dotfile;migrate' {
-            [CompletionResult]::new('--from', '--from', [CompletionResultType]::ParameterName, 'Previous control directory (defaults to ~/.xyrev/dotfile)')
-            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
-            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
-            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
-            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Inspect the migration without writing files or running hooks')
             [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
@@ -375,7 +362,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
         }
         'stool;dotfile;help' {
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Clone a Git URL and save configuration')
-            [CompletionResult]::new('migrate', 'migrate', [CompletionResultType]::ParameterValue, 'Explicitly copy legacy xyrev state into stool without deploying files')
             [CompletionResult]::new('diff', 'diff', [CompletionResultType]::ParameterValue, 'Preview content and permission changes without writing')
             [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'List pending changes and conflicts')
             [CompletionResult]::new('apply', 'apply', [CompletionResultType]::ParameterValue, 'Deploy the local source repository')
@@ -396,9 +382,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;dotfile;help;init' {
-            break
-        }
-        'stool;dotfile;help;migrate' {
             break
         }
         'stool;dotfile;help;diff' {
@@ -504,7 +487,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
         }
         'stool;help;dotfile' {
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Clone a Git URL and save configuration')
-            [CompletionResult]::new('migrate', 'migrate', [CompletionResultType]::ParameterValue, 'Explicitly copy legacy xyrev state into stool without deploying files')
             [CompletionResult]::new('diff', 'diff', [CompletionResultType]::ParameterValue, 'Preview content and permission changes without writing')
             [CompletionResult]::new('status', 'status', [CompletionResultType]::ParameterValue, 'List pending changes and conflicts')
             [CompletionResult]::new('apply', 'apply', [CompletionResultType]::ParameterValue, 'Deploy the local source repository')
@@ -524,9 +506,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;help;dotfile;init' {
-            break
-        }
-        'stool;help;dotfile;migrate' {
             break
         }
         'stool;help;dotfile;diff' {

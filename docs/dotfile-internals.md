@@ -1,6 +1,6 @@
 # stool dotfile 实现说明
 
-> 更新日期：2026-10-24。本文描述 stool v0.6.0 的 Rust 开发版本、状态与安全边界；本版本尚未发布，历史 xyrev v0.5.0 的发行包和行为保持原样。
+> 更新日期：2026-10-24。本文描述 stool v0.6.0 的 Rust 实现、状态与安全边界；历史 xyrev v0.5.0 的发行包和行为保持原样。
 
 产品能力见 [概览](dotfile-overview.md)，协议与新机器流程见 [设计文档](dotfile-design.md)，命令参数见 [README](../README.md) 和 `stool dotfile --help`。
 
@@ -12,7 +12,6 @@
 |---|---|
 | clap 参数与子命令 | [src/cli/dotfile/mod.rs](../src/cli/dotfile/mod.rs) |
 | 命令编排、锁和分发 | [mod.rs](../src/dotfile/mod.rs) |
-| 显式旧状态迁移与回退 | [migrate.rs](../src/dotfile/migrate.rs) |
 | 配置、路径、权限和状态 | [storage.rs](../src/dotfile/storage.rs) |
 | source 属性及控制项扫描 | [source.rs](../src/dotfile/source.rs) |
 | MiniJinja、数据与初始化提示 | [template.rs](../src/dotfile/template.rs) |
@@ -43,7 +42,7 @@ Git source + 本机配置 + --data
 
 解析器逐目录分量处理 stool 路径属性，校验类型和顺序，构造文件、目录、链接、删除或脚本条目。`dot_` 解码点文件名，`private_`、`readonly_`、`executable_` 表达权限，`encrypted_` 和 `.tmpl` 触发内容处理。`create_`、`modify_`、`remove_`、`exact_` 和 `external_` 有各自的适用对象；完整集合见 [设计协议](dotfile-design.md#21-路径和控制文件)。
 
-当前 develop 的控制扫描只读取 `.stool*`，初始化配置入口为 `.stool.toml.tmpl`，模板指令入口为 `stool:template:`。旧命名不作为公开兼容入口自动加载，运行目录及环境变量使用 `~/.stool` 与 `STOOL_*`。旧环境通过显式迁移流程处理，source 改名和引用仍需核对。
+当前 develop 的控制扫描只读取 `.stool*`，初始化配置入口为 `.stool.toml.tmpl`，模板指令入口为 `stool:template:`。旧命名不作为公开兼容入口自动加载，运行目录及环境变量使用 `~/.stool` 与 `STOOL_*`。旧环境重新初始化，source 命名、本机配置和资源引用仍需核对。
 
 MiniJinja 引擎提供严格缺失变量、受控 include、编码/换行指令及数据合并。覆盖顺序为仓库数据、本机 `[data]`、本次 `--data`；`stool` 命名空间保留。初始化提示只在初始化配置阶段开放，非终端提示要求默认值。模板与资源求值可能涉及外部程序或网络，应把 source 视为可信输入。
 
@@ -78,17 +77,15 @@ namespace 根据 source/destination 配对生成，防止隔离试运行与真�
 
 `run_once_` 按成功内容摘要跳过，`run_onchange_` 保留最近成功内容，所以 A→B→A 会再次执行。失败不记录成功，阶段顺序和幂等条件分别处理。
 
-### 4.1 显式迁移
+### 4.1 旧环境重新初始化
 
-`stool dotfile migrate` 在普通命令配置加载前单独分发，从旧控制目录读取保存路径，默认目标为 `~/.stool/dotfile`，拒绝 source/destination/data 覆盖。用户先把 source 准备为新协议，迁移自身不联网、不修改 tracked 内容、不部署目标。
-
-迁移通过暂存和原子发布建立新控制根并保留旧根，任何已存在的目标均停止，同一收据识别出的已完成迁移除外。状态映射只继承可证明纯改名等价的基线或成功记录；未知 namespace 保留，不能证明等价的 hooks/GPG 保持 pending。业务目录（例如 `~/.config/xyrev`）不会自动改名；涉及这类路径变化的脚本必须重新执行，不能只按品牌词替换继承成功。dry-run 不写入、不调用 hooks/GPG/秘密服务，不求值 env()/prompt 模板函数。使用方法见 [设计文档](dotfile-design.md#14-旧控制目录迁移)。
+程序只加载新命名下的本机配置与状态，不包含旧状态迁移模块。升级时使用新协议 source 重新 `init`，新 namespace 的基线和成功记录从实际部署建立，不继承旧 once/onchange 或 GPG 恢复摘要。旧控制目录保持原样；本机配置和仓库外凭据路径需重新设置，部署前检查待执行脚本及冲突。既有 GPG 备份格式的读取兼容与本机状态迁移无关，继续保留。操作步骤见 [设计文档](dotfile-design.md#14-旧控制目录迁移)。
 
 ## 5. 普通文件加密与秘密
 
 内部 age 支持 X25519、多接收方、armor 和密码处理；普通 GPG 加解密使用本机子进程管道。普通密文通过 `add --encrypt` 导入、`edit` 修改后重加密、`apply` 解密部署。交互编辑为编辑器创建私有临时工作文件，这与原生 GPG 密钥备份的明文处理边界不同。
 
-当前 develop 移除了独立 `encrypt` / `decrypt` CLI；内部实现、`keygen`、普通文件流程和 GPG 密钥命令仍保留。完整待发布变更见 [设计文档](dotfile-design.md#13-待发布兼容性变更)。
+当前 develop 移除了独立 `encrypt` / `decrypt` CLI；内部实现、`keygen`、普通文件流程和 GPG 密钥命令仍保留。完整兼容性变更见 [设计文档](dotfile-design.md#13-本版兼容性变更)。
 
 秘密提供器调用已认证的 CLI 或系统存储，并在同一进程内复用相同请求结果。秘密缓存不持久化，失败输出受隐藏处理；服务自己的认证与副作用仍由服务及其工具负责。
 

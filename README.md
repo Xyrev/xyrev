@@ -2,17 +2,17 @@
 
 开发环境命令行工具。`stool dotfile` 通过 Git URL 初始化、预览、部署、维护和更新 dotfiles，采用 stool 路径协议、MiniJinja 模板及统一变更计划。
 
-## v0.6.0 开发状态与迁移
+## v0.6.0 与迁移
 
-项目与命令已改名为 `stool`，仓库为 `szwathub/stool`，Cargo package/bin 和下一版本统一为 `stool 0.6.0`。**v0.6.0 尚未发布**；当前可[从源码构建](#从源码构建)，下方新安装地址仅在发布后可用。
+项目与命令已改名为 `stool`，仓库为 `szwathub/stool`，Cargo package/bin 和版本统一为 `stool 0.6.0`。可下载安装包，或[从源码构建](#从源码构建)。
 
-控制项、模板数据/指令、环境变量和默认目录统一使用 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*` 和 `~/.stool`。不自动读取旧命名；升级旧环境应使用[显式迁移流程](#从旧环境迁移)，并检查 source、模板和外部资源引用。工具不会隐式改写远端仓库。GPG 既有备份保持兼容，无需重新加密。
+控制项、模板数据/指令、环境变量和默认目录统一使用 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*` 和 `~/.stool`。不自动读取旧命名；升级旧环境应使用[重新初始化流程](#从旧环境迁移)，并检查 source、模板和外部资源引用。工具不会隐式改写远端仓库。GPG 既有备份保持兼容，无需重新加密。
 
 独立加解密子命令已移除；普通 dotfile 通过 `add --encrypt`、`edit`、`apply` 管理，GPG 密钥通过 `gpg backup` / `gpg restore` 或原生恢复声明管理，其他文件加解密使用相应工具。内部 age/GPG 和 `keygen` 保留。
 
 ## 安装与版本边界
 
-当前使用源码构建得到的 `stool`。v0.6.0 发布后，macOS/Linux 可通过以下命令下载已编译包并验证 SHA-256，无需先安装 Rust、Git 或 Homebrew：
+macOS/Linux 可通过以下命令下载 v0.6.0 已编译包并验证 SHA-256，无需先安装 Rust、Git 或 Homebrew：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/szwathub/stool/v0.6.0/install.sh | VERSION=v0.6.0 bash
@@ -20,7 +20,7 @@ export PATH="$HOME/.local/bin:$PATH"
 stool --version
 ```
 
-`install.sh` 与 `newinstall.sh` 保持同源；`PREFIX` 选择安装前缀，binary 位于 `$PREFIX/bin/stool`。新安装器只接受 stool v0.6.0 及之后的稳定版本；`VERSION=latest` 取最新稳定 Release，若仍指向历史版本会停止。Windows 的新资源命名为 `stool-v0.6.0-x86_64-pc-windows-msvc.zip`，发布后解压使用 `stool.exe`。
+`install.sh` 与 `newinstall.sh` 保持同源；`PREFIX` 选择安装前缀，binary 位于 `$PREFIX/bin/stool`。新安装器只接受 stool v0.6.0 及之后的稳定版本；`VERSION=latest` 取最新稳定 Release，若仍指向历史版本会停止。Windows 的新资源命名为 `stool-v0.6.0-x86_64-pc-windows-msvc.zip`，解压使用 `stool.exe`。
 
 上面的 PATH 设置只影响当前终端。zsh 用户可将该 export 行加入 `~/.zprofile`，Fish 用户执行 `fish_add_path ~/.local/bin` 持久添加。
 
@@ -34,24 +34,23 @@ curl -fsSL https://raw.githubusercontent.com/Xyrev/xyrev/v0.5.0/install.sh | VER
 
 ## 从旧环境迁移
 
-先备份旧环境，并用正常 Git 操作将 source 更新或准备为 `.stool*`、`stool.*` 和 `stool:template:` 协议；确认工作树与子模块状态符合预期。迁移不联网，也不修改 tracked source 内容，因此不会替你提交或重写配置仓库。
-
-构建当前 stool 后检查并迁移：
+先保存旧 source 中未提交的改动和本机配置，确认仓库已采用 `.stool*`、`stool.*` 和 `stool:template:` 协议。安装 stool 后重新初始化：
 
 ```bash
-stool dotfile migrate --dry-run
-stool dotfile migrate
+stool dotfile init https://github.com/szwathub/dotfiles.git --recurse-submodules
 stool dotfile status
 stool dotfile diff
+# 检查待执行脚本、GPG 恢复和目标冲突后，再部署。
+stool dotfile apply
 ```
 
-默认从旧 `~/.xyrev/dotfile` 迁移到 `~/.stool/dotfile`；来源不在默认位置时使用 `stool dotfile migrate --from /path/to/old-control --dry-run` 检查，再去掉 `--dry-run` 执行。migrate 使用保存的旧路径，不接受 `--source`、`--destination` 或 `--data` 覆盖。
+私有仓库需先按下文完成 Git 认证。本机配置需按新机器流程重新设置；旧 source 的未提交修改应逐项合并到新 source。stool 不复制旧控制目录、配置、文件基线或脚本/GPG 成功记录，也不自动改名业务目录。新状态独立建立，因此声明的初始化脚本可能重新执行，GPG 恢复可能再次要求备份密码。先检查 `diff`，不要直接强制覆盖冲突。
 
-`--dry-run` 只检查，不写入、不联网、不运行 hooks/GPG/秘密服务或求值 env()/prompt 模板函数。实际迁移先暂存，再原子发布新控制目录，保留旧目录供回退；新目录只要已存在就停止，相同收据识别出的已完成迁移除外。仅继承能证明纯改名等价的成功记录；未知 namespace 保留，不能证明等价的 hooks/GPG 仍为待执行项。迁移不自动 apply，核对状态和 diff 后再决定部署。它不会自动改名 `~/.config/xyrev` 等业务目录；涉及业务路径变化或无法证明等价的脚本需要重新执行。
+旧 `~/.xyrev` 目录保持原样，确认新环境可用前保留它及独立备份。既有 GPG 密文和原备份密码兼容；使用独立 age 身份文件时，保留仓库外的原文件并重新配置路径，不要删除密钥。
 
 ## 新 Mac 初始化私有 dotfiles
 
-`szwathub/stool` 保持公开；以下流程以已构建或未来发布的 stool v0.6.0 为起点。`szwathub/dotfiles` 是私有仓库，初始化前需要有仓库访问权的 GitHub 账户。Git 认证用于下载仓库，GPG 备份密码用于解密密钥，两者独立。`init` 发生在软件安装之前，不能依赖后续 `apply` 安装的 Homebrew、GitHub CLI 或 GPG 来完成首次 Git 认证。首次推荐 HTTPS，SSH 作为可选方式；完整步骤、密码用途和恢复边界见[新 Mac 流程](docs/dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
+`szwathub/stool` 保持公开；以下流程以 stool v0.6.0 为起点。`szwathub/dotfiles` 是私有仓库，初始化前需要有仓库访问权的 GitHub 账户。Git 认证用于下载仓库，GPG 备份密码用于解密密钥，两者独立。`init` 发生在软件安装之前，不能依赖后续 `apply` 安装的 Homebrew、GitHub CLI 或 GPG 来完成首次 Git 认证。首次推荐 HTTPS，SSH 作为可选方式；完整步骤、密码用途和恢复边界见[新 Mac 流程](docs/dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
 
 ### 准备 Git
 
@@ -296,7 +295,7 @@ stool dotfile apply
 
 脚本支持 `run_`、`run_once_`、`run_onchange_`，可叠加 `before_` / `after_` 和 `.tmpl`。before 阶段先执行，普通脚本与文件按解码目标路径穿插执行，after 阶段最后执行。只在成功后记录 once/onchange 状态；失败可重试，已完成文件和成功脚本保留。onchange 记录最近成功内容，A→B→A 会重新执行。提供 `STOOL_SOURCE_DIR` / `STOOL_DEST_DIR` / `STOOL_HOME` / `STOOL_OS` / `STOOL_ARCH`，以及当前运行程序绝对路径 `STOOL_EXECUTABLE`。
 
-GPG 密钥备份与恢复使用下述原生命令和声明配置，无需仓库中的备份/恢复脚本。旧钩子中的独立加解密调用应按待发布兼容性说明迁移；普通 dotfile 的加密由导入、编辑和部署流程处理。
+GPG 密钥备份与恢复使用下述原生命令和声明配置，无需仓库中的备份/恢复脚本。旧钩子中的独立加解密调用应按本版兼容性说明迁移；普通 dotfile 的加密由导入、编辑和部署流程处理。
 
 预览时 stool 不执行 run hooks、不写目标、部署状态或持久缓存；渲染模板仍会调用秘密提供器，`modify_` 转换脚本会在私有临时工作目录中执行。这些外部程序没有被沙箱限制，仍可能有自己的副作用。部署和预览都应使用可信仓库。diff 和 archive 包含渲染后的明文，请按目标文件的敏感程度保存。
 

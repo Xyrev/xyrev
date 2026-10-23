@@ -97,9 +97,6 @@ _stool() {
             stool__dotfile,managed)
                 cmd="stool__dotfile__managed"
                 ;;
-            stool__dotfile,migrate)
-                cmd="stool__dotfile__migrate"
-                ;;
             stool__dotfile,status)
                 cmd="stool__dotfile__status"
                 ;;
@@ -171,9 +168,6 @@ _stool() {
                 ;;
             stool__dotfile__help,managed)
                 cmd="stool__dotfile__help__managed"
-                ;;
-            stool__dotfile__help,migrate)
-                cmd="stool__dotfile__help__migrate"
                 ;;
             stool__dotfile__help,status)
                 cmd="stool__dotfile__help__status"
@@ -258,9 +252,6 @@ _stool() {
                 ;;
             stool__help__dotfile,managed)
                 cmd="stool__help__dotfile__managed"
-                ;;
-            stool__help__dotfile,migrate)
-                cmd="stool__help__dotfile__migrate"
                 ;;
             stool__help__dotfile,status)
                 cmd="stool__help__dotfile__status"
@@ -443,7 +434,7 @@ _stool() {
             return 0
             ;;
         stool__dotfile)
-            opts="-v -h --source --destination --data --verbose --help init migrate diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
+            opts="-v -h --source --destination --data --verbose --help init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -893,7 +884,7 @@ _stool() {
             return 0
             ;;
         stool__dotfile__help)
-            opts="init migrate diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
+            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1130,20 +1121,6 @@ _stool() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        stool__dotfile__help__migrate)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         stool__dotfile__help__status)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
@@ -1267,36 +1244,6 @@ _stool() {
                 return 0
             fi
             case "${prev}" in
-                --source)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --destination)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --data)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__migrate)
-            opts="-v -h --from --dry-run --source --destination --data --verbose --help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --from)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
                 --source)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
@@ -1505,7 +1452,7 @@ _stool() {
             return 0
             ;;
         stool__help__dotfile)
-            opts="init migrate diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd"
+            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1715,20 +1662,6 @@ _stool() {
             return 0
             ;;
         stool__help__dotfile__managed)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__help__dotfile__migrate)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )

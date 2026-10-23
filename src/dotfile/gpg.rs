@@ -824,15 +824,6 @@ fn validate_bundle(
 }
 
 impl RestorePlan {
-    /// Public, checksum-validated inputs only. Migration never decrypts a bundle.
-    pub(super) fn migration_material(&self) -> Result<(Vec<u8>, PathBuf, Vec<u8>)> {
-        Ok((
-            serde_json::to_vec(&self.settings)?,
-            self.directory.clone(),
-            self.bundle.manifest.clone(),
-        ))
-    }
-
     pub fn restore(&self, paths: &Paths) -> Result<()> {
         if paths.destination != paths.home {
             bail!("GPG restore requires the home destination");

@@ -156,19 +156,6 @@ _arguments "${_arguments_options[@]}" : \
 ':repo -- HTTPS, SSH, or file\:// Git URL:_default' \
 && ret=0
 ;;
-(migrate)
-_arguments "${_arguments_options[@]}" : \
-'--from=[Previous control directory (defaults to ~/.xyrev/dotfile)]:FROM:_files' \
-'--source=[Local source repository (saved by init)]:SOURCE:_files' \
-'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
-'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
-'--dry-run[Inspect the migration without writing files or running hooks]' \
-'-v[Show more debugging information]' \
-'--verbose[Show more debugging information]' \
-'-h[Print help]' \
-'--help[Print help]' \
-&& ret=0
-;;
 (diff)
 _arguments "${_arguments_options[@]}" : \
 '--source=[Local source repository (saved by init)]:SOURCE:_files' \
@@ -448,10 +435,6 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(migrate)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
 (diff)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -623,10 +606,6 @@ _arguments "${_arguments_options[@]}" : \
         curcontext="${curcontext%:*:*}:stool-help-dotfile-command-$line[1]:"
         case $line[1] in
             (init)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(migrate)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -809,7 +788,6 @@ _stool__completions_commands() {
 _stool__dotfile_commands() {
     local commands; commands=(
 'init:Clone a Git URL and save configuration' \
-'migrate:Explicitly copy legacy xyrev state into stool without deploying files' \
 'diff:Preview content and permission changes without writing' \
 'status:List pending changes and conflicts' \
 'apply:Deploy the local source repository' \
@@ -922,7 +900,6 @@ _stool__dotfile__gpg__restore_commands() {
 _stool__dotfile__help_commands() {
     local commands; commands=(
 'init:Clone a Git URL and save configuration' \
-'migrate:Explicitly copy legacy xyrev state into stool without deploying files' \
 'diff:Preview content and permission changes without writing' \
 'status:List pending changes and conflicts' \
 'apply:Deploy the local source repository' \
@@ -1026,11 +1003,6 @@ _stool__dotfile__help__managed_commands() {
     local commands; commands=()
     _describe -t commands 'stool dotfile help managed commands' commands "$@"
 }
-(( $+functions[_stool__dotfile__help__migrate_commands] )) ||
-_stool__dotfile__help__migrate_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile help migrate commands' commands "$@"
-}
 (( $+functions[_stool__dotfile__help__status_commands] )) ||
 _stool__dotfile__help__status_commands() {
     local commands; commands=()
@@ -1065,11 +1037,6 @@ _stool__dotfile__keygen_commands() {
 _stool__dotfile__managed_commands() {
     local commands; commands=()
     _describe -t commands 'stool dotfile managed commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__migrate_commands] )) ||
-_stool__dotfile__migrate_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile migrate commands' commands "$@"
 }
 (( $+functions[_stool__dotfile__status_commands] )) ||
 _stool__dotfile__status_commands() {
@@ -1136,7 +1103,6 @@ _stool__help__completions_commands() {
 _stool__help__dotfile_commands() {
     local commands; commands=(
 'init:Clone a Git URL and save configuration' \
-'migrate:Explicitly copy legacy xyrev state into stool without deploying files' \
 'diff:Preview content and permission changes without writing' \
 'status:List pending changes and conflicts' \
 'apply:Deploy the local source repository' \
@@ -1233,11 +1199,6 @@ _stool__help__dotfile__keygen_commands() {
 _stool__help__dotfile__managed_commands() {
     local commands; commands=()
     _describe -t commands 'stool help dotfile managed commands' commands "$@"
-}
-(( $+functions[_stool__help__dotfile__migrate_commands] )) ||
-_stool__help__dotfile__migrate_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool help dotfile migrate commands' commands "$@"
 }
 (( $+functions[_stool__help__dotfile__status_commands] )) ||
 _stool__help__dotfile__status_commands() {

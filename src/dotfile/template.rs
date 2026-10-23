@@ -79,16 +79,6 @@ pub fn regular(path: &Path) -> Result<()> {
 
 impl Engine {
     pub fn new(paths: &Paths, overrides: &[String], init: bool) -> Result<Self> {
-        Self::build(paths, overrides, init, false)
-    }
-
-    /// Migration may render pure templates, but must never unlock providers,
-    /// consult dynamic environment data, prompt, or start external commands.
-    pub(super) fn for_migration(paths: &Paths) -> Result<Self> {
-        Self::build(paths, &[], false, true)
-    }
-
-    fn build(paths: &Paths, overrides: &[String], init: bool, migration: bool) -> Result<Self> {
         let root = source_root(paths)?;
         let mut env = Environment::new();
         env.set_keep_trailing_newline(true);
@@ -111,11 +101,9 @@ impl Engine {
             }
             Ok(None)
         });
-        if !migration {
-            env.add_function("env", |name: String| {
-                std::env::var(name).unwrap_or_default()
-            });
-        }
+        env.add_function("env", |name: String| {
+            std::env::var(name).unwrap_or_default()
+        });
         env.add_function("join_path", |parts: Rest<String>| {
             parts
                 .iter()
@@ -145,14 +133,44 @@ impl Engine {
         env.add_filter("to_toml", |value: TemplateValue| {
             toml::to_string(&value).map_err(error)
         });
-        if !migration {
-            let secrets = Secrets::default();
-            let generic = secrets.clone();
+        let secrets = Secrets::default();
+        let generic = secrets.clone();
+        env.add_function(
+            "secret",
+            move |provider: String,
+                  args: Rest<TemplateValue>|
+                  -> std::result::Result<TemplateValue, Error> {
+                let args: Vec<_> = args
+                    .iter()
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| value.to_string())
+                    })
+                    .collect();
+                Ok(TemplateValue::from_serialize(
+                    generic.get(&provider, &args).map_err(error)?,
+                ))
+            },
+        );
+        for provider in [
+            "bitwarden",
+            "pass",
+            "gopass",
+            "onepassword",
+            "keyring",
+            "vault",
+            "keepassxc",
+            "lastpass",
+            "doppler",
+            "aws",
+            "azure",
+        ] {
+            let secrets = secrets.clone();
             env.add_function(
-                "secret",
-                move |provider: String,
-                      args: Rest<TemplateValue>|
-                      -> std::result::Result<TemplateValue, Error> {
+                provider,
+                move |args: Rest<TemplateValue>| -> std::result::Result<TemplateValue, Error> {
                     let args: Vec<_> = args
                         .iter()
                         .map(|value| {
@@ -163,44 +181,12 @@ impl Engine {
                         })
                         .collect();
                     Ok(TemplateValue::from_serialize(
-                        generic.get(&provider, &args).map_err(error)?,
+                        secrets.get(provider, &args).map_err(error)?,
                     ))
                 },
             );
-            for provider in [
-                "bitwarden",
-                "pass",
-                "gopass",
-                "onepassword",
-                "keyring",
-                "vault",
-                "keepassxc",
-                "lastpass",
-                "doppler",
-                "aws",
-                "azure",
-            ] {
-                let secrets = secrets.clone();
-                env.add_function(
-                    provider,
-                    move |args: Rest<TemplateValue>| -> std::result::Result<TemplateValue, Error> {
-                        let args: Vec<_> = args
-                            .iter()
-                            .map(|value| {
-                                value
-                                    .as_str()
-                                    .map(str::to_owned)
-                                    .unwrap_or_else(|| value.to_string())
-                            })
-                            .collect();
-                        Ok(TemplateValue::from_serialize(
-                            secrets.get(provider, &args).map_err(error)?,
-                        ))
-                    },
-                );
-            }
         }
-        if init && !migration {
+        if init {
             env.add_function(
                 "prompt_string",
                 |message: String, default: Option<String>| prompt(&message, default).map_err(error),
@@ -243,16 +229,12 @@ impl Engine {
                 },
             );
         }
-        let hostname = if migration {
-            String::new()
-        } else {
-            std::process::Command::new("hostname")
-                .output()
-                .ok()
-                .filter(|o| o.status.success())
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
-                .unwrap_or_default()
-        };
+        let hostname = std::process::Command::new("hostname")
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+            .unwrap_or_default();
         let builtin = json!({"os": std::env::consts::OS, "arch": std::env::consts::ARCH,
             "hostname": hostname, "username": std::env::var("USER").or_else(|_| std::env::var("USERNAME")).unwrap_or_default(),
             "home_dir": paths.home, "source_dir": root, "dest_dir": paths.destination,

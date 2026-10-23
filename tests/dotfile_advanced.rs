@@ -425,7 +425,7 @@ fn doctor_cd_prompt_and_runtime_documentation() {
     for name in ["gpg", "add", "edit", "keygen"] {
         assert!(completion.contains(&format!("stool__dotfile__{name}")));
     }
-    for name in ["encrypt", "decrypt"] {
+    for name in ["encrypt", "decrypt", "migrate"] {
         assert!(!completion.contains(&format!("stool__dotfile__{name}")));
     }
     let help = success(s.cli(&["--help"]));
@@ -436,7 +436,7 @@ fn doctor_cd_prompt_and_runtime_documentation() {
     for name in ["gpg", "add", "edit", "keygen"] {
         assert!(commands.contains(&name));
     }
-    for name in ["encrypt", "decrypt"] {
+    for name in ["encrypt", "decrypt", "migrate"] {
         assert!(!commands.contains(&name));
     }
     let pages = s.root.join("man");
@@ -450,16 +450,16 @@ fn doctor_cd_prompt_and_runtime_documentation() {
     for name in ["gpg", "gpg-backup", "gpg-restore", "add", "edit", "keygen"] {
         assert!(pages.join(format!("stool-dotfile-{name}.1")).is_file());
     }
-    for name in ["encrypt", "decrypt"] {
+    for name in ["encrypt", "decrypt", "migrate"] {
         assert!(!pages.join(format!("stool-dotfile-{name}.1")).exists());
     }
 }
 
 #[test]
-fn removed_crypto_commands_are_rejected_before_creating_dotfile_directories() {
+fn removed_commands_are_rejected_before_creating_dotfile_directories() {
     let sandbox = Sandbox::new(&[]);
     let before = snapshot(&sandbox.root);
-    for name in ["encrypt", "decrypt"] {
+    for name in ["encrypt", "decrypt", "migrate"] {
         failure(
             sandbox.cli(&[name, "missing-input"]),
             "unrecognized subcommand",

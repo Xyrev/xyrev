@@ -1,6 +1,6 @@
 # stool dotfile：实现规范、兼容边界与新机器流程
 
-> 校订日期：2026-10-24。当前版本为 stool v0.6.0（待发布），命令与协议按当前源码描述。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
+> 校订日期：2026-10-24。当前版本为 stool v0.6.0，命令与协议按当前源码描述。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
 >
 > 本文记录 stool 的产品协议、新机器流程、实现证据与长期规划。[产品概览](dotfile-overview.md) 说明能力和边界，[实现说明](dotfile-internals.md) 说明当前 Rust 模块和状态处理。当前使用入口另见 [README](../README.md)，命令选项以 `stool dotfile --help` 及子命令帮助为准。
 >
@@ -21,7 +21,7 @@ stool 在现有单一 Rust crate 中提供 `stool dotfile`：通过完整 Git UR
 | 路径与文件属性 | 文件、目录、权限、模板、加密、显式链接、创建/转换/删除、exact、literal 与 external 子树 | [source.rs](../src/dotfile/source.rs)、[属性与部署测试](../tests/dotfile_advanced.rs) |
 | 统一变更计划 | source/target/actual 与上次基线比较；预检冲突；覆盖前备份；单文件原子替换、部分成功记录和重试 | [plan.rs](../src/dotfile/plan.rs)、[CLI 测试](../tests/dotfile_cli.rs) |
 | 模板和本机数据 | MiniJinja、include、严格缺失变量、嵌套数据覆盖、模板指令、初始化提示 | [template.rs](../src/dotfile/template.rs)、[高级测试](../tests/dotfile_advanced.rs) |
-| 维护与诊断 | 显式 migrate、add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs) |
+| 维护与诊断 | add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs) |
 | 脚本 | run/once/onchange、before/during/after 顺序；成功才持久化，失败可重试，onchange 的 A→B→A 再执行 | [scripts.rs](../src/dotfile/scripts.rs)、[钩子测试](../tests/dotfile_crypto_hooks.rs) |
 | 普通文件加密 | 内置 age；本机 GPG 子进程；通过 add --encrypt 导入、edit 编辑、apply 解密部署；保留内部 age 密码处理 | [crypto.rs](../src/dotfile/crypto.rs)、[加密文件测试](../tests/dotfile_advanced.rs) |
 | GPG 密钥备份与恢复 | 默认备份全部可导出本地私钥、可选完整主指纹筛选、age 密码/身份文件保护、清单校验、原生恢复与失败重试 | [gpg.rs](../src/dotfile/gpg.rs)、[命令测试](../tests/dotfile_gpg.rs)、[真实 GPG 测试](../tests/test_gpg_native.py) |
@@ -34,7 +34,6 @@ stool 在现有单一 Rust crate 中提供 `stool dotfile`：通过完整 Git UR
 ### 1.2 常用命令
 
 ```text
-stool dotfile migrate [--from <old-control-dir>] [--dry-run]
 stool dotfile init <git-url> [--branch <branch>] [--recurse-submodules] [--apply] [--builtin]
 stool dotfile diff
 stool dotfile status
@@ -68,21 +67,19 @@ stool dotfile gpg restore [options]
 | `backups/` | 覆盖和删除前的备份、元数据 |
 | `cache/` | 部署时的外部资源缓存 |
 
-### 1.3 待发布兼容性变更
+### 1.3 本版兼容性变更
 
-v0.6.0 将项目、Cargo package/bin、命令和发布资源统一为 stool，仓库为 `szwathub/stool`。本版本尚未发布，旧 tag 和资源不重命名。当前可从源码构建；本文的新安装 URL 仅在 v0.6.0 发布后可用，历史 xyrev 安装另见 [README](../README.md#安装与版本边界)。
+v0.6.0 将项目、Cargo package/bin、命令和发布资源统一为 stool，仓库为 `szwathub/stool`。旧 tag 和资源不重命名。可下载安装包或从源码构建；历史 xyrev 安装另见 [README](../README.md#安装与版本边界)。
 
-source 控制项、模板数据/指令、环境变量和默认目录使用 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*` 与 `~/.stool`。不自动加载旧协议，旧环境应通过显式迁移流程处理，并核对本机配置、状态与 source 引用；不因启动新程序而隐式改写远端仓库。
+source 控制项、模板数据/指令、环境变量和默认目录使用 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*` 与 `~/.stool`。不自动加载旧协议，旧环境应按重新初始化流程处理，并核对本机配置、状态与 source 引用；不因启动新程序而隐式改写远端仓库。
 
 独立加解密子命令已移除。普通 dotfile 用 `add --encrypt`、`edit`、`apply` 管理；GPG 密钥使用 `gpg backup` / `gpg restore` 与 `.stoolgpg.toml[.tmpl]`。内部 age/GPG、密码处理、既有密文、`keygen` 和 GPG 备份格式保留，无需重加密。
 
 ### 1.4 旧控制目录迁移
 
-`stool dotfile migrate [--from <old-control-dir>] [--dry-run]` 默认读取旧 `~/.xyrev/dotfile`，目标为 `~/.stool/dotfile`。使用保存的来源、目标和状态，不接受 source/destination/data 全局覆盖。
+不提供旧控制状态迁移命令。先保存旧 source 的未提交改动、本机配置及仓库外凭据，确认远端采用新协议后，使用普通 `init` 在 `~/.stool/dotfile` 建立独立 source 和状态。核对数据、资源路径、`status` 和 `diff` 后再部署；旧 source 的未提交修改需逐项合并。
 
-先由用户用正常 Git 操作准备好 `.stool*` 协议的 source，再迁移；命令不联网、不改 tracked 仓库内容、不自动 apply。`--dry-run` 只检查，不写目录、不执行 hooks/GPG/秘密 CLI，不求值 env()/prompt 模板函数。
-
-实际迁移复制旧控制数据到新根的暂存目录，转换本机配置与可证明等价的状态后原子发布；旧目录保留回退，新目标只要已存在就停止，同一收据重复调用报告已迁移除外。未知历史 namespace 保留；未能证明纯改名等价的脚本/GPG 成功记录不继承，继续显示为待执行。完整命令顺序见 [README](../README.md#从旧环境迁移)。
+不复制旧配置、文件基线或 once/onchange/GPG 成功记录，不自动改名业务目录。新环境中的声明可能重新执行，包括要求原备份密码的 GPG 恢复。旧 `~/.xyrev` 保持原样供核对，既有 GPG 密文、备份密码和独立 age 身份文件仍兼容；身份文件需保留在仓库外并重新配置路径。完整顺序见 [README](../README.md#从旧环境迁移)。
 
 ## 2. stool 路径协议与明确边界
 
@@ -126,11 +123,11 @@ Git 来源要求完整 HTTPS、`ssh://`、`git@host:path` 或绝对 `file://` UR
 
 ## 3. 新 Mac：从公开安装到私有仓库恢复
 
-以下命令用于 macOS 系统 zsh；Fish 用户可先进入 `/bin/zsh`。示例私库 `szwathub/dotfiles` 已完成命名迁移并设为私有，`szwathub/stool` 仓库保持公开，v0.6.0 尚未发布；本节以已构建的 stool 为起点。首次引导采用 **HTTPS + 独立 GitHub 凭据**，不依赖尚未下载的 SSH/GPG 密钥；已有 SSH 认证仍可使用 SSH URL。
+以下命令用于 macOS 系统 zsh；Fish 用户可先进入 `/bin/zsh`。示例私库 `szwathub/dotfiles` 已完成命名迁移并设为私有，`szwathub/stool` 仓库和 v0.6.0 安装包保持公开。首次引导采用 **HTTPS + 独立 GitHub 凭据**，不依赖尚未下载的 SSH/GPG 密钥；已有 SSH 认证仍可使用 SSH URL。
 
 ### 3.1 安装 stool 并准备 Git
 
-当前先[从源码构建](../README.md#从源码构建) stool。v0.6.0 发布后可用以下安装命令；安装器按平台下载已编译包并校验 SHA-256，不下载 Rust，不要求先有 Git 或 Homebrew：
+使用以下命令安装 stool v0.6.0，也可[从源码构建](../README.md#从源码构建)；安装器按平台下载已编译包并校验 SHA-256，不下载 Rust，不要求先有 Git 或 Homebrew：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/szwathub/stool/v0.6.0/install.sh | VERSION=v0.6.0 bash
@@ -310,7 +307,7 @@ Git clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出�
 
 ### 5.4 加密、秘密与原生 GPG
 
-普通文件由 `add --encrypt`、`edit` 和 `apply` 调用内部 age/GPG 实现，通过内存与进程管道处理；独立加解密子命令的待发布移除不影响这些流程。加密编辑为编辑器在私有临时目录中生成明文，结束后重新加密。内置 age 支持 X25519、多接收方、密码保护和 armor；普通加密 source 保留 `STOOL_AGE_PASSPHRASE` 兼容路径，秘密提供器也复用各自已认证 CLI 和进程凭据。不能把原生 GPG 的安全约束泛化为全部第三方后端。
+普通文件由 `add --encrypt`、`edit` 和 `apply` 调用内部 age/GPG 实现，通过内存与进程管道处理；独立加解密子命令的移除不影响这些流程。加密编辑为编辑器在私有临时目录中生成明文，结束后重新加密。内置 age 支持 X25519、多接收方、密码保护和 armor；普通加密 source 保留 `STOOL_AGE_PASSPHRASE` 兼容路径，秘密提供器也复用各自已认证 CLI 和进程凭据。不能把原生 GPG 的安全约束泛化为全部第三方后端。
 
 原生 GPG 密钥备份格式保持四文件兼容：
 
@@ -364,7 +361,7 @@ Git clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出�
 - Windows 原生命令、ACL 等由对应 Rust/CI 测试验证；Unix 真实 GPG 测试不等于真实 Windows GPG 的账户级验收。
 - 秘密提供器与 LFS 的模拟适配测试不等于所有真实服务、账户和私有 LFS 端点已认证验收。
 - 已发布 v0.5.0 的 [发布检查](https://github.com/Xyrev/xyrev/actions/runs/39821731785)完成三系统检查、MSRV 和六平台构建。后续本机隔离验证跑通公开安装器以及通过既有 SSH 凭据读取私库的 init/diff/apply/verify/update；该 SSH 验证关闭了系统安装和真实 GPG 恢复，不能宣称所有新机已自动安装或所有 HTTPS 账户已验证。
-- 上述 v0.5.0 发布证据只对应历史 xyrev，不代表 stool v0.6.0 已经发布或完成远端 CI。当前改名须重新验证构建、安装打包与迁移；固定旧测试总数不充当持续验收结论。
+- v0.6.0 的验收独立于历史版本：按本节命令检查新命名、GPG 兼容、安装打包和重新初始化流程，并以对应 tag 的 Release 工作流结果确认发布；固定旧测试总数不充当持续验收结论。
 
 当前测试策略使用 Rust 单元/集成测试及 Python 测试，不存在已经采用的 proptest/insta/txtar 框架。实际 CI 矩阵、工具链与条件见 [Check 工作流](../.github/workflows/ci.yml)和 [Release 工作流](../.github/workflows/release.yml)。
 
@@ -400,7 +397,7 @@ STOOL_BIN=target/debug/stool python3 -m unittest discover -s tests -p 'test_gpg_
 
 ## 8. 文档与维护约定
 
-- [产品概览](dotfile-overview.md)：能力、运行边界及当前 develop 的待发布变化。
+- [产品概览](dotfile-overview.md)：能力、运行边界及版本兼容性变化。
 - [实现说明](dotfile-internals.md)：当前 Rust 模块、Plan、JSON/redb 和安全边界。
 - [用户命令与配置](../README.md)、[发布说明](../RELEASE_NOTES.md)、[CLI 定义](../src/cli/dotfile/mod.rs)：区分当前源码与已发布行为。
 - [私有示例仓库](https://github.com/szwathub/dotfiles)：登录授权后读取；匿名 404 属于预期。

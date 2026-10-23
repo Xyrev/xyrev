@@ -94,7 +94,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand -h 'Print help'
             cand --help 'Print help'
             cand init 'Clone a Git URL and save configuration'
-            cand migrate 'Explicitly copy legacy xyrev state into stool without deploying files'
             cand diff 'Preview content and permission changes without writing'
             cand status 'List pending changes and conflicts'
             cand apply 'Deploy the local source repository'
@@ -121,17 +120,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand --apply 'Deploy after cloning'
             cand --recurse-submodules 'recurse-submodules'
             cand --builtin 'Clone using the built-in Git backend'
-            cand -v 'Show more debugging information'
-            cand --verbose 'Show more debugging information'
-            cand -h 'Print help'
-            cand --help 'Print help'
-        }
-        &'stool;dotfile;migrate'= {
-            cand --from 'Previous control directory (defaults to ~/.xyrev/dotfile)'
-            cand --source 'Local source repository (saved by init)'
-            cand --destination 'Destination directory (defaults to the user''s home)'
-            cand --data 'Override template data (key=value; JSON values are accepted)'
-            cand --dry-run 'Inspect the migration without writing files or running hooks'
             cand -v 'Show more debugging information'
             cand --verbose 'Show more debugging information'
             cand -h 'Print help'
@@ -337,7 +325,6 @@ set edit:completion:arg-completer[stool] = {|@words|
         }
         &'stool;dotfile;help'= {
             cand init 'Clone a Git URL and save configuration'
-            cand migrate 'Explicitly copy legacy xyrev state into stool without deploying files'
             cand diff 'Preview content and permission changes without writing'
             cand status 'List pending changes and conflicts'
             cand apply 'Deploy the local source repository'
@@ -357,8 +344,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand help 'Print this message or the help of the given subcommand(s)'
         }
         &'stool;dotfile;help;init'= {
-        }
-        &'stool;dotfile;help;migrate'= {
         }
         &'stool;dotfile;help;diff'= {
         }
@@ -436,7 +421,6 @@ set edit:completion:arg-completer[stool] = {|@words|
         }
         &'stool;help;dotfile'= {
             cand init 'Clone a Git URL and save configuration'
-            cand migrate 'Explicitly copy legacy xyrev state into stool without deploying files'
             cand diff 'Preview content and permission changes without writing'
             cand status 'List pending changes and conflicts'
             cand apply 'Deploy the local source repository'
@@ -455,8 +439,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand cd 'Start a shell in the source repository, or print its path'
         }
         &'stool;help;dotfile;init'= {
-        }
-        &'stool;help;dotfile;migrate'= {
         }
         &'stool;help;dotfile;diff'= {
         }

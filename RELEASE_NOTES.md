@@ -1,15 +1,15 @@
 # stool v0.6.0
 
-**待发布，当前开发版本。** 项目与命令从 xyrev 更名为 stool，代码仓库为 `szwathub/stool`。历史 xyrev v0.5.0 及更早版本的记录、脚本、资源和校验和保留原样。
+项目与命令从 xyrev 更名为 stool，代码仓库为 `szwathub/stool`。历史 xyrev v0.5.0 及更早版本的记录、脚本、资源和校验和保留原样。
 
 - Cargo package/bin、CLI、五种补全、man、Debian 元数据、新安装器与六平台资源统一为 stool；新资源使用 `stool-v0.6.0-<target>`，包内 binary 为 `stool` / `stool.exe`，另包含 docs。
-- 控制项、模板命名、环境变量和默认目录统一为 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*`、`~/.stool`。旧环境使用显式迁移流程；不隐式改写用户仓库或重新加密 GPG 备份。
-- 新增 `stool dotfile migrate [--from <old-control-dir>] [--dry-run]`，显式迁移旧本机控制目录；需先自行准备新协议 source，不联网或改 tracked 内容，不自动 apply，并保留旧目录供回退。
+- 控制项、模板命名、环境变量和默认目录统一为 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*`、`~/.stool`。旧环境重新初始化；不隐式改写用户仓库或重新加密 GPG 备份。
+- 不提供旧本机状态迁移命令；使用新协议 source 重新 init，检查 diff 后部署。旧目录保留，初始化脚本与 GPG 恢复记录独立建立。
 - 移除独立加解密子命令。普通 dotfile 继续通过 `add --encrypt`、`edit`、`apply` 管理，GPG 密钥继续使用原生备份/恢复；内部加密和 `keygen` 保留。
 - `stool dotfile gpg backup` 默认备份全部可导出的本地私钥、对应公钥和 ownertrust；`--fingerprint` 改为可选的完整主指纹筛选。包含离线主密钥下的本机私有子密钥及过期/撤销本地密钥，提示缺失/硬件私钥的恢复限制；无可导出私钥或显式选择不可导出组时失败。覆盖保护要求保留既有主/子指纹，既有组含不可导出组件时保守拒绝覆盖，可保留旧备份并使用全新 `--output` 目录。四文件格式及密码/独立 age 身份文件恢复兼容保持不变。
 - `install.sh` / `newinstall.sh` 同源，只安装 stool v0.6.0 起的稳定版本，保留校验、原子替换及错误时保护已有程序；历史版本继续使用其固定 tag 的安装器。
 
-v0.6.0 发布后使用（当前尚不可下载此版本）：
+安装 stool v0.6.0：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/szwathub/stool/v0.6.0/install.sh | VERSION=v0.6.0 bash
@@ -17,7 +17,7 @@ export PATH="$HOME/.local/bin:$PATH"
 stool --version
 ```
 
-当前先[从源码构建](README.md#从源码构建)，新机器的 HTTPS 认证、初始化和 GPG 恢复见[设计文档](docs/dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。下方保留历史版本事实，不将旧 binary 或旧资源伪改为 stool。
+也可[从源码构建](README.md#从源码构建)；新机器的 HTTPS 认证、初始化和 GPG 恢复见[设计文档](docs/dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。下方保留历史版本事实，不将旧 binary 或旧资源伪改为 stool。
 
 # xyrev v0.5.0
 

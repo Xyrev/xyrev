@@ -4,7 +4,6 @@ mod external;
 mod git;
 mod gpg;
 mod maintenance;
-mod migrate;
 mod native_git;
 mod plan;
 mod prerequisites;
@@ -21,12 +20,6 @@ use crate::cli::dotfile::{Commands, DotfileCommand};
 use anyhow::{bail, Result};
 
 pub fn run(command: &DotfileCommand, verbose: bool) -> Result<()> {
-    if let Commands::Migrate(args) = &command.command {
-        if command.source.is_some() || command.destination.is_some() || !command.data.is_empty() {
-            bail!("migrate uses the saved legacy paths; do not supply source, destination or data overrides");
-        }
-        return migrate::run(args);
-    }
     if let Commands::Keygen { output } = &command.command {
         println!("{}", crypto::keygen(output)?);
         return Ok(());
