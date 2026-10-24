@@ -14,15 +14,33 @@
 
 发布包安装器 `install.sh` 按平台下载已编译 binary 并校验 SHA-256，无需先安装 Rust、Git 或 Homebrew。`VERSION` 选择已发布版本，`PREFIX` 选择安装前缀（binary 在 `$PREFIX/bin/stool`），新安装器只接受 stool v0.6.0 起的稳定 Release；`latest` 仍指向历史包时会停止。源码更新不等于新包已经发布。
 
-从 [Releases](https://github.com/szwathub/stool/releases) 选择确实含 `stool key` 的发行版；Windows 解压相应 ZIP 中的 `stool.exe`。本次仅提交推送，当前源码的构建步骤见下文。可在旧机器构建后将适配新机架构的 binary 转入新机，无需在新机装 Rust。
+macOS / Linux 从 [Releases](https://github.com/szwathub/stool/releases) 选择已发布且资产完整的稳定版本，将下方 `vX.Y.Z` 替换为该版本。固定同一 tag 的安装器和 `VERSION`，避免源码与发行包混用；`PREFIX` 可在运行安装器时另行指定。
 
 ```bash
+stool_version=vX.Y.Z
+curl -fsSL "https://raw.githubusercontent.com/szwathub/stool/$stool_version/install.sh" \
+  | VERSION="$stool_version" bash
 export PATH="$HOME/.local/bin:$PATH"
 stool --version
-stool key --help
 ```
 
-PATH 设置只影响当前终端；zsh 可将 export 加入 `~/.zprofile`，Fish 可用 `fish_add_path ~/.local/bin`。旧 xyrev 固定 tag、资源和 binary 保留其历史行为，不适用于当前新协议。
+PATH 设置只影响当前终端；zsh 可将 export 加入 `~/.zprofile`，Fish 可用 `fish_add_path ~/.local/bin`。指定其他 `PREFIX` 时将对应的 `bin` 目录加入 PATH。Windows 下载对应 ZIP 和 `SHA256SUMS.txt`，校验后解压使用其中的 `stool.exe`。
+
+使用离线密钥功能前运行 `stool key --help` 确认命令可用；旧发行包不包含当前待发布功能，需要时[从源码构建](#从源码构建)。也可在旧机器构建后将适配新机架构的 binary 转入新机，无需在新机安装 Rust。安装完成后的 Git 认证、dotfiles 部署和 GPG/SSH 恢复统一见[新 Mac 流程](#新-mac-初始化私有-dotfiles)，各版本差异见[版本说明](RELEASE_NOTES.md)。
+
+### 历史版本安装
+
+xyrev v0.4.0、v0.4.1、v0.5.0 使用各自固定 tag 的 `install.sh`，程序名为 `xyrev`，不能用当前 stool 安装器选择这些版本。macOS / Linux 示例：
+
+```bash
+xyrev_version=v0.5.0  # 也可选择 v0.4.1 或 v0.4.0
+curl -fsSL "https://raw.githubusercontent.com/szwathub/stool/$xyrev_version/install.sh" \
+  | VERSION="$xyrev_version" bash
+export PATH="$HOME/.local/bin:$PATH"
+xyrev --version
+```
+
+Windows 从相应历史 Release 下载 ZIP，校验后使用其中的 `xyrev.exe`。历史资源、校验和与安装器保持原样；旧安装器内记录的原仓库地址依赖 GitHub 重定向。旧命令、自动 GPG 恢复和 dotfiles 格式以对应 tag 的 [v0.5.0 文档](https://github.com/szwathub/stool/blob/v0.5.0/README.md)、[v0.4.1 文档](https://github.com/szwathub/stool/blob/v0.4.1/README.md)、[v0.4.0 文档](https://github.com/szwathub/stool/blob/v0.4.0/README.md)为准；当前 `.stool*` 仓库和 `stool key` 流程不适用于旧程序。新机器使用当前流程时先选择包含所需命令的 stool 构建。
 
 ## macOS 偏好初始化
 

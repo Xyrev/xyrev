@@ -188,7 +188,7 @@ jobs:
           cd artifacts
           sha256sum *.tar.gz *.zip | sort -k2 > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
-      - name: Create version-specific installation and initialization notes
+      - name: Create version-specific release notes
         shell: bash
         run: |
           python3 - <<'PYTHON'
