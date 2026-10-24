@@ -19,7 +19,7 @@
 
 | 能力 | 当前行为 |
 |---|---|
-| Git | 完整 HTTPS/SSH/file URL、分支、子模块、系统 Git 与可选 gix；更新仅快进 |
+| Git | 全局默认 URL、新 source 默认递归子模块（可关闭）、完整 HTTPS/SSH/file URL、分支、子模块、系统 Git 与可选 gix；更新仅快进 |
 | 文件 | 权限、模板、加密、创建/转换/删除、exact、literal、external 子树 |
 | 模板 | MiniJinja、严格缺失变量、include、初始化提示、嵌套数据、编码和换行指令 |
 | 维护 | diff/status/managed/apply、add/edit/unmanaged、verify/doctor/data/execute-template/cd |
@@ -40,9 +40,9 @@
 
 ## 新机器流程
 
-安装包含 `stool key` 的构建 → 手动转入离线包 → 恢复 SSH（已有 GPG 可恢复全部）→ 完成 Git SSH 或 HTTPS 认证 → init/diff/apply/verify → 如需要再手动恢复 GPG。macOS 在配置部署后显式运行 `stool apple brew install` 安装 ~/.Brewfile（含 GPG Suite），再恢复 GPG。完整命令见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
+安装当前构建 → 手动转入离线包 → `stool init --dotfile-url <URL> --key-file <包>` 保存 URL、准备 Apple 环境并恢复当前可恢复的密钥 → 完成 Git SSH/HTTPS 认证 → `stool dotfile init/diff/apply/verify`。首次无 GPG、无 Brewfile 时先恢复 SSH，部署 ~/.Brewfile 后运行 `stool apple brew install`，再以 `stool key restore --gpg --input <包>` 补齐；已有清单可在 init 会话中安装软件并补齐 GPG。具体步骤统一见 [README](../README.md#新-mac-初始化私有-dotfiles)。
 
-macOS 偏好由 `stool apple init --dry-run` 预览、`stool apple init` 应用，安装当前构建后即可独立运行；不再由示例 dotfiles 的 apply/update 设置。具体行为见 [README](../README.md#macos-偏好初始化)。
+基础 init 也会设置 macOS 偏好；独立命令由 `stool apple init --dry-run` 预览、`stool apple init` 应用，安装当前构建后即可独立运行；不再由示例 dotfiles 的 apply/update 设置。具体行为见 [README](../README.md#macos-偏好初始化)。
 
 安装 binary 不提供私库授权；SSH 公钥仍需 GitHub 账号授权，HTTPS 仍需提前通过 helper 缓存凭据。所有 dotfile 命令均不恢复 GPG/SSH 密钥或询问离线备份密码，密钥操作无需先 init。
 

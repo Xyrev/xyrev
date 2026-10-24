@@ -2,6 +2,7 @@ mod archive;
 mod crypto;
 mod external;
 mod git;
+pub(crate) use git::validate_url;
 mod maintenance;
 mod native_git;
 mod plan;
@@ -78,7 +79,7 @@ pub fn run(command: &DotfileCommand, verbose: bool) -> Result<()> {
         }
         _ => {}
     }
-    git::ready(&paths.source)?;
+    git::ready_for(&paths)?;
     let engine = template::Engine::new(&paths, &command.data, false)?;
     match &command.command {
         Commands::Data => {

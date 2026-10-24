@@ -135,7 +135,7 @@ pub fn clone_repository(
     }
     cmd.arg("--").arg(url).arg(system_path(destination));
     checked(cmd)?;
-    ready(&fs::canonicalize(destination)?)
+    ready_recursive(&fs::canonicalize(destination)?, recursive)
 }
 
 pub fn lfs(paths: &Paths) -> Result<()> {
@@ -162,8 +162,21 @@ pub fn verify(source: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn ready(source: &Path) -> Result<()> {
+pub fn ready_for(paths: &Paths) -> Result<()> {
+    ready_recursive(
+        &paths.source,
+        paths
+            .config
+            .as_ref()
+            .map_or(true, |config| config.recurse_submodules),
+    )
+}
+
+fn ready_recursive(source: &Path, recursive: bool) -> Result<()> {
     verify(source)?;
+    if !recursive || !source.join(".gitmodules").exists() {
+        return Ok(());
+    }
     let status = run(source, ["submodule", "status", "--recursive"])?;
     if status
         .lines()
@@ -175,7 +188,22 @@ pub fn ready(source: &Path) -> Result<()> {
 }
 
 pub fn initialize(paths: &Paths, args: &InitArgs) -> Result<()> {
-    validate_url(&args.repo)?;
+    let repo = match &args.repo {
+        Some(url) => url.clone(),
+        None => crate::common::config::Config::load(&paths.home)?.dotfile_url()?.context("No default dotfile URL; run stool init --dotfile-url <git-url> or pass a URL to stool dotfile init")?.to_owned(),
+    };
+    validate_url(&repo)?;
+    let saved = paths
+        .config
+        .as_ref()
+        .filter(|config| config.source == paths.source);
+    let recursive = if args.no_recurse_submodules {
+        false
+    } else if args.recurse_submodules {
+        true
+    } else {
+        saved.map_or(true, |config| config.recurse_submodules)
+    };
     if let Some(branch) = &args.branch {
         if branch.starts_with('-') {
             bail!("Invalid branch name");
@@ -188,12 +216,15 @@ pub fn initialize(paths: &Paths, args: &InitArgs) -> Result<()> {
     } else {
         !args.builtin
     };
-    if system_backend || args.recurse_submodules || paths.source.join(".gitmodules").exists() {
+    if system_backend
+        || args.recurse_submodules
+        || (recursive && paths.source.join(".gitmodules").exists())
+    {
         super::prerequisites::git().context("Check Git before initializing dotfiles")?;
     }
     if fs::symlink_metadata(&paths.source).is_ok() {
         verify(&paths.source)?;
-        if run(&paths.source, ["remote", "get-url", "origin"])? != args.repo {
+        if run(&paths.source, ["remote", "get-url", "origin"])? != repo {
             bail!(
                 "Source origin differs from the requested URL; choose another --source directory"
             );
@@ -209,14 +240,14 @@ pub fn initialize(paths: &Paths, args: &InitArgs) -> Result<()> {
         if expected.is_some_and(|expected| expected != &actual_branch) {
             bail!("Source branch differs from the requested/saved branch; existing files were preserved");
         }
-        if args.recurse_submodules {
+        if recursive && paths.source.join(".gitmodules").exists() {
             ensure_clean(&paths.source)?;
             run(
                 &paths.source,
                 ["submodule", "update", "--init", "--recursive"],
             )?;
         }
-        ready(&paths.source)?;
+        ready_recursive(&paths.source, recursive)?;
         println!("Reusing {}", paths.source.display());
     } else {
         let parent = paths.source.parent().context("Source has no parent")?;
@@ -226,35 +257,25 @@ pub fn initialize(paths: &Paths, args: &InitArgs) -> Result<()> {
             .tempdir_in(parent)?;
         let checkout = temporary.path().join("repository");
         if args.builtin {
-            super::native_git::clone(&args.repo, &checkout, args.branch.as_deref())?;
-            if args.recurse_submodules {
+            super::native_git::clone(&repo, &checkout, args.branch.as_deref())?;
+            if recursive && checkout.join(".gitmodules").exists() {
+                super::prerequisites::git().context("Recursive submodules need system Git")?;
                 run(&checkout, ["submodule", "update", "--init", "--recursive"])?;
             }
         } else {
-            clone_repository(
-                &args.repo,
-                &checkout,
-                args.branch.as_deref(),
-                args.recurse_submodules,
-            )?;
+            clone_repository(&repo, &checkout, args.branch.as_deref(), recursive)?;
         }
-        ready(&fs::canonicalize(&checkout)?)?;
+        ready_recursive(&fs::canonicalize(&checkout)?, recursive)?;
         fs::rename(&checkout, &paths.source)?;
         println!("Cloned {}", paths.source.display());
     }
-    let recurse_submodules = args.recurse_submodules
-        || paths
-            .config
-            .as_ref()
-            .filter(|cfg| cfg.source == paths.source)
-            .is_some_and(|cfg| cfg.recurse_submodules);
     let config = Config {
         version: 1,
-        repo: args.repo.clone(),
+        repo,
         branch: run(&paths.source, ["symbolic-ref", "--short", "HEAD"])?,
         source: paths.source.clone(),
         destination: paths.destination.clone(),
-        recurse_submodules,
+        recurse_submodules: recursive,
         data: paths
             .config
             .as_ref()
@@ -341,7 +362,7 @@ pub fn update(paths: &Paths) -> Result<()> {
         run(&paths.source, ["submodule", "update", "--init", "--recursive"])
             .context("Source was fast-forwarded, but submodule checkout failed; repair submodules before apply")?;
     }
-    ready(&paths.source)?;
+    ready_for(paths)?;
     println!(
         "Updated source to {}",
         run(&paths.source, ["rev-parse", "--short", "HEAD"])?

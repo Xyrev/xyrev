@@ -20,7 +20,7 @@ fn main() {
 
 fn run(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
-        cli::Commands::Init(cmd) => cmd.run(cli.verbose),
+        cli::Commands::Init(cmd) => init::run(&cmd, cli.verbose)?,
         cli::Commands::Agent(cmd) => cmd.run(cli.verbose),
         #[cfg(target_os = "macos")]
         cli::Commands::Apple(cmd) => apple::run(&cmd, cli.verbose)?,

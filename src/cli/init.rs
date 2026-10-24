@@ -1,22 +1,27 @@
 use clap::Args;
+use std::path::PathBuf;
 
 #[derive(Args, Debug)]
 #[command(
-    about = "Create a new configuration folder or reinitialize the existing one",
-    after_help = "For example:\n  stool dotfile init https://github.com/YOUR_NAME/dotfiles"
+    about = "Save dotfiles defaults, initialize Apple settings and optionally restore offline keys"
 )]
 pub struct InitCommand {
-    #[arg(
-        short,
-        long,
-        help = "Force reinitialize configuration (overwrite existing)"
-    )]
-    pub force: bool,
-
-    #[arg(
-        short = 'C',
-        long,
-        help = "Clean and reinitialize (remove all existing data)"
-    )]
-    pub clean: bool,
+    /// Default Git URL; saved without cloning or contacting the repository
+    #[arg(long, value_name = "URL")]
+    pub dotfile_url: Option<String>,
+    /// Password-encrypted offline archive produced by stool key backup
+    #[arg(long, value_name = "FILE")]
+    pub key_file: Option<PathBuf>,
+    /// Trusted local Brewfile (defaults to ~/.Brewfile; missing default is skipped)
+    #[arg(long, value_name = "FILE")]
+    pub brewfile: Option<PathBuf>,
+    /// Preview without saving configuration, decrypting keys or changing the system
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Allow package installation without terminal input; prepare privileges separately
+    #[arg(long)]
+    pub non_interactive: bool,
+    /// Private external backup password file (requires --key-file)
+    #[arg(long, requires = "key_file", value_name = "FILE")]
+    pub passphrase_file: Option<PathBuf>,
 }

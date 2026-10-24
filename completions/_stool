@@ -32,10 +32,12 @@ _stool() {
         case $line[1] in
             (init)
 _arguments "${_arguments_options[@]}" : \
-'-f[Force reinitialize configuration (overwrite existing)]' \
-'--force[Force reinitialize configuration (overwrite existing)]' \
-'-C[Clean and reinitialize (remove all existing data)]' \
-'--clean[Clean and reinitialize (remove all existing data)]' \
+'--dotfile-url=[Default Git URL; saved without cloning or contacting the repository]:URL:_default' \
+'--key-file=[Password-encrypted offline archive produced by stool key backup]:FILE:_files' \
+'--brewfile=[Trusted local Brewfile (defaults to ~/.Brewfile; missing default is skipped)]:FILE:_files' \
+'--passphrase-file=[Private external backup password file (requires --key-file)]:FILE:_files' \
+'--dry-run[Preview without saving configuration, decrypting keys or changing the system]' \
+'--non-interactive[Allow package installation without terminal input; prepare privileges separately]' \
 '-v[Show more debugging information]' \
 '--verbose[Show more debugging information]' \
 '-h[Print help]' \
@@ -287,13 +289,14 @@ _arguments "${_arguments_options[@]}" : \
 '--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
 '*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
 '--apply[Deploy after cloning]' \
-'--recurse-submodules[]' \
+'(--no-recurse-submodules)--recurse-submodules[Explicitly enable recursive submodules (the default for new repositories)]' \
+'(--recurse-submodules)--no-recurse-submodules[Disable recursive submodule initialization and subsequent updates]' \
 '--builtin[Clone using the built-in Git backend]' \
 '-v[Show more debugging information]' \
 '--verbose[Show more debugging information]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':repo -- HTTPS, SSH, or file\:// Git URL:_default' \
+'::repo -- Git URL (defaults to dotfile.url saved by stool init):_default' \
 && ret=0
 ;;
 (diff)
@@ -871,7 +874,7 @@ esac
 (( $+functions[_stool_commands] )) ||
 _stool_commands() {
     local commands; commands=(
-'init:Create a new configuration folder or reinitialize the existing one' \
+'init:Save dotfiles defaults, initialize Apple settings and optionally restore offline keys' \
 'agent:' \
 'apple:Manage macOS preferences and Homebrew independently of dotfiles' \
 'dotfile:Manage dotfiles from a Git repository' \
@@ -1238,7 +1241,7 @@ _stool__dotfile__verify_commands() {
 (( $+functions[_stool__help_commands] )) ||
 _stool__help_commands() {
     local commands; commands=(
-'init:Create a new configuration folder or reinitialize the existing one' \
+'init:Save dotfiles defaults, initialize Apple settings and optionally restore offline keys' \
 'agent:' \
 'apple:Manage macOS preferences and Homebrew independently of dotfiles' \
 'dotfile:Manage dotfiles from a Git repository' \

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -43,7 +44,7 @@ class NativeKeyTests(unittest.TestCase):
         (self.source / '.gnupg').mkdir(mode=0o700)
         (self.source / '.ssh').mkdir(mode=0o700)
         self.env = dict(os.environ, HOME=str(self.source), USERPROFILE=str(self.source), GNUPGHOME=str(self.source / '.gnupg'))
-        for name in ('GPG_AGENT_INFO', 'GPG_TTY', 'STOOL_AGE_PASSPHRASE', 'GIT_DIR', 'GIT_WORK_TREE'):
+        for name in ('GPG_AGENT_INFO', 'GPG_TTY', 'SSH_AUTH_SOCK', 'SSH_AGENT_PID', 'STOOL_AGE_PASSPHRASE', 'GIT_DIR', 'GIT_WORK_TREE'):
             self.env.pop(name, None)
         self.password = self.root / 'password'
         self.password.write_text("synthetic's archive password\n")
@@ -106,6 +107,30 @@ class NativeKeyTests(unittest.TestCase):
         target_trust = self.gpg(self.target, '--export-ownertrust')
         filtered = lambda value: sorted(line for line in value.splitlines() if line and not line.startswith(b'#'))
         self.assertEqual(filtered(origin_trust), filtered(target_trust))
+
+    @unittest.skipUnless(sys.platform == 'linux', 'macOS Apple stages use injected unit-test executors; do not change real preferences')
+    def test_init_without_gpg_restores_ssh_then_standalone_restore_recovers_personal_and_work(self):
+        personal = self.generate('Personal <personal@example.invalid>')
+        work = self.generate('Work <work@example.invalid>')
+        identity = self.ssh()
+        self.backup()
+        empty_path = self.root / 'empty-path'
+        empty_path.mkdir()
+        env = dict(self.env, HOME=str(self.target), USERPROFILE=str(self.target), PATH=str(empty_path))
+        result = subprocess.run([self.binary, 'init', '--dotfile-url', 'https://example.invalid/private.git',
+                                 '--key-file', str(self.archive), '--passphrase-file', str(self.password)],
+                                cwd=self.root, env=env, capture_output=True, timeout=90)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+        self.assertIn(b'Pending: GPG', result.stdout)
+        self.assertNotIn(self.password.read_bytes().strip(), result.stdout + result.stderr)
+        self.assertEqual((self.target / '.ssh/github_rsa').read_bytes(), identity.read_bytes())
+        self.assertFalse((self.target / '.gnupg').exists())
+        self.assertFalse((self.target / '.stool/dotfile').exists())
+        config = (self.target / '.stool/config.toml').read_text()
+        self.assertIn('https://example.invalid/private.git', config)
+        self.assertNotIn(str(self.archive), config)
+        self.restore('--gpg')
+        self.sign_and_decrypt([personal, work])
 
     def test_default_all_restores_personal_work_subkeys_trust_revocations_and_ssh(self):
         personal = self.generate('Personal <personal@example.invalid>')

@@ -2,6 +2,8 @@
 
 ## 版本变更
 
+- 补全 `stool init --dotfile-url/--key-file`：独立保存全局默认，按本机 GPG/Brewfile 条件分阶段恢复，复用 Apple 初始化；无默认清单时明确保留 GPG 待处理，后续用 `key restore` 补齐。
+- `dotfile init` 可省略 URL；新 source 默认递归子模块，支持 `--no-recurse-submodules`，更新沿用保存选择。
 - 统一安装入口为 `install.sh`，移除重复安装脚本。
 - 新增 macOS 的 `stool apple init`，独立设置 Dock 最小化动画，支持只读预览、按需写入和回读验证。
 - 新增 `stool apple brew init/install`，独立初始化 Homebrew 并安装默认 `~/.Brewfile` 或指定清单，支持 prefix、只读预览和显式无人值守模式。
@@ -9,6 +11,7 @@
 
 ## 兼容性与升级注意事项
 
+- 移除原占位 `init --force/--clean`；全局默认与部署配置分开，显式 URL 用法保留。既有 source 重复 init 未传递归开关时沿用原选择。基础 init 的严格预览不解密、不访问仓库或修改系统。
 - 以上功能尚未发布，需[从源码构建](https://github.com/szwathub/stool/blob/develop/README.md#从源码构建)；历史 tag 和发行包保持原样。
 - 删除旧 `dotfile gpg` 命令、自动恢复声明/状态及旧 GPG 备份格式兼容；普通 dotfile 加密保留。升级前先创建并隔离验证新的离线包，再清理旧仓库备份，见[离线密钥说明](https://github.com/szwathub/stool/blob/develop/README.md#密钥离线备份与恢复)。
 - 示例 dotfiles 仅管理配置、签名指纹和 macOS 的 `~/.Brewfile`；移除原 Homebrew、软件包和 macOS 偏好钩子及对应开关。`apply/update` 不再安装软件、修改 Dock 或恢复密钥，需显式调用各独立命令；新机器流程统一见 [README](https://github.com/szwathub/stool/blob/develop/README.md#新-mac-初始化私有-dotfiles)。

@@ -76,6 +76,7 @@ fn main() {
  append(root.join("events"),&format!("gpg:{}",args.join(" ")));
  let has=|needle:&str| args.iter().any(|a| a==needle);
  let marked=|name:&str| root.join(name).exists();
+ if has("--version") {if marked("fail-version") {die();} println!("gpg (GnuPG/MacGPG2) 2.4 fixture"); return;}
  if has("--list-secret-keys") {
    if marked("fail-discovery") {die();}
    if marked("no-secret") {return;}

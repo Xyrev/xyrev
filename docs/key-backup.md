@@ -1,6 +1,6 @@
 # GPG 与 SSH 离线密钥备份
 
-本文描述当前待发布源码。`stool key` 独立于 dotfiles，不读取 dotfile 配置、部署状态或 Git 仓库；安装包含本命令的 binary 后即可手动转入并恢复离线包。
+本文描述当前待发布源码。`stool key` 独立于 dotfiles，不读取 dotfile 配置、部署状态或 Git 仓库；安装包含本命令的 binary 后即可手动转入并恢复离线包。顶层 `stool init --key-file <包>` 也可复用相同恢复会话，默认 URL 和 Apple 设置独立处理。
 
 ## 命令与默认值
 
@@ -60,7 +60,11 @@ GPG 始终通过 PATH 中的 `gpg` 调用。恢复先在隔离 keyring 检查完
 
 ## 新机器与验收
 
-推荐顺序：安装包含 `stool key` 的版本 → 手动转入离线包 → 恢复 SSH（已有 GPG 可直接恢复全部）→ Git 认证 → 初始化、预览及部署 dotfiles → macOS 显式 apple brew install 安装 GPG Suite → 若此前只恢复 SSH，再手动恢复 GPG。完整 macOS 命令见 [README](../README.md#新-mac-初始化私有-dotfiles)。Linux/Windows 先按本机方式安装 GPG；这份 dotfiles 仅在 macOS 部署 ~/.Brewfile，软件安装由独立 stool apple brew install 执行，不由 apply/update 触发。
+推荐顺序：旧机器 `stool key backup` → 安装当前 stool 并手动转入包 → `stool init --dotfile-url <URL> --key-file <包>` → Git 认证 → `stool dotfile init/diff/apply/verify` → macOS 显式 `stool apple brew install` → 若此前只恢复 SSH，再以 `stool key restore --gpg --input <包>` 手动补齐。无需重跑 init。
+
+init 中已有 GPG 时恢复全部；缺少 GPG 时先恢复包内 SSH，若已有可信本地 Brewfile，可安装软件后在同一内存会话恢复 GPG。否则正常完成基础设置并明确报告 GPG 待恢复，不声称全部密钥已恢复。备份仅有一种类别时仅处理该类别。密码错误、损坏或冲突在初始化配置保存前检查；GPG 专项校验仍需可用 gpg。初始化进程不记录包路径或密码，后续独立恢复需重新输入密码。Linux/Windows 跳过 Apple 阶段，以本机方式安装 GPG。
+
+完整 macOS 命令见 [README](../README.md#新-mac-初始化私有-dotfiles)。这份 dotfiles 仅在 macOS 部署 ~/.Brewfile，软件安装由 init 中的 Apple 流程或独立 apple brew install 执行，apply/update 不触发。
 
 除查看指纹外，可用隔离目录对两把 GPG 分别做签名和验签：
 

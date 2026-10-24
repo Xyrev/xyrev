@@ -197,12 +197,24 @@ impl Paths {
     }
 
     pub fn check_target(&self, target: &Path) -> Result<()> {
+        let global_control = self.home.join(ROOT_DIR);
+        let reserved_control = target
+            .strip_prefix(&self.home)
+            .ok()
+            .and_then(|relative| relative.components().next())
+            .is_some_and(|part| {
+                part.as_os_str()
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(ROOT_DIR)
+            });
         if !target.starts_with(&self.destination)
             || target == self.destination
             || target.starts_with(&self.source)
             || self.source.starts_with(target)
             || target.starts_with(&self.root)
             || self.root.starts_with(target)
+            || reserved_control
+            || global_control.starts_with(target)
         {
             bail!(
                 "Target overlaps source/control storage or escapes destination: {}",

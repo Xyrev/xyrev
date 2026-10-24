@@ -127,7 +127,7 @@ pub fn doctor(paths: &Paths, overrides: &[String]) -> Result<()> {
     }
     for (name, result) in [
         ("repository", git::verify(&paths.source)),
-        ("source/submodules", git::ready(&paths.source)),
+        ("source/submodules", git::ready_for(paths)),
         ("applied state", paths.state().map(|_| ())),
         ("script database", scripts::Store::load(paths).map(|_| ())),
         (

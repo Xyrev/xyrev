@@ -27,7 +27,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('-V', '-V ', [CompletionResultType]::ParameterName, 'Print version')
             [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
-            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Create a new configuration folder or reinitialize the existing one')
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Save dotfiles defaults, initialize Apple settings and optionally restore offline keys')
             [CompletionResult]::new('agent', 'agent', [CompletionResultType]::ParameterValue, 'agent')
             [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'Manage macOS preferences and Homebrew independently of dotfiles')
             [CompletionResult]::new('dotfile', 'dotfile', [CompletionResultType]::ParameterValue, 'Manage dotfiles from a Git repository')
@@ -38,10 +38,12 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;init' {
-            [CompletionResult]::new('-f', '-f', [CompletionResultType]::ParameterName, 'Force reinitialize configuration (overwrite existing)')
-            [CompletionResult]::new('--force', '--force', [CompletionResultType]::ParameterName, 'Force reinitialize configuration (overwrite existing)')
-            [CompletionResult]::new('-C', '-C ', [CompletionResultType]::ParameterName, 'Clean and reinitialize (remove all existing data)')
-            [CompletionResult]::new('--clean', '--clean', [CompletionResultType]::ParameterName, 'Clean and reinitialize (remove all existing data)')
+            [CompletionResult]::new('--dotfile-url', '--dotfile-url', [CompletionResultType]::ParameterName, 'Default Git URL; saved without cloning or contacting the repository')
+            [CompletionResult]::new('--key-file', '--key-file', [CompletionResultType]::ParameterName, 'Password-encrypted offline archive produced by stool key backup')
+            [CompletionResult]::new('--brewfile', '--brewfile', [CompletionResultType]::ParameterName, 'Trusted local Brewfile (defaults to ~/.Brewfile; missing default is skipped)')
+            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Private external backup password file (requires --key-file)')
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Preview without saving configuration, decrypting keys or changing the system')
+            [CompletionResult]::new('--non-interactive', '--non-interactive', [CompletionResultType]::ParameterName, 'Allow package installation without terminal input; prepare privileges separately')
             [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
@@ -213,7 +215,8 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
             [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
             [CompletionResult]::new('--apply', '--apply', [CompletionResultType]::ParameterName, 'Deploy after cloning')
-            [CompletionResult]::new('--recurse-submodules', '--recurse-submodules', [CompletionResultType]::ParameterName, 'recurse-submodules')
+            [CompletionResult]::new('--recurse-submodules', '--recurse-submodules', [CompletionResultType]::ParameterName, 'Explicitly enable recursive submodules (the default for new repositories)')
+            [CompletionResult]::new('--no-recurse-submodules', '--no-recurse-submodules', [CompletionResultType]::ParameterName, 'Disable recursive submodule initialization and subsequent updates')
             [CompletionResult]::new('--builtin', '--builtin', [CompletionResultType]::ParameterName, 'Clone using the built-in Git backend')
             [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
@@ -522,7 +525,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;help' {
-            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Create a new configuration folder or reinitialize the existing one')
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Save dotfiles defaults, initialize Apple settings and optionally restore offline keys')
             [CompletionResult]::new('agent', 'agent', [CompletionResultType]::ParameterValue, 'agent')
             [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'Manage macOS preferences and Homebrew independently of dotfiles')
             [CompletionResult]::new('dotfile', 'dotfile', [CompletionResultType]::ParameterValue, 'Manage dotfiles from a Git repository')

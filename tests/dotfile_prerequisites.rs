@@ -179,3 +179,31 @@ fn apple_git_launcher_without_developer_tools_only_shows_installation_guide() {
     assert_eq!(fs::read_to_string(log).unwrap(), "--print-path\n");
     assert_not_initialized(&sandbox);
 }
+
+#[cfg(unix)]
+#[test]
+fn default_builtin_clone_does_not_probe_system_git_for_ordinary_repositories() {
+    let sandbox = Sandbox::new(&[("dot_seed", "seed")]);
+    let bin = sandbox.root.join("transport-only-bin");
+    fs::create_dir(&bin).unwrap();
+    // Local gix transport needs the server-side upload-pack helper. Expose only
+    // that helper, leaving the `git` client absent from PATH.
+    let real_git = std::env::split_paths(&std::env::var_os("PATH").unwrap())
+        .map(|directory| directory.join("git"))
+        .find(|candidate| candidate.is_file())
+        .unwrap();
+    executable(
+        &bin.join("git-upload-pack"),
+        &format!(
+            "#!/bin/sh\nexec {} upload-pack \"$@\"\n",
+            shell_words::quote(&real_git.to_string_lossy())
+        ),
+    );
+    success(
+        init_command(&sandbox, &bin)
+            .args(["--builtin", "--apply"])
+            .output()
+            .unwrap(),
+    );
+    assert!(sandbox.destination.join(".seed").is_file());
+}

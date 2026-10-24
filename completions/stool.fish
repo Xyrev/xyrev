@@ -27,7 +27,7 @@ end
 complete -c stool -n "__fish_stool_needs_command" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_needs_command" -s h -l help -d 'Print help'
 complete -c stool -n "__fish_stool_needs_command" -s V -l version -d 'Print version'
-complete -c stool -n "__fish_stool_needs_command" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
+complete -c stool -n "__fish_stool_needs_command" -f -a "init" -d 'Save dotfiles defaults, initialize Apple settings and optionally restore offline keys'
 complete -c stool -n "__fish_stool_needs_command" -f -a "agent"
 complete -c stool -n "__fish_stool_needs_command" -f -a "apple" -d 'Manage macOS preferences and Homebrew independently of dotfiles'
 complete -c stool -n "__fish_stool_needs_command" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
@@ -35,8 +35,12 @@ complete -c stool -n "__fish_stool_needs_command" -f -a "key" -d 'Back up and re
 complete -c stool -n "__fish_stool_needs_command" -f -a "completions" -d 'Generate shell completions from the current command definitions'
 complete -c stool -n "__fish_stool_needs_command" -f -a "man" -d 'Render the manual, or write all command manuals to a directory'
 complete -c stool -n "__fish_stool_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c stool -n "__fish_stool_using_subcommand init" -s f -l force -d 'Force reinitialize configuration (overwrite existing)'
-complete -c stool -n "__fish_stool_using_subcommand init" -s C -l clean -d 'Clean and reinitialize (remove all existing data)'
+complete -c stool -n "__fish_stool_using_subcommand init" -l dotfile-url -d 'Default Git URL; saved without cloning or contacting the repository' -r
+complete -c stool -n "__fish_stool_using_subcommand init" -l key-file -d 'Password-encrypted offline archive produced by stool key backup' -r -F
+complete -c stool -n "__fish_stool_using_subcommand init" -l brewfile -d 'Trusted local Brewfile (defaults to ~/.Brewfile; missing default is skipped)' -r -F
+complete -c stool -n "__fish_stool_using_subcommand init" -l passphrase-file -d 'Private external backup password file (requires --key-file)' -r -F
+complete -c stool -n "__fish_stool_using_subcommand init" -l dry-run -d 'Preview without saving configuration, decrypting keys or changing the system'
+complete -c stool -n "__fish_stool_using_subcommand init" -l non-interactive -d 'Allow package installation without terminal input; prepare privileges separately'
 complete -c stool -n "__fish_stool_using_subcommand init" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand init" -s h -l help -d 'Print help'
 complete -c stool -n "__fish_stool_using_subcommand agent; and not __fish_seen_subcommand_from init copilot help" -s v -l verbose -d 'Show more debugging information'
@@ -99,7 +103,8 @@ complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_sub
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l apply -d 'Deploy after cloning'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l recurse-submodules
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l recurse-submodules -d 'Explicitly enable recursive submodules (the default for new repositories)'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l no-recurse-submodules -d 'Disable recursive submodule initialization and subsequent updates'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l builtin -d 'Clone using the built-in Git backend'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -s h -l help -d 'Print help'
@@ -240,7 +245,7 @@ complete -c stool -n "__fish_stool_using_subcommand completions" -s h -l help -d
 complete -c stool -n "__fish_stool_using_subcommand man" -l output -r -F
 complete -c stool -n "__fish_stool_using_subcommand man" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand man" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "init" -d 'Save dotfiles defaults, initialize Apple settings and optionally restore offline keys'
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "agent"
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "apple" -d 'Manage macOS preferences and Homebrew independently of dotfiles'
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'

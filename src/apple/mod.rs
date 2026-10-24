@@ -40,3 +40,50 @@ pub fn run(command: &AppleCommand, verbose: bool) -> Result<()> {
 #[cfg(test)]
 #[path = "../../tests/unit/apple_brew.rs"]
 mod brew_tests;
+
+/// Share Homebrew discovery and package installation with top-level initialization.
+pub(crate) fn bootstrap(
+    file: Option<&std::path::Path>,
+    dry_run: bool,
+    non_interactive: bool,
+    verbose: bool,
+) -> Result<std::path::PathBuf> {
+    let environment = homebrew::Environment::current()?;
+    let mut executor = process::System;
+    let mut report = std::io::stdout().lock();
+    let options = crate::cli::apple::brew::Options {
+        dry_run,
+        non_interactive,
+    };
+    if let Some(file) = file {
+        let args = crate::cli::apple::brew::InstallArgs {
+            file: Some(file.to_owned()),
+            options,
+        };
+        packages::install(
+            None,
+            &args,
+            &environment,
+            &mut executor,
+            &mut report,
+            verbose,
+        )?;
+    }
+    // Read back the installation using the same discovery rules.
+    homebrew::ensure(
+        None,
+        &crate::cli::apple::brew::Options {
+            dry_run,
+            non_interactive,
+        },
+        &environment,
+        &mut executor,
+        &mut report,
+        verbose,
+    )
+    .map(|brew| brew.prefix)
+}
+
+pub(crate) fn initialize_preferences(verbose: bool) -> Result<()> {
+    preferences::init(false, verbose)
+}

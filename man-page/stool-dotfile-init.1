@@ -4,7 +4,7 @@
 .SH NAME
 stool\-dotfile\-init \- Clone a Git URL and save configuration
 .SH SYNOPSIS
-\fBstool\-dotfile\-init\fR [\fB\-\-branch\fR] [\fB\-\-apply\fR] [\fB\-\-recurse\-submodules\fR] [\fB\-\-builtin\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fIREPO\fR>
+\fBstool\-dotfile\-init\fR [\fB\-\-branch\fR] [\fB\-\-apply\fR] [\fB\-\-recurse\-submodules\fR] [\fB\-\-no\-recurse\-submodules\fR] [\fB\-\-builtin\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIREPO\fR]
 .SH DESCRIPTION
 Clone a Git URL and save configuration
 .SH OPTIONS
@@ -16,7 +16,10 @@ Clone a Git URL and save configuration
 Deploy after cloning
 .TP
 \fB\-\-recurse\-submodules\fR
-
+Explicitly enable recursive submodules (the default for new repositories)
+.TP
+\fB\-\-no\-recurse\-submodules\fR
+Disable recursive submodule initialization and subsequent updates
 .TP
 \fB\-\-builtin\fR
 Clone using the built\-in Git backend
@@ -24,5 +27,5 @@ Clone using the built\-in Git backend
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
-<\fIREPO\fR>
-HTTPS, SSH, or file:// Git URL
+[\fIREPO\fR]
+Git URL (defaults to dotfile.url saved by stool init)

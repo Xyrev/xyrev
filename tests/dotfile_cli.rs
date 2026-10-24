@@ -371,8 +371,7 @@ fn type_conflicts_can_be_backed_up_and_replaced() {
     );
 }
 
-#[test]
-fn missing_submodules_require_recursive_initialization_and_follow_updates() {
+fn submodule_sandbox() -> (Sandbox, PathBuf) {
     let sandbox = Sandbox::new(&[("dot_file", "root\n")]);
     let module = sandbox.root.join("module");
     fs::create_dir(&module).unwrap();
@@ -393,9 +392,13 @@ fn missing_submodules_require_recursive_initialization_and_follow_updates() {
         ],
     );
     sandbox.push();
-    failure(sandbox.init(&[]), "Submodules are missing");
-    assert!(!sandbox.source.exists());
-    success(sandbox.init(&["--recurse-submodules", "--apply"]));
+    (sandbox, module)
+}
+
+#[test]
+fn submodules_are_recursive_by_default_and_follow_updates() {
+    let (sandbox, module) = submodule_sandbox();
+    success(sandbox.init(&["--apply"]));
     assert_eq!(
         fs::read_to_string(
             sandbox
@@ -547,4 +550,47 @@ fn partial_io_failure_preserves_successful_state_and_can_be_retried() {
         fs::read_to_string(sandbox.destination.join(".zzz")).unwrap(),
         "replacement\n"
     );
+}
+
+#[test]
+fn recursive_submodules_can_be_disabled_and_explicitly_enabled_later() {
+    let (sandbox, _) = submodule_sandbox();
+    success(sandbox.init(&["--no-recurse-submodules", "--apply"]));
+    assert!(sandbox.destination.join(".file").is_file());
+    let module_file = sandbox
+        .source
+        .join("dot_config/fish/functions/function.fish");
+    assert!(!module_file.exists());
+    success(sandbox.cli(&["update"]));
+    assert!(!module_file.exists());
+    success(sandbox.init(&["--recurse-submodules", "--apply"]));
+    assert!(module_file.is_file());
+    assert!(sandbox
+        .destination
+        .join(".config/fish/functions/function.fish")
+        .is_file());
+    assert!(!sandbox
+        .init(&["--no-recurse-submodules", "--recurse-submodules"])
+        .status
+        .success());
+}
+
+#[test]
+fn deployment_cannot_remove_or_overwrite_the_new_global_initialization_config() {
+    for (source, contents) in [
+        (".stoolremove", ".stool/config.toml\n"),
+        ("dot_STOOL/config.toml", "malicious\n"),
+    ] {
+        let mut sandbox = Sandbox::new(&[("dot_aaa", "new\n"), (source, contents)]);
+        sandbox.destination = sandbox.home.clone();
+        let global = sandbox.home.join(".stool/config.toml");
+        let original = "version = 1\n[dotfile]\nurl = 'https://example.invalid/preserved.git'\n";
+        write(&global, original);
+        failure(
+            sandbox.init(&["--apply"]),
+            "overlaps source/control storage",
+        );
+        assert_eq!(fs::read_to_string(global).unwrap(), original);
+        assert!(!sandbox.home.join(".aaa").exists());
+    }
 }

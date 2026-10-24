@@ -526,97 +526,155 @@ fn preflight(target: &Path, names: &BTreeMap<String, String>, files: &Files) -> 
     }
     Ok(())
 }
-fn restore(args: &RestoreArgs) -> Result<()> {
-    let input = checked(&args.input)?;
-    let target = if let Some(path) = &args.output {
-        checked(path)?
-    } else {
-        home()?
-    };
-    outside_git(&target)?;
-    let encrypted = read(&input)?;
-    let password = password(args.passphrase_file.as_deref(), false)?;
-    let payload = decrypt(&password, encrypted.expose_secret())?;
-    let (manifest, files) = unpack(payload.expose_secret())?;
-    let do_gpg = args.selection.gpg() && manifest.gpg.is_some();
-    let do_ssh = args.selection.ssh() && !manifest.ssh.is_empty();
-    if !do_gpg && !do_ssh {
-        bail!("Backup contains no keys of the selected category");
+pub(crate) struct RestoreSession {
+    target: PathBuf,
+    manifest: Manifest,
+    files: Files,
+}
+impl RestoreSession {
+    pub(crate) fn check_file(input: &Path) -> Result<()> {
+        read(&checked(input)?)?;
+        Ok(())
     }
-    let names = target_files(&manifest, &files, do_gpg, do_ssh);
-    preflight(&target, &names, &files)?;
-    if do_gpg {
-        gpg::preflight(&target)?;
-        gpg::validate(manifest.gpg.as_ref().unwrap(), &files)?;
-    }
-    if do_gpg {
-        gpg::restore(&target,manifest.gpg.as_ref().unwrap(),&files)
-            .context("GPG restore failed and may have imported some keys; retry after fixing the cause; SSH keys have not been written")?;
-        println!(
-            "Restored GPG keys and ownertrust ({} primary keys).",
-            manifest.gpg.as_ref().unwrap().groups.len()
-        );
-    }
-    for (source, name) in &names {
-        // Check again immediately before each write; identical files are retained.
-        let path = checked(&target.join(relative(name)?))?;
-        outside_git(&path)?;
-        let category = if name.starts_with(".ssh/") {
-            "SSH"
+    pub(crate) fn open(args: &RestoreArgs) -> Result<Self> {
+        let input = checked(&args.input)?;
+        let target = if let Some(path) = &args.output {
+            checked(path)?
         } else {
-            "GPG revocation"
+            home()?
         };
-        let mut parents = Vec::new();
-        let mut parent = path.parent().unwrap();
-        while parent.starts_with(&target) && parent != target {
-            parents.push(parent.to_owned());
-            parent = parent.parent().unwrap();
+        outside_git(&target)?;
+        let encrypted = read(&input)?;
+        let password = password(args.passphrase_file.as_deref(), false)?;
+        let payload = decrypt(&password, encrypted.expose_secret())?;
+        let (manifest, files) = unpack(payload.expose_secret())?;
+        Ok(Self {
+            target,
+            manifest,
+            files,
+        })
+    }
+    pub(crate) fn has_gpg(&self) -> bool {
+        self.manifest.gpg.is_some()
+    }
+    pub(crate) fn has_ssh(&self) -> bool {
+        !self.manifest.ssh.is_empty()
+    }
+    pub(crate) fn preflight(&self) -> Result<()> {
+        preflight(
+            &self.target,
+            &target_files(&self.manifest, &self.files, self.has_gpg(), self.has_ssh()),
+            &self.files,
+        )?;
+        if self.has_gpg() {
+            gpg::preflight(&self.target)?;
         }
-        if !target.exists() {
-            storage::private_dir(&target)?;
+        Ok(())
+    }
+    pub(crate) fn restore(&self, do_gpg: bool, do_ssh: bool) -> Result<()> {
+        let (manifest, files, target) = (&self.manifest, &self.files, &self.target);
+        let do_gpg = do_gpg && self.has_gpg();
+        let do_ssh = do_ssh && self.has_ssh();
+        if !do_gpg && !do_ssh {
+            bail!("Backup contains no keys of the selected category");
         }
-        for directory in parents.into_iter().rev() {
-            checked(&directory)?;
-            storage::private_dir(&directory)?;
+        let names = target_files(manifest, files, do_gpg, do_ssh);
+        preflight(target, &names, files)?;
+        if do_gpg {
+            gpg::preflight(target)?;
+            gpg::validate(manifest.gpg.as_ref().unwrap(), files)?;
         }
-        if fs::symlink_metadata(&path).is_ok() {
-            if read(&path)?.expose_secret() != files[source].expose_secret() {
-                bail!(
+        if do_gpg {
+            gpg::restore(target,manifest.gpg.as_ref().unwrap(),files)
+            .context("GPG restore failed and may have imported some keys; retry after fixing the cause; this restore phase did not write SSH keys; earlier completed phases are retained")?;
+            println!(
+                "Restored GPG keys and ownertrust ({} primary keys).",
+                manifest.gpg.as_ref().unwrap().groups.len()
+            );
+        }
+        for (source, name) in &names {
+            // Check again immediately before each write; identical files are retained.
+            let path = checked(&target.join(relative(name)?))?;
+            outside_git(&path)?;
+            let category = if name.starts_with(".ssh/") {
+                "SSH"
+            } else {
+                "GPG revocation"
+            };
+            let mut parents = Vec::new();
+            let mut parent = path.parent().unwrap();
+            while parent.starts_with(target) && parent != target {
+                parents.push(parent.to_owned());
+                parent = parent.parent().unwrap();
+            }
+            if !target.exists() {
+                storage::private_dir(target)?;
+            }
+            for directory in parents.into_iter().rev() {
+                checked(&directory)?;
+                storage::private_dir(&directory)?;
+            }
+            if fs::symlink_metadata(&path).is_ok() {
+                if read(&path)?.expose_secret() != files[source].expose_secret() {
+                    bail!(
                     "{category} key changed during restore: {}; retry after resolving the conflict",
                     path.display()
                 );
+                }
+                storage::set_mode(&path, 0o600)?;
+                continue;
             }
-            storage::set_mode(&path, 0o600)?;
-            continue;
+            let mut options = fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o600);
+            }
+            let mut output = options
+                .open(&path)
+                .with_context(|| format!("Create restored {category} key without replacement"))?;
+            let result = (|| -> Result<()> {
+                storage::set_mode(&path, 0o600)?;
+                output.write_all(files[source].expose_secret())?;
+                output.sync_all()?;
+                Ok(())
+            })();
+            if let Err(error) = result {
+                drop(output);
+                let _ = fs::remove_file(&path);
+                return Err(error).with_context(||format!("Save restored {category} key; completed imports/files are retained and can be retried"));
+            }
         }
-        let mut options = fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
+        if do_ssh {
+            println!("Restored SSH key pairs: {}", manifest.ssh.len());
         }
-        let mut output = options
-            .open(&path)
-            .with_context(|| format!("Create restored {category} key without replacement"))?;
-        let result = (|| -> Result<()> {
-            storage::set_mode(&path, 0o600)?;
-            output.write_all(files[source].expose_secret())?;
-            output.sync_all()?;
-            Ok(())
-        })();
-        if let Err(error) = result {
-            drop(output);
-            let _ = fs::remove_file(&path);
-            return Err(error).with_context(||format!("Save restored {category} key; completed imports/files are retained and can be retried"));
-        }
+        report_warnings(manifest);
+        println!("Key restore completed: {}", target.display());
+        Ok(())
     }
-    if do_ssh {
-        println!("Restored SSH key pairs: {}", manifest.ssh.len());
+}
+
+fn restore(args: &RestoreArgs) -> Result<()> {
+    RestoreSession::open(args)?.restore(args.selection.gpg(), args.selection.ssh())
+}
+
+pub(crate) fn gpg_available() -> Result<bool> {
+    let output = match Command::new("gpg")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .output()
+    {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => {
+            return Err(error).context("Cannot execute gpg; repair PATH or executable permissions")
+        }
+    };
+    if !output.status.success() || !output.stdout.starts_with(b"gpg (GnuPG") {
+        bail!("gpg is present but unusable; repair it before restoring GPG keys");
     }
-    report_warnings(&manifest);
-    println!("Key restore completed: {}", target.display());
-    Ok(())
+    Ok(true)
 }
 
 #[cfg(test)]
