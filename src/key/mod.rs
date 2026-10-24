@@ -436,6 +436,11 @@ fn backup(args: &BackupArgs) -> Result<()> {
     let payload = pack(&manifest, &files)?;
     let password = password(args.passphrase_file.as_deref(), true)?;
     let ciphertext = encrypt(&password, payload.expose_secret())?;
+    // Age framing adds overhead beyond the plaintext tar. Never publish an
+    // archive that the bounded input reader would reject during restoration.
+    if ciphertext.len() as u64 > LIMIT {
+        bail!("Encrypted key backup exceeds the 64 MiB size limit; no backup was written");
+    }
     let recovered = decrypt(&password, &ciphertext)?;
     unpack(recovered.expose_secret())?;
     let parent = output.parent().context("Backup file has no parent")?;

@@ -185,6 +185,16 @@ class NativeKeyTests(unittest.TestCase):
         self.assertTrue((self.target / '.ssh/github_rsa').is_file())
         self.assertFalse((self.target / '.ssh/external-agent-key').exists())
 
+    def test_ciphertext_size_limit_never_publishes_an_unrestorable_backup(self):
+        path = self.ssh()
+        # This remains a valid OpenSSH file with trailing whitespace. Its tar
+        # fits below 64 MiB, but age's authenticated chunk framing does not.
+        with path.open('ab') as stream:
+            stream.write(b'\n' * (64 * 1024 * 1024 - 8192 - path.stat().st_size))
+        result = self.run_key('backup', '--ssh', '--output', self.archive, ok=False)
+        self.assertIn(b'Encrypted key backup exceeds the 64 MiB size limit', result.stderr)
+        self.assertFalse(self.archive.exists())
+
     def test_gpg_only_restore_from_all_archive_does_not_create_ssh_files(self):
         key = self.generate('Personal <personal@example.invalid>')
         self.ssh()
