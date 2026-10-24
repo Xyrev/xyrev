@@ -156,14 +156,14 @@ class NativeKeyTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
             return result.stdout
         dotfile('init')
-        self.assertTrue(dotfile('diff').strip())
+        self.assertIn(b'.settings', dotfile('diff'))
         self.assertFalse((self.target / '.settings').exists())
         dotfile('apply')
         dotfile('verify')
         self.assertEqual((self.target / '.settings').read_text(), 'fixture configuration v1\n')
         self.assertEqual((self.target / '.vendor/version').read_text(), 'vendor fixture\n')
         self.assertEqual((self.target / '.Brewfile').read_text(), 'cask "gpg-suite"\n')
-        self.assertFalse(dotfile('diff').strip())
+        self.assertEqual(dotfile('diff').strip(), b'0 change(s), 0 conflict(s)')
         self.assertFalse((self.target / '.gnupg').exists())
         (repository / 'dot_settings').write_text('fixture configuration v2\n')
         commit(repository)
@@ -219,7 +219,15 @@ class NativeKeyTests(unittest.TestCase):
                  '--quick-generate-key', 'Protected <protected@example.invalid>', 'ed25519', 'sign', '0')
         key = next(iter(groups(self.gpg(self.source, '--with-colons', '--fingerprint', '--list-secret-keys'))))
         self.kill(self.source / '.gnupg')
-        self.backup('--gpg')
+        try:
+            self.backup('--gpg')
+        except AssertionError as error:
+            # Only this generated fixture is inspected; private export bytes are discarded.
+            diagnostic = subprocess.run(['gpg', '--no-options', '--no-tty', '--homedir',
+                                         str(self.source / '.gnupg'), '--armor', '--export-secret-keys', key],
+                                        env=self.env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.PIPE, timeout=30)
+            self.fail(str(error) + '\nSynthetic GPG export diagnostic: ' + diagnostic.stderr.decode(errors='replace'))
         (self.target / '.gnupg').mkdir(parents=True, mode=0o700)
         (self.target / '.gnupg/gpg-agent.conf').write_text(config)
         self.restore('--gpg')

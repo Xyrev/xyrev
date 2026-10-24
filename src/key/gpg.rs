@@ -254,8 +254,9 @@ pub(super) fn export(
     public.arg("--armor").arg("--export").args(&selected);
     let public = capture(public, None, "gpg")?;
     let mut secret = Command::new("gpg");
+    // Passphrase entry belongs to the agent/pinentry; the export may have no TTY.
     secret
-        .args(["--no-options", "--homedir"])
+        .args(["--no-options", "--no-tty", "--homedir"])
         .arg(home)
         .env("GNUPGHOME", home)
         .args(["--armor", "--export-secret-keys"])
