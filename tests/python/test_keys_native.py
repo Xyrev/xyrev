@@ -41,16 +41,19 @@ class NativeKeyTests(unittest.TestCase):
         self.root = Path(self.temp.name).resolve()
         self.source, self.target = self.root / 'source', self.root / 'target'
         self.source.mkdir(mode=0o700)
-        (self.source / '.gnupg').mkdir(mode=0o700)
+        # A replaced HOME can still map to the UID's shared default agent socket on Linux.
+        # A non-default keyring forces a unique, path-derived socket namespace.
+        self.source_keyring = self.root / 'source-keyring'
+        self.source_keyring.mkdir(mode=0o700)
         (self.source / '.ssh').mkdir(mode=0o700)
-        self.env = dict(os.environ, HOME=str(self.source), USERPROFILE=str(self.source), GNUPGHOME=str(self.source / '.gnupg'))
+        self.env = dict(os.environ, HOME=str(self.source), USERPROFILE=str(self.source), GNUPGHOME=str(self.source_keyring))
         for name in ('GPG_AGENT_INFO', 'GPG_TTY', 'SSH_AUTH_SOCK', 'SSH_AGENT_PID', 'STOOL_AGE_PASSPHRASE', 'GIT_DIR', 'GIT_WORK_TREE'):
             self.env.pop(name, None)
         self.password = self.root / 'password'
         self.password.write_text("synthetic's archive password\n")
         self.password.chmod(0o600)
         self.archive = self.root / 'keys.tar.age'
-        self.addCleanup(self.kill, self.source / '.gnupg')
+        self.addCleanup(self.kill, self.source_keyring)
         self.addCleanup(self.kill, self.target / '.gnupg')
 
     def kill(self, home):
@@ -58,7 +61,7 @@ class NativeKeyTests(unittest.TestCase):
             subprocess.run(['gpgconf', '--homedir', str(home), '--kill', 'all'], env=dict(self.env, GNUPGHOME=str(home)), capture_output=True, timeout=15)
 
     def gpg(self, root, *args, input=None, ok=True):
-        home = root / '.gnupg'
+        home = self.source_keyring if root == self.source else root / '.gnupg'
         result = subprocess.run(['gpg', '--no-options', '--homedir', str(home), '--batch', '--pinentry-mode', 'loopback', *args],
                                 env=dict(self.env, GNUPGHOME=str(home)), input=input, capture_output=True, timeout=40)
         self.assertEqual(result.returncode == 0, ok, result.stderr.decode(errors='replace'))
@@ -186,7 +189,7 @@ class NativeKeyTests(unittest.TestCase):
         self.assertEqual((self.target / '.ssh/github_rsa').read_bytes(), ssh.read_bytes())
         for key in (personal, work):
             name = key + '.rev'
-            self.assertEqual((self.target / '.gnupg/openpgp-revocs.d' / name).read_bytes(), (self.source / '.gnupg/openpgp-revocs.d' / name).read_bytes())
+            self.assertEqual((self.target / '.gnupg/openpgp-revocs.d' / name).read_bytes(), (self.source_keyring / 'openpgp-revocs.d' / name).read_bytes())
         self.restore()
         self.sign_and_decrypt([personal, work])
 
@@ -214,30 +217,22 @@ class NativeKeyTests(unittest.TestCase):
         pinentry.write_text("#!/bin/sh\nprintf 'OK fixture ready\\n'\nwhile IFS= read -r line; do\n  case \"$line\" in\n    GETPIN*) printf 'D synthetic-original-gpg-passphrase\\n' ;;\n    'GETINFO pid'*) printf 'D %s\\n' \"$$\" ;;\n  esac\n  printf 'OK\\n'\n  [ \"$line\" != BYE ] || break\ndone\n")
         pinentry.chmod(0o700)
         config = 'pinentry-program ' + str(pinentry) + '\n'
-        (self.source / '.gnupg/gpg-agent.conf').write_text(config)
+        (self.source_keyring / 'gpg-agent.conf').write_text(config)
         self.gpg(self.source, '--passphrase', 'synthetic-original-gpg-passphrase',
                  '--quick-generate-key', 'Protected <protected@example.invalid>', 'ed25519', 'sign', '0')
         key = next(iter(groups(self.gpg(self.source, '--with-colons', '--fingerprint', '--list-secret-keys'))))
-        self.kill(self.source / '.gnupg')
-        # Start the fixture agent explicitly: the runner's default pinentry is
-        # terminal-based, while this test intentionally has no controlling TTY.
-        subprocess.run(['gpg-agent', '--homedir', str(self.source / '.gnupg'), '--daemon',
-                        '--pinentry-program', str(pinentry)], env=self.env,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
+        self.kill(self.source_keyring)
         try:
             self.backup('--gpg')
         except AssertionError as error:
             # Only this generated fixture is inspected; private export bytes are discarded.
             diagnostic = subprocess.run(['gpg', '--no-options', '--no-tty', '--homedir',
-                                         str(self.source / '.gnupg'), '--armor', '--export-secret-keys', key],
+                                         str(self.source_keyring), '--armor', '--export-secret-keys', key],
                                         env=self.env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                         stderr=subprocess.PIPE, timeout=30)
             self.fail(str(error) + '\nSynthetic GPG export diagnostic: ' + diagnostic.stderr.decode(errors='replace'))
         (self.target / '.gnupg').mkdir(parents=True, mode=0o700)
         (self.target / '.gnupg/gpg-agent.conf').write_text(config)
-        subprocess.run(['gpg-agent', '--homedir', str(self.target / '.gnupg'), '--daemon',
-                        '--pinentry-program', str(pinentry)], env=dict(self.env, GNUPGHOME=str(self.target / '.gnupg')),
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
         self.restore('--gpg')
         self.kill(self.target / '.gnupg')
         failed = self.gpg(self.target, '--passphrase', 'wrong-original-passphrase',
