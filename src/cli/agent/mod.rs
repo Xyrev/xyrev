@@ -1,14 +1,10 @@
 mod copilot;
 mod init;
 
+pub use copilot::CopilotCommand;
+pub use init::InitCommand;
+
 use clap::{Args, Subcommand};
-
-#[derive(Subcommand, Debug)]
-pub enum Commands {
-    Init(init::InitCommand),
-
-    Copilot(copilot::CopilotCommand),
-}
 
 #[derive(Args, Debug)]
 pub struct AgentCommand {
@@ -16,11 +12,9 @@ pub struct AgentCommand {
     pub command: Commands,
 }
 
-impl AgentCommand {
-    pub fn run(&self, verbose: bool) {
-        match &self.command {
-            Commands::Init(cmd) => cmd.run(verbose),
-            Commands::Copilot(cmd) => cmd.run(verbose),
-        }
-    }
+#[derive(Subcommand, Debug)]
+pub enum Commands {
+    Init(InitCommand),
+
+    Copilot(CopilotCommand),
 }

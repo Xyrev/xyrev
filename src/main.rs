@@ -1,7 +1,9 @@
+mod agent;
 mod cli;
 mod common;
 mod dotfile;
 mod help;
+mod init;
 mod key;
 
 use clap::Parser;
@@ -20,7 +22,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
         cli::Commands::Agent(cmd) => cmd.run(cli.verbose),
         #[cfg(target_os = "macos")]
         cli::Commands::Apple(cmd) => println!("Apple {}", cmd.name),
-        cli::Commands::Dotfile(cmd) => cmd.run(cli.verbose)?,
+        cli::Commands::Dotfile(cmd) => dotfile::run(&cmd, cli.verbose)?,
         cli::Commands::Key(cmd) => key::run(&cmd)?,
         cli::Commands::Completions { shell } => help::completions(shell),
         cli::Commands::Man { output } => help::man(output.as_deref())?,

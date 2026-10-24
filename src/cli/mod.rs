@@ -1,3 +1,5 @@
+//! Command and argument definitions; execution lives in the feature modules.
+
 pub mod agent;
 #[cfg(target_os = "macos")]
 pub mod apple;

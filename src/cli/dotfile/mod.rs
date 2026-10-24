@@ -1,3 +1,15 @@
+mod apply;
+mod archive;
+mod init;
+mod maintenance;
+mod template;
+
+pub use apply::{ApplyArgs, Prompt};
+pub use archive::{ArchiveArgs, ArchiveFormat};
+pub use init::InitArgs;
+pub use maintenance::{AddArgs, EditArgs};
+pub use template::TemplateArgs;
+
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
 
@@ -57,83 +69,4 @@ pub enum Commands {
         #[arg(long)]
         print: bool,
     },
-}
-
-#[derive(Args, Debug)]
-pub struct AddArgs {
-    #[arg(required = true)]
-    pub paths: Vec<PathBuf>,
-    #[arg(long)]
-    pub template: bool,
-    #[arg(long)]
-    pub encrypt: bool,
-}
-#[derive(Args, Debug)]
-pub struct EditArgs {
-    #[arg(required = true)]
-    pub paths: Vec<PathBuf>,
-    #[arg(long)]
-    pub apply: bool,
-}
-#[derive(clap::ValueEnum, Clone, Copy, Debug)]
-pub enum ArchiveFormat {
-    Tar,
-    Tgz,
-    Zip,
-}
-#[derive(Args, Debug)]
-pub struct ArchiveArgs {
-    #[arg(long, value_enum, default_value = "tar")]
-    pub format: ArchiveFormat,
-    #[arg(short, long)]
-    pub output: PathBuf,
-}
-#[derive(Args, Debug)]
-pub struct TemplateArgs {
-    pub template: Option<String>,
-    #[arg(long, conflicts_with = "template")]
-    pub file: Option<PathBuf>,
-    #[arg(long)]
-    pub init: bool,
-}
-#[derive(Args, Debug)]
-pub struct InitArgs {
-    /// HTTPS, SSH, or file:// Git URL
-    pub repo: String,
-    #[arg(long)]
-    pub branch: Option<String>,
-    /// Deploy after cloning
-    #[arg(long)]
-    pub apply: bool,
-    #[arg(long)]
-    pub recurse_submodules: bool,
-    /// Clone using the built-in Git backend
-    #[arg(long)]
-    pub builtin: bool,
-}
-
-#[derive(Args, Debug, Default)]
-pub struct ApplyArgs {
-    #[arg(long)]
-    pub dry_run: bool,
-    /// Back up and overwrite conflicting destination entries
-    #[arg(long)]
-    pub force: bool,
-    /// Interactive conflict handling (auto only prompts on a terminal)
-    #[arg(long, value_enum, default_value = "auto")]
-    pub prompt: Prompt,
-}
-
-#[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
-pub enum Prompt {
-    #[default]
-    Auto,
-    Always,
-    Never,
-}
-
-impl DotfileCommand {
-    pub fn run(&self, verbose: bool) -> anyhow::Result<()> {
-        crate::dotfile::run(self, verbose)
-    }
 }

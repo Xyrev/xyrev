@@ -6,6 +6,8 @@
 
 ## 1. 模块与数据流
 
+CLI 入口为 `src/cli/mod.rs`。简单命令使用单文件（`init.rs`、仅 macOS 的 `apple.rs`），命令组使用 `agent/`、`dotfile/`、`key/` 目录。组内 `mod.rs` 定义子命令和统一导出，具体参数按用途拆分；dotfile 的导入/编辑参数共用 `maintenance.rs`，key 的类别选择由 `selection.rs` 共用。CLI 只定义命令和参数；执行逻辑位于 `src/init.rs`、`src/agent/`、`src/dotfile/`、`src/key/`，由 `main.rs` 分发。业务模块仍通过 `cli::dotfile` / `cli::key` 导入参数类型。
+
 当前 dotfile 代码位于同一 Rust crate 中：
 
 | 职责 | 模块 |
@@ -18,7 +20,7 @@
 | 计划、冲突与应用顺序 | [plan.rs](../src/dotfile/plan.rs) |
 | 脚本幂等与子进程 | [scripts.rs](../src/dotfile/scripts.rs)、[process.rs](../src/dotfile/process.rs) |
 | 普通文件加密 | [crypto.rs](../src/dotfile/crypto.rs) |
-| 独立离线密钥 | [src/key/](../src/key/mod.rs)、[CLI](../src/cli/key.rs) |
+| 独立离线密钥 | [src/key/](../src/key/mod.rs)、[CLI](../src/cli/key/mod.rs) |
 | Git、gix 与前置检查 | [git.rs](../src/dotfile/git.rs)、[native_git.rs](../src/dotfile/native_git.rs)、[prerequisites.rs](../src/dotfile/prerequisites.rs) |
 | 秘密、外部资源与归档 | [secrets.rs](../src/dotfile/secrets.rs)、[external.rs](../src/dotfile/external.rs)、[archive.rs](../src/dotfile/archive.rs) |
 | 导入/编辑、辅助命令与交互 | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs)、[ui.rs](../src/dotfile/ui.rs) |
@@ -91,7 +93,7 @@ namespace 根据 source/destination 配对生成，防止隔离试运行与真�
 
 ## 6. 独立离线密钥生命周期
 
-`src/cli/key.rs` 定义 `stool key backup/restore`，`src/key/mod.rs` 负责路径、密码、单文件容器、清单和恢复编排，`gpg.rs` / `ssh.rs` 分别导出与校验。默认全部类别，显式开关互斥；不加载 dotfile 配置、Plan、锁或状态。参数与包格式详见 [离线密钥说明](key-backup.md)。
+`src/cli/key/mod.rs` 定义 `stool key backup/restore`，`src/key/mod.rs` 负责路径、密码、单文件容器、清单和恢复编排，`gpg.rs` / `ssh.rs` 分别导出与校验。默认全部类别，显式开关互斥；不加载 dotfile 配置、Plan、锁或状态。参数与包格式详见 [离线密钥说明](key-backup.md)。
 
 备份枚举全部可导出 GPG 组和 `.ssh` 真实私钥，检查完整主/子指纹、稳定清单及公私钥配对，保存对应 ownertrust 和已有撤销证书。缺失、硬件材料和 agent-only SSH 私钥有明确警告。私钥保留原口令；不导出整份数据库或运行 SSH 配置中的命令。
 
