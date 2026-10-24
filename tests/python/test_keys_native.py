@@ -219,6 +219,11 @@ class NativeKeyTests(unittest.TestCase):
                  '--quick-generate-key', 'Protected <protected@example.invalid>', 'ed25519', 'sign', '0')
         key = next(iter(groups(self.gpg(self.source, '--with-colons', '--fingerprint', '--list-secret-keys'))))
         self.kill(self.source / '.gnupg')
+        # Start the fixture agent explicitly: the runner's default pinentry is
+        # terminal-based, while this test intentionally has no controlling TTY.
+        subprocess.run(['gpg-agent', '--homedir', str(self.source / '.gnupg'), '--daemon',
+                        '--pinentry-program', str(pinentry)], env=self.env,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
         try:
             self.backup('--gpg')
         except AssertionError as error:
@@ -230,6 +235,9 @@ class NativeKeyTests(unittest.TestCase):
             self.fail(str(error) + '\nSynthetic GPG export diagnostic: ' + diagnostic.stderr.decode(errors='replace'))
         (self.target / '.gnupg').mkdir(parents=True, mode=0o700)
         (self.target / '.gnupg/gpg-agent.conf').write_text(config)
+        subprocess.run(['gpg-agent', '--homedir', str(self.target / '.gnupg'), '--daemon',
+                        '--pinentry-program', str(pinentry)], env=dict(self.env, GNUPGHOME=str(self.target / '.gnupg')),
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=30)
         self.restore('--gpg')
         self.kill(self.target / '.gnupg')
         failed = self.gpg(self.target, '--passphrase', 'wrong-original-passphrase',
