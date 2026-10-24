@@ -186,13 +186,13 @@ fn hidden_source_metadata_is_ignored_while_encoded_dotfiles_are_managed() {
     ]);
     success(sandbox.init(&[]));
     let managed = success(sandbox.cli(&["managed"]));
-    assert!(managed.contains(
-        sandbox
-            .destination
-            .join(".config/.visible")
-            .to_str()
-            .unwrap()
-    ));
+    let visible = sandbox.destination.join(".config").join(".visible");
+    assert!(
+        managed
+            .lines()
+            .any(|line| git_path(Path::new(line)) == visible),
+        "Expected managed path {visible:?} in:\n{managed}"
+    );
     assert!(!managed.contains("repository-notes"));
     assert!(!managed.contains("accidental"));
     assert!(!managed.contains("editor-state"));
