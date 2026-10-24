@@ -10,11 +10,12 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import tomllib
 import unittest
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = 'v0.6.0'
+VERSION = 'v' + tomllib.loads((ROOT / 'Cargo.toml').read_text())['package']['version']
 DOWNLOAD = r'''
 import json, os, pathlib, shutil, sys
 args = sys.argv[1:]
@@ -23,10 +24,10 @@ with open(os.environ['INSTALL_TEST_LOG'], 'a') as stream:
     stream.write(json.dumps(url) + '\n')
 if '--write-out' in args:
     assert url == 'https://github.com/szwathub/stool/releases/latest'
-    print('https://github.com/szwathub/stool/releases/tag/' + os.environ.get('INSTALL_TEST_LATEST_VERSION', 'v0.6.0'), end='')
+    print('https://github.com/szwathub/stool/releases/tag/' + os.environ.get('INSTALL_TEST_LATEST_VERSION', os.environ['INSTALL_TEST_RELEASE_VERSION']), end='')
     raise SystemExit(0)
 if '--spider' in args:
-    print('  Location: https://github.com/szwathub/stool/releases/tag/' + os.environ.get('INSTALL_TEST_LATEST_VERSION', 'v0.6.0') + ' [following]', file=sys.stderr)
+    print('  Location: https://github.com/szwathub/stool/releases/tag/' + os.environ.get('INSTALL_TEST_LATEST_VERSION', os.environ['INSTALL_TEST_RELEASE_VERSION']) + ' [following]', file=sys.stderr)
     raise SystemExit(0)
 if '--output' in args:
     output = args[args.index('--output') + 1]
@@ -62,7 +63,7 @@ class InstallerTests(unittest.TestCase):
         self.log = self.root / 'download-log'
         self.env = dict(os.environ, HOME=str(self.home), PATH=str(self.bin),
                         TMPDIR=str(self.tmp), VERSION=VERSION,
-                        INSTALL_TEST_LOG=str(self.log), INSTALL_TEST_ASSETS=str(self.assets))
+                        INSTALL_TEST_LOG=str(self.log), INSTALL_TEST_ASSETS=str(self.assets), INSTALL_TEST_RELEASE_VERSION=VERSION)
         self.env.pop('PREFIX', None)
         self.env.pop('INSTALL_TEST_FAIL', None)
         # GNU tar invokes gzip externally for -xzf; expose that dependency too.
@@ -78,7 +79,7 @@ class InstallerTests(unittest.TestCase):
     def platform(self, system, arch, libc='glibc'):
         self.env.update(INSTALL_TEST_OS=system, INSTALL_TEST_ARCH=arch, INSTALL_TEST_LIBC=libc)
 
-    def fixture(self, target='aarch64-apple-darwin', checksum='valid', executable_version='0.6.0'):
+    def fixture(self, target='aarch64-apple-darwin', checksum='valid', executable_version=VERSION[1:]):
         base = 'stool-' + VERSION + '-' + target
         windows = target.endswith('windows-msvc')
         name = base + ('.zip' if windows else '.tar.gz')
@@ -123,15 +124,15 @@ class InstallerTests(unittest.TestCase):
     def test_fresh_machine_without_git_installs_verified_release(self):
         name = self.fixture()
         self.assertIsNone(shutil.which('git', path=self.env['PATH']))
-        self.env['VERSION'] = '0.6.0'
+        self.env['VERSION'] = VERSION[1:]
         self.run_installer()
         binary = self.home / '.local/bin/stool'
         result = subprocess.check_output([str(binary), '--version'], text=True)
-        self.assertEqual(result, 'stool 0.6.0\n')
+        self.assertEqual(result, 'stool ' + VERSION[1:] + '\n')
         self.assertEqual(stat.S_IMODE(binary.stat().st_mode), 0o755)
         self.assertEqual(self.downloads(), [
-            'https://github.com/szwathub/stool/releases/download/v0.6.0/' + name,
-            'https://github.com/szwathub/stool/releases/download/v0.6.0/SHA256SUMS.txt',
+            'https://github.com/szwathub/stool/releases/download/' + VERSION + '/' + name,
+            'https://github.com/szwathub/stool/releases/download/' + VERSION + '/SHA256SUMS.txt',
         ])
         self.assertEqual(list(binary.parent.glob('.stool-install.*')), [])
 

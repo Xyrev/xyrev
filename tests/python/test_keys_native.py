@@ -114,10 +114,30 @@ class NativeKeyTests(unittest.TestCase):
         work = self.generate('Work <work@example.invalid>')
         identity = self.ssh()
         self.backup()
+        repository = self.root / 'dotfiles'
+        vendor = self.root / 'vendor'
+        git_env = dict(self.env, GIT_CONFIG_GLOBAL='/dev/null', GIT_CONFIG_NOSYSTEM='1', GIT_ALLOW_PROTOCOL='file')
+        def git(directory, *args):
+            subprocess.run(['git', '-C', str(directory), '-c', 'user.name=Fixture', '-c',
+                            'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', *args],
+                           env=git_env, capture_output=True, check=True, timeout=30)
+        def commit(directory):
+            git(directory, 'add', '.')
+            git(directory, 'commit', '-m', 'fixture')
+        for directory in (vendor, repository):
+            directory.mkdir()
+            git(directory, 'init', '-b', 'main')
+        (vendor / 'version').write_text('vendor fixture\n')
+        commit(vendor)
+        (repository / 'dot_settings').write_text('fixture configuration v1\n')
+        (repository / 'dot_Brewfile').write_text('cask "gpg-suite"\n')
+        git(repository, 'submodule', 'add', vendor.as_uri(), 'dot_vendor')
+        commit(repository)
         empty_path = self.root / 'empty-path'
         empty_path.mkdir()
-        env = dict(self.env, HOME=str(self.target), USERPROFILE=str(self.target), PATH=str(empty_path))
-        result = subprocess.run([self.binary, 'init', '--dotfile-url', 'https://example.invalid/private.git',
+        env = dict(git_env, HOME=str(self.target), USERPROFILE=str(self.target), PATH=str(empty_path),
+                   GNUPGHOME=str(self.target / '.gnupg'))
+        result = subprocess.run([self.binary, 'init', '--dotfile-url', repository.as_uri(),
                                  '--key-file', str(self.archive), '--passphrase-file', str(self.password)],
                                 cwd=self.root, env=env, capture_output=True, timeout=90)
         self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
@@ -127,8 +147,29 @@ class NativeKeyTests(unittest.TestCase):
         self.assertFalse((self.target / '.gnupg').exists())
         self.assertFalse((self.target / '.stool/dotfile').exists())
         config = (self.target / '.stool/config.toml').read_text()
-        self.assertIn('https://example.invalid/private.git', config)
+        self.assertIn(repository.as_uri(), config)
         self.assertNotIn(str(self.archive), config)
+        env['PATH'] = self.env['PATH']
+        def dotfile(*args):
+            result = subprocess.run([self.binary, 'dotfile', *args], cwd=self.root, env=env,
+                                    capture_output=True, timeout=90)
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+            return result.stdout
+        dotfile('init')
+        self.assertTrue(dotfile('diff').strip())
+        self.assertFalse((self.target / '.settings').exists())
+        dotfile('apply')
+        dotfile('verify')
+        self.assertEqual((self.target / '.settings').read_text(), 'fixture configuration v1\n')
+        self.assertEqual((self.target / '.vendor/version').read_text(), 'vendor fixture\n')
+        self.assertEqual((self.target / '.Brewfile').read_text(), 'cask "gpg-suite"\n')
+        self.assertFalse(dotfile('diff').strip())
+        self.assertFalse((self.target / '.gnupg').exists())
+        (repository / 'dot_settings').write_text('fixture configuration v2\n')
+        commit(repository)
+        dotfile('update')
+        dotfile('verify')
+        self.assertEqual((self.target / '.settings').read_text(), 'fixture configuration v2\n')
         self.restore('--gpg')
         self.sign_and_decrypt([personal, work])
 
@@ -170,7 +211,7 @@ class NativeKeyTests(unittest.TestCase):
         # Only synthetic credentials are embedded here. A private pinentry stub
         # serves the agent protocol without accessing the user's keyring/UI.
         pinentry = self.root / 'pinentry-fixture'
-        pinentry.write_text("#!/usr/bin/env python3\nimport sys\nprint('OK fixture ready', flush=True)\nfor line in sys.stdin:\n    command=line.split()[0] if line.split() else ''\n    if command == 'GETPIN': print('D synthetic-original-gpg-passphrase', flush=True)\n    print('OK', flush=True)\n    if command == 'BYE': break\n")
+        pinentry.write_text("#!/bin/sh\nprintf 'OK fixture ready\\n'\nwhile IFS= read -r line; do\n  case \"$line\" in\n    GETPIN*) printf 'D synthetic-original-gpg-passphrase\\n' ;;\n    'GETINFO pid'*) printf 'D %s\\n' \"$$\" ;;\n  esac\n  printf 'OK\\n'\n  [ \"$line\" != BYE ] || break\ndone\n")
         pinentry.chmod(0o700)
         config = 'pinentry-program ' + str(pinentry) + '\n'
         (self.source / '.gnupg/gpg-agent.conf').write_text(config)

@@ -34,7 +34,7 @@ CLI 层只定义参数，业务代码按功能组织，共享基础工具放在 
 
 ## 当前源码与版本边界
 
-项目、Cargo package/bin 和仓库统一为 `stool` / `szwathub/stool`，当前 Cargo 版本为 0.6.0。本次 `stool init`、dotfile 默认 URL/递归子模块、`stool key` 和 macOS 的 `stool apple init` / `stool apple brew` 属于待发布改动，历史 tag 与发行包不因此改变；先确认 `stool key --help`，需要时[从源码构建](#从源码构建)。
+项目、Cargo package/bin 和仓库统一为 `stool` / `szwathub/stool`，当前版本为 0.7.0，提供 `stool init`、dotfile 默认 URL/递归子模块、独立 `stool key` 和 macOS 的 `stool apple init` / `stool apple brew`。历史 tag 与发行包保持原样。
 
 控制项、模板数据/指令、环境变量和默认目录使用 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*` 和 `~/.stool`。不自动读取旧命名，也不复制旧状态。旧环境需重新初始化并检查 source、资源引用、待执行脚本和目标冲突。
 
@@ -44,10 +44,10 @@ CLI 层只定义参数，业务代码按功能组织，共享基础工具放在 
 
 发布包安装器 `install.sh` 按平台下载已编译 binary 并校验 SHA-256，无需先安装 Rust、Git 或 Homebrew。`VERSION` 选择已发布版本，`PREFIX` 选择安装前缀（binary 在 `$PREFIX/bin/stool`），新安装器只接受 stool v0.6.0 起的稳定 Release；`latest` 仍指向历史包时会停止。源码更新不等于新包已经发布。
 
-macOS / Linux 从 [Releases](https://github.com/szwathub/stool/releases) 选择已发布且资产完整的稳定版本，将下方 `vX.Y.Z` 替换为该版本。固定同一 tag 的安装器和 `VERSION`，避免源码与发行包混用；`PREFIX` 可在运行安装器时另行指定。
+macOS / Linux 安装当前稳定版 [v0.7.0](https://github.com/szwathub/stool/releases/tag/v0.7.0)。固定同一 tag 的安装器和 `VERSION`，避免源码与发行包混用；`PREFIX` 可在运行安装器时另行指定。
 
 ```bash
-stool_version=vX.Y.Z
+stool_version=v0.7.0
 curl -fsSL "https://raw.githubusercontent.com/szwathub/stool/$stool_version/install.sh" \
   | VERSION="$stool_version" bash
 export PATH="$HOME/.local/bin:$PATH"
@@ -56,7 +56,7 @@ stool --version
 
 PATH 设置只影响当前终端；zsh 可将 export 加入 `~/.zprofile`，Fish 可用 `fish_add_path ~/.local/bin`。指定其他 `PREFIX` 时将对应的 `bin` 目录加入 PATH。Windows 下载对应 ZIP 和 `SHA256SUMS.txt`，校验后解压使用其中的 `stool.exe`。
 
-使用离线密钥功能前运行 `stool key --help` 确认命令可用；旧发行包不包含当前待发布功能，需要时[从源码构建](#从源码构建)。也可在旧机器构建后将适配新机架构的 binary 转入新机，无需在新机安装 Rust。安装完成后的 Git 认证、dotfiles 部署和 GPG/SSH 恢复统一见[新 Mac 流程](#新-mac-初始化私有-dotfiles)，各版本差异见[版本说明](RELEASE_NOTES.md)。
+使用离线密钥功能需 stool v0.7.0 或更新版本，可用 `stool key --help` 确认。也可在旧机器构建后将适配新机架构的 binary 转入新机，无需在新机安装 Rust。安装完成后的 Git 认证、dotfiles 部署和 GPG/SSH 恢复统一见[新 Mac 流程](#新-mac-初始化私有-dotfiles)，各版本差异见[版本说明](RELEASE_NOTES.md)。
 
 ### 历史版本安装
 
@@ -97,7 +97,7 @@ stool init --dotfile-url https://github.com/szwathub/dotfiles.git --dry-run
 
 ## macOS 偏好初始化
 
-此命令仅在 macOS 提供，使用包含 `apple init` 的当前源码构建；旧发行包不会自动增加此入口。安装 stool 后即可独立执行，无需 Git、Homebrew 或 dotfiles：
+此命令在 stool v0.7.0 起提供，仅限 macOS。安装 stool 后即可独立执行，无需 Git、Homebrew 或 dotfiles：
 
 ```bash
 stool apple init --help
@@ -113,7 +113,7 @@ stool apple init
 
 ## Homebrew 与软件包
 
-仅 macOS 提供，需使用包含 `apple brew` 的当前源码构建；这些能力属于待发布源码，旧发行包保持原行为。
+stool v0.7.0 起提供，仅限 macOS。
 
 ```bash
 stool apple brew init --dry-run
@@ -145,7 +145,7 @@ stool apple brew install --file /path/to/Brewfile
 
 `szwathub/stool` 公开，`szwathub/dotfiles` 私有。Git 认证、外层离线备份密码、各 GPG/SSH 私钥原口令和管理员密码分别管理。
 
-以下命令在 macOS 的 zsh 中执行。先安装包含基础初始化和 `stool key` 的构建，确认 `stool init --help` 含 `--dotfile-url/--key-file` 且 `stool key --help` 可用；本次基础初始化、离线密钥和 Apple 命令属于待发布源码，旧 tag 的安装器和 binary 不会自动获得这些命令。当前可[从源码构建](#从源码构建)，正式发布包安装不需要 Rust。
+以下命令在 macOS 的 zsh 中执行。先按[安装说明](#安装与版本边界)安装 stool v0.7.0 或更新版本，确认 `stool init --help` 含 `--dotfile-url/--key-file` 且 `stool key --help` 可用。发布包安装不需要 Rust。
 
 ### 先转入离线备份并初始化
 

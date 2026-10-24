@@ -149,6 +149,7 @@ jobs:
           binary="target/$TARGET/release/stool"
           case "$TARGET" in *-windows-*) binary="$binary.exe" ;; esac
           test "$("$binary" --version)" = "stool $VERSION"
+          "$binary" init --help
           "$binary" dotfile init --help
           "$binary" key backup --help
           "$binary" key restore --help
@@ -158,6 +159,10 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           python scripts/package-release.py --target "$TARGET" --tag "$GITHUB_REF_NAME" --output artifacts
+      - name: Verify fresh Linux initialization, deployment and staged key recovery
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: python scripts/verify-release.py --tag "$GITHUB_REF_NAME" --binary target/x86_64-unknown-linux-gnu/release/stool
       - uses: actions/upload-artifact@v4
         with:
           name: stool-${{ matrix.target }}
@@ -210,3 +215,7 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           make_latest: ${{ needs.validate.outputs.prerelease == 'false' }}
+      - name: Verify the published installer and complete new-machine workflow
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 scripts/verify-release.py --tag "$GITHUB_REF_NAME"

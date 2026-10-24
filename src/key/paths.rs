@@ -31,6 +31,11 @@ pub(super) fn checked(path: &Path) -> Result<PathBuf> {
         match component {
             Component::ParentDir => bail!("Parent traversal is not allowed in key paths"),
             Component::CurDir => continue,
+            Component::Prefix(_) => {
+                // A drive/UNC prefix is not a filesystem entry until its root is appended.
+                current.push(component.as_os_str());
+                continue;
+            }
             _ => current.push(component.as_os_str()),
         }
         match fs::symlink_metadata(&current) {
@@ -116,3 +121,7 @@ pub(super) fn read(path: &Path) -> Result<SecretVec<u8>> {
     std::io::copy(&mut file, &mut bytes)?;
     Ok(bytes.finish())
 }
+
+#[cfg(all(test, windows))]
+#[path = "../../tests/unit/key/paths_windows.rs"]
+mod windows_tests;
