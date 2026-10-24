@@ -3,16 +3,23 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build, validate and publish
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
   cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   validate:
@@ -22,6 +29,8 @@ jobs:
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -33,7 +42,7 @@ jobs:
           from pathlib import Path
           package = tomllib.loads(Path('Cargo.toml').read_text())['package']
           version = package['version']
-          tag = os.environ['GITHUB_REF_NAME']
+          tag = os.environ['RELEASE_TAG']
           if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?', tag):
               raise SystemExit('Expected a vMAJOR.MINOR.PATCH release tag')
           if tag != 'v' + version:
@@ -50,10 +59,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14, windows-2022]
+        os: [ubuntu-22.04, macos-latest, windows-2022]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -103,6 +114,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: '1.74.0'
@@ -129,6 +142,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -158,11 +173,11 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          python scripts/package-release.py --target "$TARGET" --tag "$GITHUB_REF_NAME" --output artifacts
+          python scripts/package-release.py --target "$TARGET" --tag "$RELEASE_TAG" --output artifacts
       - name: Verify fresh Linux initialization, deployment and staged key recovery
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         shell: bash
-        run: python scripts/verify-release.py --tag "$GITHUB_REF_NAME" --binary target/x86_64-unknown-linux-gnu/release/stool
+        run: python scripts/verify-release.py --tag "$RELEASE_TAG" --binary target/x86_64-unknown-linux-gnu/release/stool
       - uses: actions/upload-artifact@v4
         with:
           name: stool-${{ matrix.target }}
@@ -176,6 +191,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
       - uses: actions/download-artifact@v4
         with:
           pattern: stool-*
@@ -188,7 +205,7 @@ jobs:
           for target in x86_64-unknown-linux-gnu x86_64-unknown-linux-musl aarch64-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows-msvc; do
             suffix=tar.gz
             case "$target" in *-windows-*) suffix=zip ;; esac
-            test -s "artifacts/stool-$GITHUB_REF_NAME-$target.$suffix"
+            test -s "artifacts/stool-$RELEASE_TAG-$target.$suffix"
           done
           cd artifacts
           sha256sum *.tar.gz *.zip | sort -k2 > SHA256SUMS.txt
@@ -199,7 +216,7 @@ jobs:
           python3 - <<'PYTHON'
           import os, re
           from pathlib import Path
-          tag = os.environ['GITHUB_REF_NAME']
+          tag = os.environ['RELEASE_TAG']
           sections = re.split(r'(?m)^# ', Path('RELEASE_NOTES.md').read_text())
           matching = [section for section in sections if section.splitlines() and section.splitlines()[0] == 'stool ' + tag]
           if len(matching) != 1:
@@ -209,6 +226,7 @@ jobs:
       - name: Publish release after all checks and uploads succeed
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: artifacts/*
           fail_on_unmatched_files: true
           body_path: release-notes.md
@@ -218,4 +236,4 @@ jobs:
       - name: Verify the published installer and complete new-machine workflow
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-        run: python3 scripts/verify-release.py --tag "$GITHUB_REF_NAME"
+        run: python3 scripts/verify-release.py --tag "$RELEASE_TAG"
