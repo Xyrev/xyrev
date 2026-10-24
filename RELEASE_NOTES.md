@@ -1,3 +1,9 @@
+# 待发布
+
+GPG 与 SSH 改为独立 `stool key backup/restore`：默认全部类别、单个密码加密 tar.age 文件、默认当前目录备份和 HOME 手动恢复。离线包、公钥、私钥和密码均在 Git 仓库外；SSH 可先于 Git/GPG 和 dotfiles 初始化恢复。完整参数及范围见 [离线说明](docs/key-backup.md)。
+
+删除旧 dotfile gpg CLI、自动恢复计划/状态与旧 GPG 格式兼容；普通 dotfile 加密不变。dotfiles 仅保存配置和个人/Work 签名指纹。先备份并隔离验证，再删除仓库中的旧备份。本节属于当前源码，尚未发布新版本；以下保留历史记录及当时的命令。
+
 # stool v0.6.0
 
 项目与命令从 xyrev 更名为 stool，代码仓库为 `szwathub/stool`。历史 xyrev v0.5.0 及更早版本的记录、脚本、资源和校验和保留原样。

@@ -3345,6 +3345,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "stool"
+version = "0.6.0"
+dependencies = [
+ "age",
+ "anyhow",
+ "base64 0.21.7",
+ "cfg-if",
+ "clap",
+ "clap_complete",
+ "clap_mangen",
+ "crossterm",
+ "dunce",
+ "encoding_rs",
+ "flate2",
+ "fs2",
+ "gix",
+ "globset",
+ "libc",
+ "minijinja",
+ "ratatui",
+ "redb",
+ "rpassword",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "shell-words",
+ "similar",
+ "tar",
+ "tempfile",
+ "termcolor",
+ "toml 0.8.23",
+ "ureq",
+ "windows-sys 0.48.0",
+ "zip",
+]
+
+[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4312,44 +4351,6 @@ checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
 dependencies = [
  "libc",
  "rustix 1.1.5",
-]
-
-[[package]]
-name = "stool"
-version = "0.6.0"
-dependencies = [
- "age",
- "anyhow",
- "cfg-if",
- "clap",
- "clap_complete",
- "clap_mangen",
- "crossterm",
- "dunce",
- "encoding_rs",
- "flate2",
- "fs2",
- "gix",
- "globset",
- "libc",
- "minijinja",
- "ratatui",
- "redb",
- "rpassword",
- "semver",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "shell-words",
- "similar",
- "tar",
- "tempfile",
- "termcolor",
- "toml 0.8.23",
- "ureq",
- "windows-sys 0.48.0",
- "zip",
 ]
 
 [[package]]

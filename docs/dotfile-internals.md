@@ -1,6 +1,6 @@
 # stool dotfile 实现说明
 
-> 更新日期：2026-10-24。本文描述 stool v0.6.0 的 Rust 实现、状态与安全边界；历史 xyrev v0.5.0 的发行包和行为保持原样。
+> 更新日期：2026-10-24。本文描述当前源码的 Rust 实现、状态与安全边界，离线密钥功能待发布；历史 xyrev v0.5.0 的发行包和行为保持原样。
 
 产品能力见 [概览](dotfile-overview.md)，协议与新机器流程见 [设计文档](dotfile-design.md)，命令参数见 [README](../README.md) 和 `stool dotfile --help`。
 
@@ -17,7 +17,8 @@
 | MiniJinja、数据与初始化提示 | [template.rs](../src/dotfile/template.rs) |
 | 计划、冲突与应用顺序 | [plan.rs](../src/dotfile/plan.rs) |
 | 脚本幂等与子进程 | [scripts.rs](../src/dotfile/scripts.rs)、[process.rs](../src/dotfile/process.rs) |
-| 普通文件加密与 GPG 密钥管理 | [crypto.rs](../src/dotfile/crypto.rs)、[gpg.rs](../src/dotfile/gpg.rs) |
+| 普通文件加密 | [crypto.rs](../src/dotfile/crypto.rs) |
+| 独立离线密钥 | [src/key/](../src/key/mod.rs)、[CLI](../src/cli/key.rs) |
 | Git、gix 与前置检查 | [git.rs](../src/dotfile/git.rs)、[native_git.rs](../src/dotfile/native_git.rs)、[prerequisites.rs](../src/dotfile/prerequisites.rs) |
 | 秘密、外部资源与归档 | [secrets.rs](../src/dotfile/secrets.rs)、[external.rs](../src/dotfile/external.rs)、[archive.rs](../src/dotfile/archive.rs) |
 | 导入/编辑、辅助命令与交互 | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs)、[ui.rs](../src/dotfile/ui.rs) |
@@ -56,8 +57,7 @@ MiniJinja 引擎提供严格缺失变量、受控 include、编码/换行指令�
 
 1. before 钩子。
 2. 文件与 during 脚本，按解码目标路径组织。
-3. 原生 GPG 恢复计划。
-4. after 钩子。
+3. after 钩子。
 
 文件在同目录写入临时文件、设权限后替换；覆盖和显式删除前保存备份。每个成功项及时记账，中途失败保留已完成项，重试重新比较实际状态。数据库写入和目标文件变更不是跨文件整体事务。
 
@@ -68,7 +68,7 @@ MiniJinja 引擎提供严格缺失变量、受控 include、编码/换行指令�
 | 存储 | 内容 |
 |---|---|
 | `config.toml` | 来源 URL、分支、目录、Git 选项、本机数据及工具配置 |
-| `state/<namespace>.json` | 文件/目录/链接基线及最近成功 GPG 恢复摘要 |
+| `state/<namespace>.json` | 文件/目录/链接基线 |
 | `state/scripts.redb` | once/onchange 的成功状态 |
 | `backups/` | 覆盖前内容、权限与操作元数据 |
 | `cache/` | 部署时持久保存的外部资源缓存 |
@@ -79,42 +79,35 @@ namespace 根据 source/destination 配对生成，防止隔离试运行与真�
 
 ### 4.1 旧环境重新初始化
 
-程序只加载新命名下的本机配置与状态，不包含旧状态迁移模块。升级时使用新协议 source 重新 `init`，新 namespace 的基线和成功记录从实际部署建立，不继承旧 once/onchange 或 GPG 恢复摘要。旧控制目录保持原样；本机配置和仓库外凭据路径需重新设置，部署前检查待执行脚本及冲突。既有 GPG 备份格式的读取兼容与本机状态迁移无关，继续保留。操作步骤见 [设计文档](dotfile-design.md#14-旧控制目录迁移)。
+程序只加载新命名下的本机配置与状态，不包含旧状态迁移模块。升级时使用新协议 source 重新 `init`，新 namespace 的基线和成功记录从实际部署建立，不继承旧 once/onchange 成功记录。旧控制目录保持原样；本机配置和仓库外凭据路径需重新设置，部署前检查待执行脚本及冲突。旧 GPG 格式和自动恢复接口不兼容；先创建并验证新的离线包。操作步骤见 [设计文档](dotfile-design.md#14-旧控制目录迁移)。
 
 ## 5. 普通文件加密与秘密
 
-内部 age 支持 X25519、多接收方、armor 和密码处理；普通 GPG 加解密使用本机子进程管道。普通密文通过 `add --encrypt` 导入、`edit` 修改后重加密、`apply` 解密部署。交互编辑为编辑器创建私有临时工作文件，这与原生 GPG 密钥备份的明文处理边界不同。
+内部 age 支持 X25519、多接收方、armor 和密码处理；普通 GPG 加解密使用本机子进程管道。普通密文通过 `add --encrypt` 导入、`edit` 修改后重加密、`apply` 解密部署。交互编辑为编辑器创建私有临时工作文件，离线密钥备份则只以内存和管道处理中间明文。
 
-当前 develop 移除了独立 `encrypt` / `decrypt` CLI；内部实现、`keygen`、普通文件流程和 GPG 密钥命令仍保留。完整兼容性变更见 [设计文档](dotfile-design.md#13-本版兼容性变更)。
+当前 develop 移除了独立 `encrypt` / `decrypt` CLI；内部实现、`keygen`、普通文件流程仍保留；密钥改由独立 `stool key` 处理。完整兼容性变更见 [设计文档](dotfile-design.md#13-本版兼容性变更)。
 
 秘密提供器调用已认证的 CLI 或系统存储，并在同一进程内复用相同请求结果。秘密缓存不持久化，失败输出受隐藏处理；服务自己的认证与副作用仍由服务及其工具负责。
 
-## 6. 原生 GPG 生命周期
+## 6. 独立离线密钥生命周期
 
-备份默认枚举 GPG secret keyring，按完整主指纹收集含有可导出本地主密钥或子密钥的组，导出可用私钥、对应公钥和 ownertrust；只含公钥的条目不纳入，过期或撤销的本地密钥仍保留。离线主密钥配有本机私有子密钥时也会纳入；缺失或硬件私钥只能保留公开部分，提示其私钥无法从备份恢复。完全没有本地可导出私钥的组跳过并提示；空集合在读取密码或改写备份前失败。
+`src/cli/key.rs` 定义 `stool key backup/restore`，`src/key/mod.rs` 负责路径、密码、单文件容器、清单和恢复编排，`gpg.rs` / `ssh.rs` 分别导出与校验。默认全部类别，显式开关互斥；不加载 dotfile 配置、Plan、锁或状态。参数与包格式详见 [离线密钥说明](key-backup.md)。
 
-可选 `--fingerprint` 按完整主指纹筛选，拒绝不存在或完全不可导出的显式选择。覆盖前检查既有清单及 `public.asc`，拒绝遗漏旧主/子指纹；若既有组当前含不可导出组件，旧格式缺少原私钥可用性记录，无法证明旧私钥材料不丢失，因此保守拒绝。部分私钥组可首次备份到新目录，重复备份时需保留原目录并使用全新 `--output`，不读取旧密码或合并旧密文。新输出通过校验后写入暂存目录，再发布备份数据和清单。
+备份枚举全部可导出 GPG 组和 `.ssh` 真实私钥，检查完整主/子指纹、稳定清单及公私钥配对，保存对应 ownertrust 和已有撤销证书。缺失、硬件材料和 agent-only SSH 私钥有明确警告。私钥保留原口令；不导出整份数据库或运行 SSH 配置中的命令。
 
-| 文件 | 内容 |
-|---|---|
-| `public.asc` | 公钥与公开身份 |
-| `secret.asc.age` | 私钥导出的 age 密文 |
-| `ownertrust.txt.age` | 所选密钥的信任数据密文 |
-| `backup-metadata.sh` | 模式、完整主指纹和摘要；严格解析的数据，不执行 Shell |
+内存中构造 tar，JSON 清单包含版本、文件摘要及材料标记；整体由 age 密码加密，公钥和清单也不公开。自检解密后使用不覆盖的方式保存新文件。密码在终端隐藏输入并确认，外部密码文件要求私有权限且在 Git 外，备份另支持继承管道；没有密码参数或环境变量入口。中间明文缓冲以 SecretVec/SecretString 等控制，不写临时明文包。
 
-`.stoolgpg.toml[.tmpl]` 决定是否恢复、支持目录和 GPG/凭据路径。计划准备只读公开清单与密文摘要；执行时才读取备份密码或独立 age 身份文件，校验摘要、公私钥主指纹集合与 ownertrust 后导入 HOME keyring。
+恢复完全解密、检查认证及清单后，先预检 SSH/撤销证书冲突和现有 GPG keyring 的链接；在隔离临时 keyring 进行 show-only 结构校验，再导入目标并检查所有原本可导出的私钥组件。临时 keyring 不导入私钥。GPG 2.2 在空 keyring 中可能把 show-only 的私钥标为缺失，因此此阶段比对完整指纹，最终以导入后的材料清单判断是否成功。
 
-密码和私钥明文只在受控内存及进程管道中处理，不写入 argv、环境变量、日志、普通状态或明文临时文件。密码文件需在仓库外、为私有普通文件且不是链接；备份另支持继承的管道描述符。GPG 原私钥口令由 GPG/pinentry 处理。
+GPG 导入成功后才写 SSH 和撤销证书，使用最终文件名 create_new、先收紧权限再写内容，无中间明文私钥文件。已有相同内容跳过并收紧权限，不同内容不覆盖。GPG 导入或文件写入失败可能留下部分完成项，不承诺事务回滚；修复后可重试。密钥目录 0700、文件 0600，Windows 复用受限 DACL helper。
 
-完整恢复成功后才保存公开摘要；相同备份与配置不重复导入，A→B→A 会再恢复。显式 `gpg restore` 可重新导入。失败可能已导入部分数据，不承诺 keyring 回滚；四份备份数据发布也不是跨文件事务，中断会由后续一致性校验发现。
-
-默认 `.stooltemplates/gpg/` 位于控制目录，不作为普通目标部署或归档；自定义备份目录应放在控制目录或显式忽略。独立 destination 跳过自动恢复。`verify` 检查记录和计划，不执行签名或保证 keyring 未被事后修改。
+key 命令不会上传密钥、启动 SSH agent 或写部署成功记录。旧四文件格式、身份文件模式、`dotfile gpg`、自动恢复声明及其状态字段均已移除；普通加密文件不受影响。
 
 ## 7. 预览、归档与外部操作
 
 `diff`、`status` 和 `apply --dry-run` 不执行部署 run 钩子，不写目标或成功状态，也不持久更新资源缓存。为了计算目标，它们仍可能调用秘密服务、解密普通密文、执行 `modify_` 转换或临时下载资源；外部程序并不运行在沙箱中。
 
-原生 GPG 恢复预览不启动 GPG、不询问备份密码，此约束只针对该恢复计划。`managed` 不解密普通 encrypted 条目或准备 GPG 恢复，但数据和规则模板仍会加载。diff 和 archive 可能包含目标明文，应按目标数据的敏感程度处理。
+所有 dotfile 命令都不处理离线密钥包。`managed` 不解密普通 encrypted 条目，但数据和规则模板仍会加载。diff 和 archive 可能包含目标明文，应按目标数据的敏感程度处理。
 
 archive 消费同一 Plan 中的目标内容、权限和链接，不执行 run 钩子。资源提取校验路径、重复项、父链接和文件类型，避免写出预定边界；SHA-256 校验负责内容一致性，不能替代对来源的信任。
 
@@ -124,7 +117,7 @@ archive 消费同一 Plan 中的目标内容、权限和链接，不执行 run �
 
 update 先检查未提交、未跟踪和子模块修改，只允许快进。部署冲突不会回滚已拉取 source，用户修复目标冲突后重试 apply。
 
-新机器的 HTTPS 登录、公开安装器、管理员权限、GPG 恢复和双密钥验签步骤统一见 [设计文档](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。不能依赖后续 apply 安装的软件完成首次私库认证。
+新机器的离线包转入、SSH/HTTPS 登录、管理员权限和 GPG 手动恢复步骤统一见 [设计文档](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。不能依赖后续 apply 安装的软件完成首次私库认证。
 
 ## 9. 验证与长期结构
 

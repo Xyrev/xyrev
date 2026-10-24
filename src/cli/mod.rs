@@ -3,13 +3,14 @@ pub mod agent;
 pub mod apple;
 pub mod dotfile;
 pub mod init;
+pub mod key;
 
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(
     name = "stool",
-    about = "Developer environment and Git-backed dotfile management",
+    about = "Developer environment, dotfiles and offline key backups",
     version,
     disable_help_subcommand = false,
     color = clap::ColorChoice::Auto,
@@ -39,6 +40,7 @@ pub enum Commands {
     Apple(apple::AppleCommand),
 
     Dotfile(dotfile::DotfileCommand),
+    Key(key::KeyCommand),
     /// Generate shell completions from the current command definitions
     Completions {
         shell: clap_complete::Shell,

@@ -31,6 +31,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('agent', 'agent', [CompletionResultType]::ParameterValue, 'agent')
             [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'apple')
             [CompletionResult]::new('dotfile', 'dotfile', [CompletionResultType]::ParameterValue, 'Manage dotfiles from a Git repository')
+            [CompletionResult]::new('key', 'key', [CompletionResultType]::ParameterValue, 'Back up and restore GPG and SSH keys independently of dotfiles')
             [CompletionResult]::new('completions', 'completions', [CompletionResultType]::ParameterValue, 'Generate shell completions from the current command definitions')
             [CompletionResult]::new('man', 'man', [CompletionResultType]::ParameterValue, 'Render the manual, or write all command manuals to a directory')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -120,7 +121,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('archive', 'archive', [CompletionResultType]::ParameterValue, 'Export rendered target files as tar, tar.gz, or zip')
             [CompletionResult]::new('execute-template', 'execute-template', [CompletionResultType]::ParameterValue, 'Evaluate a Jinja template using repository and local data')
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
-            [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -281,63 +281,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
         }
-        'stool;dotfile;gpg' {
-            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
-            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
-            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
-            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
-            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
-            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
-            break
-        }
-        'stool;dotfile;gpg;backup' {
-            [CompletionResult]::new('--fingerprint', '--fingerprint', [CompletionResultType]::ParameterName, 'Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)')
-            [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'Backup directory (defaults to .stooltemplates/gpg in the source)')
-            [CompletionResult]::new('--identity', '--identity', [CompletionResultType]::ParameterName, 'Separate age identity kept outside the repository')
-            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read the password from private external storage or an inherited pipe')
-            [CompletionResult]::new('--gpg-program', '--gpg-program', [CompletionResultType]::ParameterName, 'GPG executable (defaults to gpg on PATH)')
-            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
-            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
-            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
-            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
-            break
-        }
-        'stool;dotfile;gpg;restore' {
-            [CompletionResult]::new('--input', '--input', [CompletionResultType]::ParameterName, 'Backup directory (defaults to .stooltemplates/gpg in the source)')
-            [CompletionResult]::new('--identity', '--identity', [CompletionResultType]::ParameterName, 'Separate age identity for identity-encrypted backups')
-            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read the password from a private file outside the repository')
-            [CompletionResult]::new('--gpg-program', '--gpg-program', [CompletionResultType]::ParameterName, 'GPG executable (defaults to gpg on PATH)')
-            [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
-            [CompletionResult]::new('--destination', '--destination', [CompletionResultType]::ParameterName, 'Destination directory (defaults to the user''s home)')
-            [CompletionResult]::new('--data', '--data', [CompletionResultType]::ParameterName, 'Override template data (key=value; JSON values are accepted)')
-            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
-            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
-            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
-            break
-        }
-        'stool;dotfile;gpg;help' {
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
-            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
-            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
-            break
-        }
-        'stool;dotfile;gpg;help;backup' {
-            break
-        }
-        'stool;dotfile;gpg;help;restore' {
-            break
-        }
-        'stool;dotfile;gpg;help;help' {
-            break
-        }
         'stool;dotfile;keygen' {
             [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'output')
             [CompletionResult]::new('--source', '--source', [CompletionResultType]::ParameterName, 'Local source repository (saved by init)')
@@ -375,7 +318,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('archive', 'archive', [CompletionResultType]::ParameterValue, 'Export rendered target files as tar, tar.gz, or zip')
             [CompletionResult]::new('execute-template', 'execute-template', [CompletionResultType]::ParameterValue, 'Evaluate a Jinja template using repository and local data')
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
-            [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -423,17 +365,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
         'stool;dotfile;help;data' {
             break
         }
-        'stool;dotfile;help;gpg' {
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
-            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
-            break
-        }
-        'stool;dotfile;help;gpg;backup' {
-            break
-        }
-        'stool;dotfile;help;gpg;restore' {
-            break
-        }
         'stool;dotfile;help;keygen' {
             break
         }
@@ -441,6 +372,57 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;dotfile;help;help' {
+            break
+        }
+        'stool;key' {
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Create one password-encrypted offline key backup outside Git workspaces')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and manually restore an offline key backup')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'stool;key;backup' {
+            [CompletionResult]::new('--input', '--input', [CompletionResultType]::ParameterName, 'Source user directory (defaults to the current user environment)')
+            [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'New backup file (defaults to stool-keys-<timestamp>.tar.age in the current directory)')
+            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read the password from a private external file or inherited pipe')
+            [CompletionResult]::new('--gpg', '--gpg', [CompletionResultType]::ParameterName, 'Only GPG keys')
+            [CompletionResult]::new('--ssh', '--ssh', [CompletionResultType]::ParameterName, 'Only SSH keys')
+            [CompletionResult]::new('--all', '--all', [CompletionResultType]::ParameterName, 'All available key categories (the default)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'stool;key;restore' {
+            [CompletionResult]::new('--input', '--input', [CompletionResultType]::ParameterName, 'Password-encrypted stool key backup file')
+            [CompletionResult]::new('--output', '--output', [CompletionResultType]::ParameterName, 'Target user directory (defaults to the current user''s home)')
+            [CompletionResult]::new('--passphrase-file', '--passphrase-file', [CompletionResultType]::ParameterName, 'Read the password from a private external file')
+            [CompletionResult]::new('--gpg', '--gpg', [CompletionResultType]::ParameterName, 'Only GPG keys')
+            [CompletionResult]::new('--ssh', '--ssh', [CompletionResultType]::ParameterName, 'Only SSH keys')
+            [CompletionResult]::new('--all', '--all', [CompletionResultType]::ParameterName, 'All available key categories (the default)')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'stool;key;help' {
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Create one password-encrypted offline key backup outside Git workspaces')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and manually restore an offline key backup')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'stool;key;help;backup' {
+            break
+        }
+        'stool;key;help;restore' {
+            break
+        }
+        'stool;key;help;help' {
             break
         }
         'stool;completions' {
@@ -463,6 +445,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('agent', 'agent', [CompletionResultType]::ParameterValue, 'agent')
             [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'apple')
             [CompletionResult]::new('dotfile', 'dotfile', [CompletionResultType]::ParameterValue, 'Manage dotfiles from a Git repository')
+            [CompletionResult]::new('key', 'key', [CompletionResultType]::ParameterValue, 'Back up and restore GPG and SSH keys independently of dotfiles')
             [CompletionResult]::new('completions', 'completions', [CompletionResultType]::ParameterValue, 'Generate shell completions from the current command definitions')
             [CompletionResult]::new('man', 'man', [CompletionResultType]::ParameterValue, 'Render the manual, or write all command manuals to a directory')
             [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
@@ -500,7 +483,6 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('archive', 'archive', [CompletionResultType]::ParameterValue, 'Export rendered target files as tar, tar.gz, or zip')
             [CompletionResult]::new('execute-template', 'execute-template', [CompletionResultType]::ParameterValue, 'Evaluate a Jinja template using repository and local data')
             [CompletionResult]::new('data', 'data', [CompletionResultType]::ParameterValue, 'Print merged template data as JSON')
-            [CompletionResult]::new('gpg', 'gpg', [CompletionResultType]::ParameterValue, 'Back up or restore GPG keys using encrypted dotfile storage')
             [CompletionResult]::new('keygen', 'keygen', [CompletionResultType]::ParameterValue, 'Generate an age identity and print its public recipient')
             [CompletionResult]::new('cd', 'cd', [CompletionResultType]::ParameterValue, 'Start a shell in the source repository, or print its path')
             break
@@ -547,21 +529,21 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
         'stool;help;dotfile;data' {
             break
         }
-        'stool;help;dotfile;gpg' {
-            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Export local GPG private keys and ownertrust into an encrypted backup')
-            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and restore an encrypted GPG key backup')
-            break
-        }
-        'stool;help;dotfile;gpg;backup' {
-            break
-        }
-        'stool;help;dotfile;gpg;restore' {
-            break
-        }
         'stool;help;dotfile;keygen' {
             break
         }
         'stool;help;dotfile;cd' {
+            break
+        }
+        'stool;help;key' {
+            [CompletionResult]::new('backup', 'backup', [CompletionResultType]::ParameterValue, 'Create one password-encrypted offline key backup outside Git workspaces')
+            [CompletionResult]::new('restore', 'restore', [CompletionResultType]::ParameterValue, 'Validate and manually restore an offline key backup')
+            break
+        }
+        'stool;help;key;backup' {
+            break
+        }
+        'stool;help;key;restore' {
             break
         }
         'stool;help;completions' {

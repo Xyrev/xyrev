@@ -47,8 +47,6 @@ pub enum Commands {
     ExecuteTemplate(TemplateArgs),
     /// Print merged template data as JSON
     Data,
-    /// Back up or restore GPG keys using encrypted dotfile storage
-    Gpg(GpgArgs),
     /// Generate an age identity and print its public recipient
     Keygen {
         #[arg(long)]
@@ -138,53 +136,4 @@ impl DotfileCommand {
     pub fn run(&self, verbose: bool) -> anyhow::Result<()> {
         crate::dotfile::run(self, verbose)
     }
-}
-
-#[derive(Args, Debug)]
-pub struct GpgArgs {
-    #[command(subcommand)]
-    pub command: GpgCommands,
-}
-
-#[derive(Subcommand, Debug)]
-pub enum GpgCommands {
-    /// Export local GPG private keys and ownertrust into an encrypted backup
-    Backup(GpgBackupArgs),
-    /// Validate and restore an encrypted GPG key backup
-    Restore(GpgRestoreArgs),
-}
-
-#[derive(Args, Debug)]
-pub struct GpgBackupArgs {
-    /// Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)
-    #[arg(long)]
-    pub fingerprint: Vec<String>,
-    /// Backup directory (defaults to .stooltemplates/gpg in the source)
-    #[arg(long)]
-    pub output: Option<PathBuf>,
-    /// Separate age identity kept outside the repository
-    #[arg(long, conflicts_with = "passphrase_file")]
-    pub identity: Option<PathBuf>,
-    /// Read the password from private external storage or an inherited pipe
-    #[arg(long)]
-    pub passphrase_file: Option<PathBuf>,
-    /// GPG executable (defaults to gpg on PATH)
-    #[arg(long)]
-    pub gpg_program: Option<PathBuf>,
-}
-
-#[derive(Args, Debug)]
-pub struct GpgRestoreArgs {
-    /// Backup directory (defaults to .stooltemplates/gpg in the source)
-    #[arg(long)]
-    pub input: Option<PathBuf>,
-    /// Separate age identity for identity-encrypted backups
-    #[arg(long, conflicts_with = "passphrase_file")]
-    pub identity: Option<PathBuf>,
-    /// Read the password from a private file outside the repository
-    #[arg(long)]
-    pub passphrase_file: Option<PathBuf>,
-    /// GPG executable (defaults to gpg on PATH)
-    #[arg(long)]
-    pub gpg_program: Option<PathBuf>,
 }

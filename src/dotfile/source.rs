@@ -649,9 +649,6 @@ fn scripts_directory(
 }
 
 pub fn known_control(name: &str) -> bool {
-    if [".stoolgpg.toml", ".stoolgpg.toml.tmpl"].contains(&name) {
-        return true;
-    }
     let Some(stripped) = name.strip_prefix(".stool") else {
         return false;
     };

@@ -13,17 +13,35 @@ use std::time::{Duration, Instant};
 const PERSONAL: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 fn command(sandbox: &Sandbox, operation: &str) -> Command {
-    let mut command = sandbox.command();
+    fs::create_dir_all(sandbox.home.join(".gnupg")).unwrap();
+    fs::write(sandbox.root.join("only-personal"), "").unwrap();
+    let bin = sandbox.root.join("key tools");
+    fs::create_dir_all(&bin).unwrap();
+    if !bin.join("gpg").exists() {
+        fs::copy(fake_gpg(), bin.join("gpg")).unwrap();
+    }
+    let mut paths = vec![bin];
+    paths.extend(std::env::split_paths(&std::env::var_os("PATH").unwrap()));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_stool"));
     command
-        .arg("--source")
-        .arg(&sandbox.work)
-        .arg("--destination")
-        .arg(&sandbox.home)
-        .args(["gpg", operation, "--gpg-program"])
-        .arg(fake_gpg())
-        .env("STOOL_TEST_GPG_ROOT", &sandbox.root);
+        .current_dir(&sandbox.root)
+        .env("HOME", &sandbox.home)
+        .env("USERPROFILE", &sandbox.home)
+        .env("GNUPGHOME", sandbox.home.join(".gnupg"))
+        .env("PATH", std::env::join_paths(paths).unwrap())
+        .env("STOOL_TEST_GPG_ROOT", &sandbox.root)
+        .arg("key")
+        .arg(operation)
+        .arg("--gpg");
+    let file = sandbox.root.join("not-created/keys.tar.age");
     if operation == "backup" {
-        command.args(["--fingerprint", PERSONAL]);
+        command.arg("--output").arg(file);
+    } else {
+        command
+            .arg("--input")
+            .arg(file)
+            .arg("--output")
+            .arg(&sandbox.home);
     }
     command
 }
@@ -174,7 +192,7 @@ fn gpg_password_terminal_input_is_hidden_confirmed_and_restore_prompts_once() {
     assert!(backed_up.status.success(), "{}", backed_up.transcript);
     assert!(!backed_up.transcript.contains(password));
     assert!(!String::from_utf8_lossy(&backed_up.stdout).contains(password));
-    let secret = fs::read(sandbox.work.join(".stooltemplates/gpg/secret.asc.age")).unwrap();
+    let secret = fs::read(sandbox.root.join("not-created/keys.tar.age")).unwrap();
     assert!(!String::from_utf8_lossy(&secret).contains("STOOL-FAKE-SECRET"));
     let restored = terminal(command(&sandbox, "restore"), &[password]);
     assert!(restored.status.success(), "{}", restored.transcript);
@@ -193,9 +211,8 @@ fn gpg_password_terminal_input_is_hidden_confirmed_and_restore_prompts_once() {
 #[test]
 fn gpg_password_confirmation_mismatch_creates_no_backup_or_echoed_answers() {
     let sandbox = Sandbox::new(&[("dot_seed", "seed")]);
-    let directory = sandbox.root.join("not-created/backup");
-    let mut backup = command(&sandbox, "backup");
-    backup.arg("--output").arg(&directory);
+    let directory = sandbox.root.join("not-created/keys.tar.age");
+    let backup = command(&sandbox, "backup");
     let answers = ["fixture-first-password-42", "fixture-different-password-43"];
     let output = terminal(backup, &answers);
     assert!(!output.status.success());
@@ -244,9 +261,9 @@ fn gpg_backup_accepts_a_password_pipe_without_a_terminal_or_prompt() {
     );
     assert!(backed_up.stderr.is_empty());
     assert!(!String::from_utf8_lossy(&backed_up.stdout).contains(password));
-    let cipher = fs::read(sandbox.work.join(".stooltemplates/gpg/secret.asc.age")).unwrap();
+    let cipher = fs::read(sandbox.root.join("not-created/keys.tar.age")).unwrap();
     assert_eq!(
-        decrypt_age_fixture(password, &cipher),
+        archive_secret(password, &cipher),
         format!("STOOL-FAKE-SECRET\n{PERSONAL}\nsub:DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n")
             .as_bytes()
     );
@@ -272,4 +289,18 @@ fn gpg_backup_accepts_a_password_pipe_without_a_terminal_or_prompt() {
             .count(),
         3
     );
+}
+
+fn archive_secret(password: &str, cipher: &[u8]) -> Vec<u8> {
+    let payload = decrypt_age_fixture(password, cipher);
+    let mut archive = tar::Archive::new(payload.as_slice());
+    for entry in archive.entries().unwrap() {
+        let mut entry = entry.unwrap();
+        if entry.path().unwrap().as_ref() == std::path::Path::new("gpg/secret.asc") {
+            let mut data = Vec::new();
+            entry.read_to_end(&mut data).unwrap();
+            return data;
+        }
+    }
+    panic!("Missing GPG secret export in encrypted archive");
 }

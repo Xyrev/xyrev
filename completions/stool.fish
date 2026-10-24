@@ -31,6 +31,7 @@ complete -c stool -n "__fish_stool_needs_command" -f -a "init" -d 'Create a new 
 complete -c stool -n "__fish_stool_needs_command" -f -a "agent"
 complete -c stool -n "__fish_stool_needs_command" -f -a "apple"
 complete -c stool -n "__fish_stool_needs_command" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
+complete -c stool -n "__fish_stool_needs_command" -f -a "key" -d 'Back up and restore GPG and SSH keys independently of dotfiles'
 complete -c stool -n "__fish_stool_needs_command" -f -a "completions" -d 'Generate shell completions from the current command definitions'
 complete -c stool -n "__fish_stool_needs_command" -f -a "man" -d 'Render the manual, or write all command manuals to a directory'
 complete -c stool -n "__fish_stool_needs_command" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
@@ -56,29 +57,28 @@ complete -c stool -n "__fish_stool_using_subcommand agent; and __fish_seen_subco
 complete -c stool -n "__fish_stool_using_subcommand agent; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand apple" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand apple" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -l source -d 'Local source repository (saved by init)' -r -F
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -s v -l verbose -d 'Show more debugging information'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "init" -d 'Clone a Git URL and save configuration'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "diff" -d 'Preview content and permission changes without writing'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "status" -d 'List pending changes and conflicts'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "apply" -d 'Deploy the local source repository'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "update" -d 'Fast-forward the source repository and deploy changes'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "managed" -d 'List managed destination paths'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "add" -d 'Import existing destination files into source state'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "edit" -d 'Edit source files (encrypted files are decrypted only in a private temporary directory)'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "unmanaged" -d 'List destination files not managed by source'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "verify" -d 'Return nonzero when the destination differs from source'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "doctor" -d 'Diagnose repository, configuration, state and optional executables'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "archive" -d 'Export rendered target files as tar, tar.gz, or zip'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "execute-template" -d 'Evaluate a Jinja template using repository and local data'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "data" -d 'Print merged template data as JSON'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "gpg" -d 'Back up or restore GPG keys using encrypted dotfile storage'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "keygen" -d 'Generate an age identity and print its public recipient'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "cd" -d 'Start a shell in the source repository, or print its path'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -l source -d 'Local source repository (saved by init)' -r -F
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -s v -l verbose -d 'Show more debugging information'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -s h -l help -d 'Print help'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "init" -d 'Clone a Git URL and save configuration'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "diff" -d 'Preview content and permission changes without writing'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "status" -d 'List pending changes and conflicts'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "apply" -d 'Deploy the local source repository'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "update" -d 'Fast-forward the source repository and deploy changes'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "managed" -d 'List managed destination paths'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "add" -d 'Import existing destination files into source state'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "edit" -d 'Edit source files (encrypted files are decrypted only in a private temporary directory)'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "unmanaged" -d 'List destination files not managed by source'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "verify" -d 'Return nonzero when the destination differs from source'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "doctor" -d 'Diagnose repository, configuration, state and optional executables'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "archive" -d 'Export rendered target files as tar, tar.gz, or zip'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "execute-template" -d 'Evaluate a Jinja template using repository and local data'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "data" -d 'Print merged template data as JSON'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "keygen" -d 'Generate an age identity and print its public recipient'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "cd" -d 'Start a shell in the source repository, or print its path'
+complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l branch -r
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l source -d 'Local source repository (saved by init)' -r -F
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from init" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
@@ -167,14 +167,6 @@ complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_sub
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from data" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from data" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from data" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -l source -d 'Local source repository (saved by init)' -r -F
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -l data -d 'Override template data (key=value; JSON values are accepted)' -r
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -s v -l verbose -d 'Show more debugging information'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -f -a "backup" -d 'Export local GPG private keys and ownertrust into an encrypted backup'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -f -a "restore" -d 'Validate and restore an encrypted GPG key backup'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from gpg" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from keygen" -l output -r -F
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from keygen" -l source -d 'Local source repository (saved by init)' -r -F
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from keygen" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
@@ -201,22 +193,46 @@ complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_sub
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from help" -f -a "archive" -d 'Export rendered target files as tar, tar.gz, or zip'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from help" -f -a "execute-template" -d 'Evaluate a Jinja template using repository and local data'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from help" -f -a "data" -d 'Print merged template data as JSON'
-complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from help" -f -a "gpg" -d 'Back up or restore GPG keys using encrypted dotfile storage'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from help" -f -a "keygen" -d 'Generate an age identity and print its public recipient'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from help" -f -a "cd" -d 'Start a shell in the source repository, or print its path'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c stool -n "__fish_stool_using_subcommand key; and not __fish_seen_subcommand_from backup restore help" -s v -l verbose -d 'Show more debugging information'
+complete -c stool -n "__fish_stool_using_subcommand key; and not __fish_seen_subcommand_from backup restore help" -s h -l help -d 'Print help'
+complete -c stool -n "__fish_stool_using_subcommand key; and not __fish_seen_subcommand_from backup restore help" -f -a "backup" -d 'Create one password-encrypted offline key backup outside Git workspaces'
+complete -c stool -n "__fish_stool_using_subcommand key; and not __fish_seen_subcommand_from backup restore help" -f -a "restore" -d 'Validate and manually restore an offline key backup'
+complete -c stool -n "__fish_stool_using_subcommand key; and not __fish_seen_subcommand_from backup restore help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -l input -d 'Source user directory (defaults to the current user environment)' -r -F
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -l output -d 'New backup file (defaults to stool-keys-<timestamp>.tar.age in the current directory)' -r -F
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -l passphrase-file -d 'Read the password from a private external file or inherited pipe' -r -F
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -l gpg -d 'Only GPG keys'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -l ssh -d 'Only SSH keys'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -l all -d 'All available key categories (the default)'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -s v -l verbose -d 'Show more debugging information'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from backup" -s h -l help -d 'Print help'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -l input -d 'Password-encrypted stool key backup file' -r -F
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -l output -d 'Target user directory (defaults to the current user\'s home)' -r -F
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -l passphrase-file -d 'Read the password from a private external file' -r -F
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -l gpg -d 'Only GPG keys'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -l ssh -d 'Only SSH keys'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -l all -d 'All available key categories (the default)'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -s v -l verbose -d 'Show more debugging information'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from restore" -s h -l help -d 'Print help'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from help" -f -a "backup" -d 'Create one password-encrypted offline key backup outside Git workspaces'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from help" -f -a "restore" -d 'Validate and manually restore an offline key backup'
+complete -c stool -n "__fish_stool_using_subcommand key; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand completions" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand completions" -s h -l help -d 'Print help'
 complete -c stool -n "__fish_stool_using_subcommand man" -l output -r -F
 complete -c stool -n "__fish_stool_using_subcommand man" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand man" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "agent"
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "apple"
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "completions" -d 'Generate shell completions from the current command definitions'
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "man" -d 'Render the manual, or write all command manuals to a directory'
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile completions man help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "agent"
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "apple"
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "key" -d 'Back up and restore GPG and SSH keys independently of dotfiles'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "completions" -d 'Generate shell completions from the current command definitions'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "man" -d 'Render the manual, or write all command manuals to a directory'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from agent" -f -a "init"
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from agent" -f -a "copilot"
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "init" -d 'Clone a Git URL and save configuration'
@@ -233,6 +249,7 @@ complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcom
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "archive" -d 'Export rendered target files as tar, tar.gz, or zip'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "execute-template" -d 'Evaluate a Jinja template using repository and local data'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "data" -d 'Print merged template data as JSON'
-complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "gpg" -d 'Back up or restore GPG keys using encrypted dotfile storage'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "keygen" -d 'Generate an age identity and print its public recipient'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "cd" -d 'Start a shell in the source repository, or print its path'
+complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from key" -f -a "backup" -d 'Create one password-encrypted offline key backup outside Git workspaces'
+complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from key" -f -a "restore" -d 'Validate and manually restore an offline key backup'

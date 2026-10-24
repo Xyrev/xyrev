@@ -422,10 +422,10 @@ fn doctor_cd_prompt_and_runtime_documentation() {
             .unwrap(),
     );
     assert!(completion.contains("execute-template"));
-    for name in ["gpg", "add", "edit", "keygen"] {
+    for name in ["add", "edit", "keygen"] {
         assert!(completion.contains(&format!("stool__dotfile__{name}")));
     }
-    for name in ["encrypt", "decrypt", "migrate"] {
+    for name in ["encrypt", "decrypt", "migrate", "gpg"] {
         assert!(!completion.contains(&format!("stool__dotfile__{name}")));
     }
     let help = success(s.cli(&["--help"]));
@@ -433,10 +433,10 @@ fn doctor_cd_prompt_and_runtime_documentation() {
         .lines()
         .filter_map(|line| line.split_whitespace().next())
         .collect::<Vec<_>>();
-    for name in ["gpg", "add", "edit", "keygen"] {
+    for name in ["add", "edit", "keygen"] {
         assert!(commands.contains(&name));
     }
-    for name in ["encrypt", "decrypt", "migrate"] {
+    for name in ["encrypt", "decrypt", "migrate", "gpg"] {
         assert!(!commands.contains(&name));
     }
     let pages = s.root.join("man");
@@ -447,10 +447,10 @@ fn doctor_cd_prompt_and_runtime_documentation() {
             .output()
             .unwrap(),
     );
-    for name in ["gpg", "gpg-backup", "gpg-restore", "add", "edit", "keygen"] {
+    for name in ["add", "edit", "keygen"] {
         assert!(pages.join(format!("stool-dotfile-{name}.1")).is_file());
     }
-    for name in ["encrypt", "decrypt", "migrate"] {
+    for name in ["encrypt", "decrypt", "migrate", "gpg"] {
         assert!(!pages.join(format!("stool-dotfile-{name}.1")).exists());
     }
 }
@@ -459,7 +459,7 @@ fn doctor_cd_prompt_and_runtime_documentation() {
 fn removed_commands_are_rejected_before_creating_dotfile_directories() {
     let sandbox = Sandbox::new(&[]);
     let before = snapshot(&sandbox.root);
-    for name in ["encrypt", "decrypt", "migrate"] {
+    for name in ["encrypt", "decrypt", "migrate", "gpg"] {
         failure(
             sandbox.cli(&[name, "missing-input"]),
             "unrecognized subcommand",

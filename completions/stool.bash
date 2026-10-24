@@ -34,6 +34,9 @@ _stool() {
             stool,init)
                 cmd="stool__init"
                 ;;
+            stool,key)
+                cmd="stool__key"
+                ;;
             stool,man)
                 cmd="stool__man"
                 ;;
@@ -82,9 +85,6 @@ _stool() {
             stool__dotfile,execute-template)
                 cmd="stool__dotfile__execute__template"
                 ;;
-            stool__dotfile,gpg)
-                cmd="stool__dotfile__gpg"
-                ;;
             stool__dotfile,help)
                 cmd="stool__dotfile__help"
                 ;;
@@ -108,24 +108,6 @@ _stool() {
                 ;;
             stool__dotfile,verify)
                 cmd="stool__dotfile__verify"
-                ;;
-            stool__dotfile__gpg,backup)
-                cmd="stool__dotfile__gpg__backup"
-                ;;
-            stool__dotfile__gpg,help)
-                cmd="stool__dotfile__gpg__help"
-                ;;
-            stool__dotfile__gpg,restore)
-                cmd="stool__dotfile__gpg__restore"
-                ;;
-            stool__dotfile__gpg__help,backup)
-                cmd="stool__dotfile__gpg__help__backup"
-                ;;
-            stool__dotfile__gpg__help,help)
-                cmd="stool__dotfile__gpg__help__help"
-                ;;
-            stool__dotfile__gpg__help,restore)
-                cmd="stool__dotfile__gpg__help__restore"
                 ;;
             stool__dotfile__help,add)
                 cmd="stool__dotfile__help__add"
@@ -154,9 +136,6 @@ _stool() {
             stool__dotfile__help,execute-template)
                 cmd="stool__dotfile__help__execute__template"
                 ;;
-            stool__dotfile__help,gpg)
-                cmd="stool__dotfile__help__gpg"
-                ;;
             stool__dotfile__help,help)
                 cmd="stool__dotfile__help__help"
                 ;;
@@ -181,12 +160,6 @@ _stool() {
             stool__dotfile__help,verify)
                 cmd="stool__dotfile__help__verify"
                 ;;
-            stool__dotfile__help__gpg,backup)
-                cmd="stool__dotfile__help__gpg__backup"
-                ;;
-            stool__dotfile__help__gpg,restore)
-                cmd="stool__dotfile__help__gpg__restore"
-                ;;
             stool__help,agent)
                 cmd="stool__help__agent"
                 ;;
@@ -204,6 +177,9 @@ _stool() {
                 ;;
             stool__help,init)
                 cmd="stool__help__init"
+                ;;
+            stool__help,key)
+                cmd="stool__help__key"
                 ;;
             stool__help,man)
                 cmd="stool__help__man"
@@ -241,9 +217,6 @@ _stool() {
             stool__help__dotfile,execute-template)
                 cmd="stool__help__dotfile__execute__template"
                 ;;
-            stool__help__dotfile,gpg)
-                cmd="stool__help__dotfile__gpg"
-                ;;
             stool__help__dotfile,init)
                 cmd="stool__help__dotfile__init"
                 ;;
@@ -265,11 +238,29 @@ _stool() {
             stool__help__dotfile,verify)
                 cmd="stool__help__dotfile__verify"
                 ;;
-            stool__help__dotfile__gpg,backup)
-                cmd="stool__help__dotfile__gpg__backup"
+            stool__help__key,backup)
+                cmd="stool__help__key__backup"
                 ;;
-            stool__help__dotfile__gpg,restore)
-                cmd="stool__help__dotfile__gpg__restore"
+            stool__help__key,restore)
+                cmd="stool__help__key__restore"
+                ;;
+            stool__key,backup)
+                cmd="stool__key__backup"
+                ;;
+            stool__key,help)
+                cmd="stool__key__help"
+                ;;
+            stool__key,restore)
+                cmd="stool__key__restore"
+                ;;
+            stool__key__help,backup)
+                cmd="stool__key__help__backup"
+                ;;
+            stool__key__help,help)
+                cmd="stool__key__help__help"
+                ;;
+            stool__key__help,restore)
+                cmd="stool__key__help__restore"
                 ;;
             *)
                 ;;
@@ -278,7 +269,7 @@ _stool() {
 
     case "${cmd}" in
         stool)
-            opts="-v -h -V --verbose --help --version init agent apple dotfile completions man help"
+            opts="-v -h -V --verbose --help --version init agent apple dotfile key completions man help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -434,7 +425,7 @@ _stool() {
             return 0
             ;;
         stool__dotfile)
-            opts="-v -h --source --destination --data --verbose --help init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
+            opts="-v -h --source --destination --data --verbose --help init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -713,178 +704,8 @@ _stool() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        stool__dotfile__gpg)
-            opts="-v -h --source --destination --data --verbose --help backup restore help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --source)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --destination)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --data)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__gpg__backup)
-            opts="-v -h --fingerprint --output --identity --passphrase-file --gpg-program --source --destination --data --verbose --help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --fingerprint)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --output)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --identity)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --passphrase-file)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --gpg-program)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --source)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --destination)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --data)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__gpg__help)
-            opts="backup restore help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__gpg__help__backup)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__gpg__help__help)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__gpg__help__restore)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__gpg__restore)
-            opts="-v -h --input --identity --passphrase-file --gpg-program --source --destination --data --verbose --help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --input)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --identity)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --passphrase-file)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --gpg-program)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --source)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --destination)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --data)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         stool__dotfile__help)
-            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd help"
+            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1012,48 +833,6 @@ _stool() {
         stool__dotfile__help__execute__template)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__help__gpg)
-            opts="backup restore"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__help__gpg__backup)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__dotfile__help__gpg__restore)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1368,7 +1147,7 @@ _stool() {
             return 0
             ;;
         stool__help)
-            opts="init agent apple dotfile completions man help"
+            opts="init agent apple dotfile key completions man help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1452,7 +1231,7 @@ _stool() {
             return 0
             ;;
         stool__help__dotfile)
-            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data gpg keygen cd"
+            opts="init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1591,48 +1370,6 @@ _stool() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        stool__help__dotfile__gpg)
-            opts="backup restore"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__help__dotfile__gpg__backup)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        stool__help__dotfile__gpg__restore)
-            opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
         stool__help__dotfile__init)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
@@ -1759,6 +1496,48 @@ _stool() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        stool__help__key)
+            opts="backup restore"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__help__key__backup)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__help__key__restore)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         stool__help__man)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -1780,6 +1559,128 @@ _stool() {
                 return 0
             fi
             case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__key)
+            opts="-v -h --verbose --help backup restore help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__key__backup)
+            opts="-v -h --gpg --ssh --all --input --output --passphrase-file --verbose --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --input)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --output)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --passphrase-file)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__key__help)
+            opts="backup restore help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__key__help__backup)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__key__help__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__key__help__restore)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__key__restore)
+            opts="-v -h --gpg --ssh --all --input --output --passphrase-file --verbose --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --input)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --output)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --passphrase-file)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

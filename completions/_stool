@@ -313,88 +313,6 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help]' \
 && ret=0
 ;;
-(gpg)
-_arguments "${_arguments_options[@]}" : \
-'--source=[Local source repository (saved by init)]:SOURCE:_files' \
-'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
-'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
-'-v[Show more debugging information]' \
-'--verbose[Show more debugging information]' \
-'-h[Print help]' \
-'--help[Print help]' \
-":: :_stool__dotfile__gpg_commands" \
-"*::: :->gpg" \
-&& ret=0
-
-    case $state in
-    (gpg)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:stool-dotfile-gpg-command-$line[1]:"
-        case $line[1] in
-            (backup)
-_arguments "${_arguments_options[@]}" : \
-'*--fingerprint=[Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)]:FINGERPRINT:_default' \
-'--output=[Backup directory (defaults to .stooltemplates/gpg in the source)]:OUTPUT:_files' \
-'(--passphrase-file)--identity=[Separate age identity kept outside the repository]:IDENTITY:_files' \
-'--passphrase-file=[Read the password from private external storage or an inherited pipe]:PASSPHRASE_FILE:_files' \
-'--gpg-program=[GPG executable (defaults to gpg on PATH)]:GPG_PROGRAM:_files' \
-'--source=[Local source repository (saved by init)]:SOURCE:_files' \
-'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
-'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
-'-v[Show more debugging information]' \
-'--verbose[Show more debugging information]' \
-'-h[Print help]' \
-'--help[Print help]' \
-&& ret=0
-;;
-(restore)
-_arguments "${_arguments_options[@]}" : \
-'--input=[Backup directory (defaults to .stooltemplates/gpg in the source)]:INPUT:_files' \
-'(--passphrase-file)--identity=[Separate age identity for identity-encrypted backups]:IDENTITY:_files' \
-'--passphrase-file=[Read the password from a private file outside the repository]:PASSPHRASE_FILE:_files' \
-'--gpg-program=[GPG executable (defaults to gpg on PATH)]:GPG_PROGRAM:_files' \
-'--source=[Local source repository (saved by init)]:SOURCE:_files' \
-'--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
-'*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
-'-v[Show more debugging information]' \
-'--verbose[Show more debugging information]' \
-'-h[Print help]' \
-'--help[Print help]' \
-&& ret=0
-;;
-(help)
-_arguments "${_arguments_options[@]}" : \
-":: :_stool__dotfile__gpg__help_commands" \
-"*::: :->help" \
-&& ret=0
-
-    case $state in
-    (help)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:stool-dotfile-gpg-help-command-$line[1]:"
-        case $line[1] in
-            (backup)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(restore)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-(help)
-_arguments "${_arguments_options[@]}" : \
-&& ret=0
-;;
-        esac
-    ;;
-esac
-;;
-        esac
-    ;;
-esac
-;;
 (keygen)
 _arguments "${_arguments_options[@]}" : \
 '--output=[]:OUTPUT:_files' \
@@ -487,23 +405,15 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(gpg)
-_arguments "${_arguments_options[@]}" : \
-":: :_stool__dotfile__help__gpg_commands" \
-"*::: :->gpg" \
-&& ret=0
-
-    case $state in
-    (gpg)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:stool-dotfile-help-gpg-command-$line[1]:"
-        case $line[1] in
-            (backup)
+(keygen)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(restore)
+(cd)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -511,11 +421,71 @@ _arguments "${_arguments_options[@]}" : \
     ;;
 esac
 ;;
-(keygen)
+        esac
+    ;;
+esac
+;;
+(key)
+_arguments "${_arguments_options[@]}" : \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_stool__key_commands" \
+"*::: :->key" \
+&& ret=0
+
+    case $state in
+    (key)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:stool-key-command-$line[1]:"
+        case $line[1] in
+            (backup)
+_arguments "${_arguments_options[@]}" : \
+'--input=[Source user directory (defaults to the current user environment)]:INPUT:_files' \
+'--output=[New backup file (defaults to stool-keys-<timestamp>.tar.age in the current directory)]:OUTPUT:_files' \
+'--passphrase-file=[Read the password from a private external file or inherited pipe]:PASSPHRASE_FILE:_files' \
+'(--ssh --all)--gpg[Only GPG keys]' \
+'(--gpg --all)--ssh[Only SSH keys]' \
+'(--gpg --ssh)--all[All available key categories (the default)]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(restore)
+_arguments "${_arguments_options[@]}" : \
+'--input=[Password-encrypted stool key backup file]:INPUT:_files' \
+'--output=[Target user directory (defaults to the current user'\''s home)]:OUTPUT:_files' \
+'--passphrase-file=[Read the password from a private external file]:PASSPHRASE_FILE:_files' \
+'(--ssh --all)--gpg[Only GPG keys]' \
+'(--gpg --all)--ssh[Only SSH keys]' \
+'(--gpg --ssh)--all[All available key categories (the default)]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_stool__key__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:stool-key-help-command-$line[1]:"
+        case $line[1] in
+            (backup)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(cd)
+(restore)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -661,23 +631,11 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(gpg)
-_arguments "${_arguments_options[@]}" : \
-":: :_stool__help__dotfile__gpg_commands" \
-"*::: :->gpg" \
-&& ret=0
-
-    case $state in
-    (gpg)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:stool-help-dotfile-gpg-command-$line[1]:"
-        case $line[1] in
-            (backup)
+(keygen)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(restore)
+(cd)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -685,11 +643,23 @@ _arguments "${_arguments_options[@]}" : \
     ;;
 esac
 ;;
-(keygen)
+(key)
+_arguments "${_arguments_options[@]}" : \
+":: :_stool__help__key_commands" \
+"*::: :->key" \
+&& ret=0
+
+    case $state in
+    (key)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:stool-help-key-command-$line[1]:"
+        case $line[1] in
+            (backup)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
-(cd)
+(restore)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -725,6 +695,7 @@ _stool_commands() {
 'agent:' \
 'apple:' \
 'dotfile:Manage dotfiles from a Git repository' \
+'key:Back up and restore GPG and SSH keys independently of dotfiles' \
 'completions:Generate shell completions from the current command definitions' \
 'man:Render the manual, or write all command manuals to a directory' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -801,7 +772,6 @@ _stool__dotfile_commands() {
 'archive:Export rendered target files as tar, tar.gz, or zip' \
 'execute-template:Evaluate a Jinja template using repository and local data' \
 'data:Print merged template data as JSON' \
-'gpg:Back up or restore GPG keys using encrypted dotfile storage' \
 'keygen:Generate an age identity and print its public recipient' \
 'cd:Start a shell in the source repository, or print its path' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -853,49 +823,6 @@ _stool__dotfile__execute-template_commands() {
     local commands; commands=()
     _describe -t commands 'stool dotfile execute-template commands' commands "$@"
 }
-(( $+functions[_stool__dotfile__gpg_commands] )) ||
-_stool__dotfile__gpg_commands() {
-    local commands; commands=(
-'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
-'restore:Validate and restore an encrypted GPG key backup' \
-'help:Print this message or the help of the given subcommand(s)' \
-    )
-    _describe -t commands 'stool dotfile gpg commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__gpg__backup_commands] )) ||
-_stool__dotfile__gpg__backup_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile gpg backup commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__gpg__help_commands] )) ||
-_stool__dotfile__gpg__help_commands() {
-    local commands; commands=(
-'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
-'restore:Validate and restore an encrypted GPG key backup' \
-'help:Print this message or the help of the given subcommand(s)' \
-    )
-    _describe -t commands 'stool dotfile gpg help commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__gpg__help__backup_commands] )) ||
-_stool__dotfile__gpg__help__backup_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile gpg help backup commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__gpg__help__help_commands] )) ||
-_stool__dotfile__gpg__help__help_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile gpg help help commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__gpg__help__restore_commands] )) ||
-_stool__dotfile__gpg__help__restore_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile gpg help restore commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__gpg__restore_commands] )) ||
-_stool__dotfile__gpg__restore_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile gpg restore commands' commands "$@"
-}
 (( $+functions[_stool__dotfile__help_commands] )) ||
 _stool__dotfile__help_commands() {
     local commands; commands=(
@@ -913,7 +840,6 @@ _stool__dotfile__help_commands() {
 'archive:Export rendered target files as tar, tar.gz, or zip' \
 'execute-template:Evaluate a Jinja template using repository and local data' \
 'data:Print merged template data as JSON' \
-'gpg:Back up or restore GPG keys using encrypted dotfile storage' \
 'keygen:Generate an age identity and print its public recipient' \
 'cd:Start a shell in the source repository, or print its path' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -964,24 +890,6 @@ _stool__dotfile__help__edit_commands() {
 _stool__dotfile__help__execute-template_commands() {
     local commands; commands=()
     _describe -t commands 'stool dotfile help execute-template commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__help__gpg_commands] )) ||
-_stool__dotfile__help__gpg_commands() {
-    local commands; commands=(
-'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
-'restore:Validate and restore an encrypted GPG key backup' \
-    )
-    _describe -t commands 'stool dotfile help gpg commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__help__gpg__backup_commands] )) ||
-_stool__dotfile__help__gpg__backup_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile help gpg backup commands' commands "$@"
-}
-(( $+functions[_stool__dotfile__help__gpg__restore_commands] )) ||
-_stool__dotfile__help__gpg__restore_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool dotfile help gpg restore commands' commands "$@"
 }
 (( $+functions[_stool__dotfile__help__help_commands] )) ||
 _stool__dotfile__help__help_commands() {
@@ -1065,6 +973,7 @@ _stool__help_commands() {
 'agent:' \
 'apple:' \
 'dotfile:Manage dotfiles from a Git repository' \
+'key:Back up and restore GPG and SSH keys independently of dotfiles' \
 'completions:Generate shell completions from the current command definitions' \
 'man:Render the manual, or write all command manuals to a directory' \
 'help:Print this message or the help of the given subcommand(s)' \
@@ -1116,7 +1025,6 @@ _stool__help__dotfile_commands() {
 'archive:Export rendered target files as tar, tar.gz, or zip' \
 'execute-template:Evaluate a Jinja template using repository and local data' \
 'data:Print merged template data as JSON' \
-'gpg:Back up or restore GPG keys using encrypted dotfile storage' \
 'keygen:Generate an age identity and print its public recipient' \
 'cd:Start a shell in the source repository, or print its path' \
     )
@@ -1167,24 +1075,6 @@ _stool__help__dotfile__execute-template_commands() {
     local commands; commands=()
     _describe -t commands 'stool help dotfile execute-template commands' commands "$@"
 }
-(( $+functions[_stool__help__dotfile__gpg_commands] )) ||
-_stool__help__dotfile__gpg_commands() {
-    local commands; commands=(
-'backup:Export local GPG private keys and ownertrust into an encrypted backup' \
-'restore:Validate and restore an encrypted GPG key backup' \
-    )
-    _describe -t commands 'stool help dotfile gpg commands' commands "$@"
-}
-(( $+functions[_stool__help__dotfile__gpg__backup_commands] )) ||
-_stool__help__dotfile__gpg__backup_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool help dotfile gpg backup commands' commands "$@"
-}
-(( $+functions[_stool__help__dotfile__gpg__restore_commands] )) ||
-_stool__help__dotfile__gpg__restore_commands() {
-    local commands; commands=()
-    _describe -t commands 'stool help dotfile gpg restore commands' commands "$@"
-}
 (( $+functions[_stool__help__dotfile__init_commands] )) ||
 _stool__help__dotfile__init_commands() {
     local commands; commands=()
@@ -1230,6 +1120,24 @@ _stool__help__init_commands() {
     local commands; commands=()
     _describe -t commands 'stool help init commands' commands "$@"
 }
+(( $+functions[_stool__help__key_commands] )) ||
+_stool__help__key_commands() {
+    local commands; commands=(
+'backup:Create one password-encrypted offline key backup outside Git workspaces' \
+'restore:Validate and manually restore an offline key backup' \
+    )
+    _describe -t commands 'stool help key commands' commands "$@"
+}
+(( $+functions[_stool__help__key__backup_commands] )) ||
+_stool__help__key__backup_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool help key backup commands' commands "$@"
+}
+(( $+functions[_stool__help__key__restore_commands] )) ||
+_stool__help__key__restore_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool help key restore commands' commands "$@"
+}
 (( $+functions[_stool__help__man_commands] )) ||
 _stool__help__man_commands() {
     local commands; commands=()
@@ -1239,6 +1147,49 @@ _stool__help__man_commands() {
 _stool__init_commands() {
     local commands; commands=()
     _describe -t commands 'stool init commands' commands "$@"
+}
+(( $+functions[_stool__key_commands] )) ||
+_stool__key_commands() {
+    local commands; commands=(
+'backup:Create one password-encrypted offline key backup outside Git workspaces' \
+'restore:Validate and manually restore an offline key backup' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'stool key commands' commands "$@"
+}
+(( $+functions[_stool__key__backup_commands] )) ||
+_stool__key__backup_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool key backup commands' commands "$@"
+}
+(( $+functions[_stool__key__help_commands] )) ||
+_stool__key__help_commands() {
+    local commands; commands=(
+'backup:Create one password-encrypted offline key backup outside Git workspaces' \
+'restore:Validate and manually restore an offline key backup' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'stool key help commands' commands "$@"
+}
+(( $+functions[_stool__key__help__backup_commands] )) ||
+_stool__key__help__backup_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool key help backup commands' commands "$@"
+}
+(( $+functions[_stool__key__help__help_commands] )) ||
+_stool__key__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool key help help commands' commands "$@"
+}
+(( $+functions[_stool__key__help__restore_commands] )) ||
+_stool__key__help__restore_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool key help restore commands' commands "$@"
+}
+(( $+functions[_stool__key__restore_commands] )) ||
+_stool__key__restore_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool key restore commands' commands "$@"
 }
 (( $+functions[_stool__man_commands] )) ||
 _stool__man_commands() {

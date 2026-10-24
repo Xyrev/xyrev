@@ -1,6 +1,6 @@
 use super::process;
 use super::storage::{self, EncryptionSettings};
-use age::secrecy::{ExposeSecret, SecretString};
+use age::secrecy::ExposeSecret;
 use anyhow::{bail, Context, Result};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -63,36 +63,6 @@ pub fn encrypt(settings: &EncryptionSettings, bytes: &[u8]) -> Result<Vec<u8>> {
         }
         _ => bail!("Encryption backend must be age or gpg"),
     }
-}
-
-pub fn encrypt_with_passphrase(passphrase: SecretString, bytes: &[u8]) -> Result<Vec<u8>> {
-    if passphrase.expose_secret().is_empty() {
-        bail!("Passphrase must not be empty");
-    }
-    let mut output = Vec::new();
-    let armor =
-        age::armor::ArmoredWriter::wrap_output(&mut output, age::armor::Format::AsciiArmor)?;
-    let mut writer = age::Encryptor::with_user_passphrase(passphrase).wrap_output(armor)?;
-    writer.write_all(bytes)?;
-    writer.finish()?.finish()?;
-    Ok(output)
-}
-
-pub fn decrypt_with_passphrase(passphrase: &SecretString, bytes: &[u8]) -> Result<Vec<u8>> {
-    if passphrase.expose_secret().is_empty() {
-        bail!("Passphrase must not be empty");
-    }
-    let reader = age::armor::ArmoredReader::new(bytes);
-    let decryptor = age::Decryptor::new(reader).context("Invalid age ciphertext")?;
-    let age::Decryptor::Passphrase(decryptor) = decryptor else {
-        bail!("Age ciphertext requires an identity, not a passphrase");
-    };
-    let mut output = Vec::new();
-    decryptor
-        .decrypt(passphrase, None)
-        .context("Unable to decrypt age ciphertext; check the passphrase")?
-        .read_to_end(&mut output)?;
-    Ok(output)
 }
 
 pub fn decrypt(
@@ -201,55 +171,5 @@ mod tests {
         keygen(&other).unwrap();
         settings.identities = vec![other];
         assert!(decrypt(&settings, temp.path(), &cipher, "age").is_err());
-    }
-
-    #[test]
-    fn age_passphrase_roundtrip_preserves_binary_data_and_password_spaces() {
-        let password = "  fixture's 密码 password  ";
-        let plain = b"private binary configuration\0\n";
-        let cipher = encrypt_with_passphrase(SecretString::new(password.into()), plain).unwrap();
-        assert!(cipher.starts_with(b"-----BEGIN AGE ENCRYPTED FILE-----"));
-        assert!(!cipher.windows(plain.len()).any(|part| part == plain));
-        assert!(!String::from_utf8_lossy(&cipher).contains(password));
-        assert_eq!(
-            decrypt_with_passphrase(&SecretString::new(password.into()), &cipher).unwrap(),
-            plain
-        );
-        let error = decrypt_with_passphrase(&SecretString::new(password.trim().into()), &cipher)
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("Unable to decrypt age ciphertext"));
-        assert!(!error.contains(password.trim()));
-        assert!(!error.contains("private binary configuration"));
-    }
-
-    #[test]
-    fn age_passphrase_rejects_empty_passwords_invalid_ciphertext_and_identity_mode() {
-        let empty = SecretString::new(String::new());
-        assert!(encrypt_with_passphrase(empty.clone(), b"private")
-            .unwrap_err()
-            .to_string()
-            .contains("must not be empty"));
-        assert!(decrypt_with_passphrase(&empty, b"not ciphertext")
-            .unwrap_err()
-            .to_string()
-            .contains("must not be empty"));
-        let password = SecretString::new("fixture correct password".into());
-        assert!(decrypt_with_passphrase(&password, b"not ciphertext")
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid age ciphertext"));
-        let cipher = encrypt_with_passphrase(password.clone(), b"private fixture").unwrap();
-        assert!(decrypt_with_passphrase(&password, &cipher[..cipher.len() / 2]).is_err());
-        let identity = age::x25519::Identity::generate();
-        let settings = EncryptionSettings {
-            recipients: vec![identity.to_public().to_string()],
-            ..Default::default()
-        };
-        let cipher = encrypt(&settings, b"identity-protected fixture").unwrap();
-        assert!(decrypt_with_passphrase(&password, &cipher)
-            .unwrap_err()
-            .to_string()
-            .contains("requires an identity"));
     }
 }

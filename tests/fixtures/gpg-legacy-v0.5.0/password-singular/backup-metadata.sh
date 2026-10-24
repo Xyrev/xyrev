@@ -1,6 +1,0 @@
-# TEST ONLY: independent legacy producer using released xyrev v0.5.0.
-gpg_backup_mode='passphrase'
-gpg_backup_fingerprint='0CA5DE7C022FC189A8E1A598EF24727785E24008'
-gpg_backup_public_sha256='830d212ce5ec9b649489c54677dccecbe3fc4ad7e3c313d85dc820cbce1b0c96'
-gpg_backup_secret_sha256='a6d64562ac31271c17092d5db84745ab17c15dd7eeb79ca8dd4fc2962b97c306'
-gpg_backup_ownertrust_sha256='0ed280de2e8801c8ed5c9b4cca4b8c46a27b1e7876aaec545c1af004178456ca'

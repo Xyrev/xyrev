@@ -1,6 +1,6 @@
 use super::source::{Content, Entry, Order, Script, Tree};
 use super::storage::{self, Fingerprint, Paths, State};
-use super::{gpg, process, scripts};
+use super::{process, scripts};
 use anyhow::{bail, Context, Result};
 use similar::TextDiff;
 use std::collections::{BTreeMap, BTreeSet};
@@ -78,8 +78,6 @@ pub struct Change {
 pub struct Plan {
     pub changes: Vec<Change>,
     pub scripts: Vec<Script>,
-    gpg: Option<gpg::RestorePlan>,
-    gpg_pending: bool,
 }
 
 fn check_parents(
@@ -303,8 +301,6 @@ impl Plan {
         }
         Ok(Self {
             scripts,
-            gpg: None,
-            gpg_pending: false,
             changes: changes
                 .into_iter()
                 .map(|(path, actual, action)| Change {
@@ -317,18 +313,9 @@ impl Plan {
     }
 
     pub fn changed(&self) -> bool {
-        self.gpg_pending
-            || self
-                .changes
-                .iter()
-                .any(|change| change.action != Action::Unchanged)
-    }
-
-    pub fn set_gpg(&mut self, restore: Option<gpg::RestorePlan>, state: &State) {
-        self.gpg_pending = restore
-            .as_ref()
-            .is_some_and(|plan| state.gpg_restore.as_deref() != Some(plan.digest.as_str()));
-        self.gpg = restore;
+        self.changes
+            .iter()
+            .any(|change| change.action != Action::Unchanged)
     }
 
     pub fn conflicts(&self) -> bool {
@@ -398,9 +385,6 @@ impl Plan {
             .iter()
             .filter(|c| c.action == Action::Conflict)
             .count();
-        if self.gpg_pending {
-            println!("R GPG restore");
-        }
         println!("{changed} change(s), {conflicts} conflict(s)");
     }
 
@@ -520,13 +504,6 @@ impl Plan {
         directories.0.clear();
         for script in during {
             script_store.run(paths, std::slice::from_ref(script), Order::During)?;
-        }
-        if self.gpg_pending {
-            let restore = self.gpg.as_ref().expect("pending GPG restore has a plan");
-            println!("Restoring GPG backup");
-            restore.restore(paths)?;
-            state.gpg_restore = Some(restore.digest.clone());
-            paths.save_state(state)?;
         }
         script_store.run(paths, &self.scripts, Order::After)?;
         let managed: BTreeSet<_> = self

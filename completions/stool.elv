@@ -28,6 +28,7 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand agent 'agent'
             cand apple 'apple'
             cand dotfile 'Manage dotfiles from a Git repository'
+            cand key 'Back up and restore GPG and SSH keys independently of dotfiles'
             cand completions 'Generate shell completions from the current command definitions'
             cand man 'Render the manual, or write all command manuals to a directory'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -107,7 +108,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand archive 'Export rendered target files as tar, tar.gz, or zip'
             cand execute-template 'Evaluate a Jinja template using repository and local data'
             cand data 'Print merged template data as JSON'
-            cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -253,56 +253,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand -h 'Print help'
             cand --help 'Print help'
         }
-        &'stool;dotfile;gpg'= {
-            cand --source 'Local source repository (saved by init)'
-            cand --destination 'Destination directory (defaults to the user''s home)'
-            cand --data 'Override template data (key=value; JSON values are accepted)'
-            cand -v 'Show more debugging information'
-            cand --verbose 'Show more debugging information'
-            cand -h 'Print help'
-            cand --help 'Print help'
-            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
-            cand restore 'Validate and restore an encrypted GPG key backup'
-            cand help 'Print this message or the help of the given subcommand(s)'
-        }
-        &'stool;dotfile;gpg;backup'= {
-            cand --fingerprint 'Complete primary fingerprint; repeat to filter keys (defaults to all local private keys)'
-            cand --output 'Backup directory (defaults to .stooltemplates/gpg in the source)'
-            cand --identity 'Separate age identity kept outside the repository'
-            cand --passphrase-file 'Read the password from private external storage or an inherited pipe'
-            cand --gpg-program 'GPG executable (defaults to gpg on PATH)'
-            cand --source 'Local source repository (saved by init)'
-            cand --destination 'Destination directory (defaults to the user''s home)'
-            cand --data 'Override template data (key=value; JSON values are accepted)'
-            cand -v 'Show more debugging information'
-            cand --verbose 'Show more debugging information'
-            cand -h 'Print help'
-            cand --help 'Print help'
-        }
-        &'stool;dotfile;gpg;restore'= {
-            cand --input 'Backup directory (defaults to .stooltemplates/gpg in the source)'
-            cand --identity 'Separate age identity for identity-encrypted backups'
-            cand --passphrase-file 'Read the password from a private file outside the repository'
-            cand --gpg-program 'GPG executable (defaults to gpg on PATH)'
-            cand --source 'Local source repository (saved by init)'
-            cand --destination 'Destination directory (defaults to the user''s home)'
-            cand --data 'Override template data (key=value; JSON values are accepted)'
-            cand -v 'Show more debugging information'
-            cand --verbose 'Show more debugging information'
-            cand -h 'Print help'
-            cand --help 'Print help'
-        }
-        &'stool;dotfile;gpg;help'= {
-            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
-            cand restore 'Validate and restore an encrypted GPG key backup'
-            cand help 'Print this message or the help of the given subcommand(s)'
-        }
-        &'stool;dotfile;gpg;help;backup'= {
-        }
-        &'stool;dotfile;gpg;help;restore'= {
-        }
-        &'stool;dotfile;gpg;help;help'= {
-        }
         &'stool;dotfile;keygen'= {
             cand --output 'output'
             cand --source 'Local source repository (saved by init)'
@@ -338,7 +288,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand archive 'Export rendered target files as tar, tar.gz, or zip'
             cand execute-template 'Evaluate a Jinja template using repository and local data'
             cand data 'Print merged template data as JSON'
-            cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -371,19 +320,55 @@ set edit:completion:arg-completer[stool] = {|@words|
         }
         &'stool;dotfile;help;data'= {
         }
-        &'stool;dotfile;help;gpg'= {
-            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
-            cand restore 'Validate and restore an encrypted GPG key backup'
-        }
-        &'stool;dotfile;help;gpg;backup'= {
-        }
-        &'stool;dotfile;help;gpg;restore'= {
-        }
         &'stool;dotfile;help;keygen'= {
         }
         &'stool;dotfile;help;cd'= {
         }
         &'stool;dotfile;help;help'= {
+        }
+        &'stool;key'= {
+            cand -v 'Show more debugging information'
+            cand --verbose 'Show more debugging information'
+            cand -h 'Print help'
+            cand --help 'Print help'
+            cand backup 'Create one password-encrypted offline key backup outside Git workspaces'
+            cand restore 'Validate and manually restore an offline key backup'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'stool;key;backup'= {
+            cand --input 'Source user directory (defaults to the current user environment)'
+            cand --output 'New backup file (defaults to stool-keys-<timestamp>.tar.age in the current directory)'
+            cand --passphrase-file 'Read the password from a private external file or inherited pipe'
+            cand --gpg 'Only GPG keys'
+            cand --ssh 'Only SSH keys'
+            cand --all 'All available key categories (the default)'
+            cand -v 'Show more debugging information'
+            cand --verbose 'Show more debugging information'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'stool;key;restore'= {
+            cand --input 'Password-encrypted stool key backup file'
+            cand --output 'Target user directory (defaults to the current user''s home)'
+            cand --passphrase-file 'Read the password from a private external file'
+            cand --gpg 'Only GPG keys'
+            cand --ssh 'Only SSH keys'
+            cand --all 'All available key categories (the default)'
+            cand -v 'Show more debugging information'
+            cand --verbose 'Show more debugging information'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'stool;key;help'= {
+            cand backup 'Create one password-encrypted offline key backup outside Git workspaces'
+            cand restore 'Validate and manually restore an offline key backup'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'stool;key;help;backup'= {
+        }
+        &'stool;key;help;restore'= {
+        }
+        &'stool;key;help;help'= {
         }
         &'stool;completions'= {
             cand -v 'Show more debugging information'
@@ -403,6 +388,7 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand agent 'agent'
             cand apple 'apple'
             cand dotfile 'Manage dotfiles from a Git repository'
+            cand key 'Back up and restore GPG and SSH keys independently of dotfiles'
             cand completions 'Generate shell completions from the current command definitions'
             cand man 'Render the manual, or write all command manuals to a directory'
             cand help 'Print this message or the help of the given subcommand(s)'
@@ -434,7 +420,6 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand archive 'Export rendered target files as tar, tar.gz, or zip'
             cand execute-template 'Evaluate a Jinja template using repository and local data'
             cand data 'Print merged template data as JSON'
-            cand gpg 'Back up or restore GPG keys using encrypted dotfile storage'
             cand keygen 'Generate an age identity and print its public recipient'
             cand cd 'Start a shell in the source repository, or print its path'
         }
@@ -466,17 +451,17 @@ set edit:completion:arg-completer[stool] = {|@words|
         }
         &'stool;help;dotfile;data'= {
         }
-        &'stool;help;dotfile;gpg'= {
-            cand backup 'Export local GPG private keys and ownertrust into an encrypted backup'
-            cand restore 'Validate and restore an encrypted GPG key backup'
-        }
-        &'stool;help;dotfile;gpg;backup'= {
-        }
-        &'stool;help;dotfile;gpg;restore'= {
-        }
         &'stool;help;dotfile;keygen'= {
         }
         &'stool;help;dotfile;cd'= {
+        }
+        &'stool;help;key'= {
+            cand backup 'Create one password-encrypted offline key backup outside Git workspaces'
+            cand restore 'Validate and manually restore an offline key backup'
+        }
+        &'stool;help;key;backup'= {
+        }
+        &'stool;help;key;restore'= {
         }
         &'stool;help;completions'= {
         }

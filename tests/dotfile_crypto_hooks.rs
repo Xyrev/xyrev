@@ -25,17 +25,7 @@ fn keygen_remains_available_under_deployment_lock_but_writers_are_locked() {
     );
     assert!(recipient.trim().starts_with("age1"));
     assert!(identity.is_file());
-    for args in [
-        vec!["apply"],
-        vec!["add", ".seed"],
-        vec![
-            "gpg",
-            "backup",
-            "--fingerprint",
-            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-        ],
-        vec!["gpg", "restore"],
-    ] {
+    for args in [vec!["apply"], vec!["add", ".seed"], vec!["edit", ".seed"]] {
         failure(sandbox.cli(&args), "Another dotfile command is running");
     }
     // A Windows byte-range lock also prevents another handle reading the file.

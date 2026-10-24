@@ -27,17 +27,28 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          if ! command -v gpg >/dev/null 2>&1; then
-            case "$RUNNER_OS" in
-              Linux) sudo apt-get update && sudo apt-get install -y gnupg ;;
-              macOS) brew install gnupg ;;
-            esac
-          fi
-      - name: Test native GPG backup and restore with disposable keys
+          case "$RUNNER_OS" in
+            Linux)
+              if ! command -v gpg >/dev/null 2>&1; then
+                sudo apt-get update && sudo apt-get install -y gnupg
+              fi
+              ;;
+            macOS)
+              # Refresh preinstalled GnuPG as well, so image snapshots do not
+              # pin native-key tests to an import bug fixed by Homebrew.
+              brew update
+              if brew list --versions gnupg >/dev/null 2>&1; then
+                brew upgrade gnupg
+              else
+                brew install gnupg
+              fi
+              ;;
+          esac
+      - name: Test native offline GPG and SSH backups with disposable keys
         if: runner.os != 'Windows'
         env:
           STOOL_BIN: target/debug/stool
-        run: python -m unittest discover -s tests -p 'test_gpg_native.py' -v
+        run: python -m unittest discover -s tests -p 'test_keys_native.py' -v
       - name: Check generated CLI assets
         if: runner.os == 'macOS'
         run: |
