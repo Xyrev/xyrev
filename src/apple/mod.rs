@@ -38,4 +38,5 @@ pub fn run(command: &AppleCommand, verbose: bool) -> Result<()> {
 }
 
 #[cfg(test)]
+#[path = "../../tests/unit/apple_brew.rs"]
 mod brew_tests;
