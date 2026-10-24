@@ -12,7 +12,7 @@
 
 ## 安装与版本边界
 
-发布包安装器 `install.sh` / `newinstall.sh` 按平台下载已编译 binary 并校验 SHA-256，无需先安装 Rust、Git 或 Homebrew。`VERSION` 选择已发布版本，`PREFIX` 选择安装前缀（binary 在 `$PREFIX/bin/stool`），新安装器只接受 stool v0.6.0 起的稳定 Release；`latest` 仍指向历史包时会停止。源码更新不等于新包已经发布。
+发布包安装器 `install.sh` 按平台下载已编译 binary 并校验 SHA-256，无需先安装 Rust、Git 或 Homebrew。`VERSION` 选择已发布版本，`PREFIX` 选择安装前缀（binary 在 `$PREFIX/bin/stool`），新安装器只接受 stool v0.6.0 起的稳定 Release；`latest` 仍指向历史包时会停止。源码更新不等于新包已经发布。
 
 从 [Releases](https://github.com/szwathub/stool/releases) 选择确实含 `stool key` 的发行版；Windows 解压相应 ZIP 中的 `stool.exe`。本次仅提交推送，当前源码的构建步骤见下文。可在旧机器构建后将适配新机架构的 binary 转入新机，无需在新机装 Rust。
 

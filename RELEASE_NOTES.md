@@ -1,5 +1,7 @@
 # 待发布
 
+安装入口统一为 `install.sh`，移除重复安装脚本；现有固定 tag 的文件与安装命令不变。
+
 新增 macOS 的 `stool apple brew init/install`，独立初始化 Homebrew 并安装默认 ~/.Brewfile 或 --file 清单；支持 prefix、严格只读预览与显式无人值守模式。示例 dotfiles 将 Brewfile 改为受管理文件，删除 Homebrew/软件包钩子、共享安装模板与开关；apply/update 不再安装软件。当前仅源码构建可用。
 
 新增 macOS 专用 `stool apple init [--dry-run]`，将示例 dotfiles 的 Dock 最小化动画设置迁入 stool。按实际值比较、按需写入并回读验证；预览只读，无需先克隆仓库。示例 dotfiles 删除 macOS 偏好钩子和 `configure_macos` 开关，配置 apply/update 不再修改 Dock。新命令尚未发布，使用包含该命令的源码构建。
@@ -17,7 +19,7 @@ GPG 与 SSH 改为独立 `stool key backup/restore`：默认全部类别、单�
 - 不提供旧本机状态迁移命令；使用新协议 source 重新 init，检查 diff 后部署。旧目录保留，初始化脚本与 GPG 恢复记录独立建立。
 - 移除独立加解密子命令。普通 dotfile 继续通过 `add --encrypt`、`edit`、`apply` 管理，GPG 密钥继续使用原生备份/恢复；内部加密和 `keygen` 保留。
 - `stool dotfile gpg backup` 默认备份全部可导出的本地私钥、对应公钥和 ownertrust；`--fingerprint` 改为可选的完整主指纹筛选。包含离线主密钥下的本机私有子密钥及过期/撤销本地密钥，提示缺失/硬件私钥的恢复限制；无可导出私钥或显式选择不可导出组时失败。覆盖保护要求保留既有主/子指纹，既有组含不可导出组件时保守拒绝覆盖，可保留旧备份并使用全新 `--output` 目录。四文件格式及密码/独立 age 身份文件恢复兼容保持不变。
-- `install.sh` / `newinstall.sh` 同源，只安装 stool v0.6.0 起的稳定版本，保留校验、原子替换及错误时保护已有程序；历史版本继续使用其固定 tag 的安装器。
+- 安装器 `install.sh` 只安装 stool v0.6.0 起的稳定版本，保留校验、原子替换及错误时保护已有程序；历史版本继续使用其固定 tag 的安装器。
 
 安装 stool v0.6.0：
 

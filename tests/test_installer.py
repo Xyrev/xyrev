@@ -105,8 +105,8 @@ class InstallerTests(unittest.TestCase):
         (self.assets / 'SHA256SUMS.txt').write_text(line)
         return name
 
-    def run_installer(self, entry='install.sh', ok=True):
-        result = subprocess.run(['/bin/bash', str(ROOT / entry)], env=self.env,
+    def run_installer(self, ok=True):
+        result = subprocess.run(['/bin/bash', str(ROOT / 'install.sh')], env=self.env,
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode == 0, ok, result.stdout + result.stderr)
         self.assertEqual(list(self.tmp.iterdir()), [], 'download staging directory must be cleaned up')
@@ -135,11 +135,10 @@ class InstallerTests(unittest.TestCase):
         ])
         self.assertEqual(list(binary.parent.glob('.stool-install.*')), [])
 
-    def test_legacy_entrypoint_has_the_same_verified_behavior(self):
-        self.assertEqual((ROOT / 'install.sh').read_bytes(), (ROOT / 'newinstall.sh').read_bytes())
+    def test_custom_prefix_installs_without_modifying_shell_configuration(self):
         self.fixture()
         self.env['PREFIX'] = str(self.root / 'custom prefix')
-        self.run_installer('newinstall.sh')
+        self.run_installer()
         self.assertTrue((self.root / 'custom prefix/bin/stool').is_file())
         # macOS may create Library while running downloaded executables. Check
         # the installer's promised boundaries rather than OS-managed entries.

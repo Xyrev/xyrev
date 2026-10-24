@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Canonical installer; newinstall.sh is an identical compatibility entry point.
+# Install a verified prebuilt stool release without Git or a compiler.
 set -euo pipefail
 
 repo='szwathub/stool'
