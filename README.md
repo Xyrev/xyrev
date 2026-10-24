@@ -161,7 +161,7 @@ stool dotfile apply
 stool dotfile verify
 ```
 
-`dotfile init` 核对 Git 姓名、邮箱、签名指纹和 Homebrew prefix。`--data git_signing_key=...` 仅覆盖个人 Git 签名默认值，不是下载或恢复前置。个人与 Work 身份仍按 clone URL 规则选择；签名私钥需手动恢复。
+`dotfile init` 核对 Git 姓名、邮箱、签名指纹和 Homebrew prefix。`--data git_signing_key=...` 仅覆盖个人 Git 签名默认值，不是下载或恢复前置。个人与 Work 身份仍按 clone URL 规则选择；签名私钥需手动恢复。示例仓库的 post-checkout 钩子按部署后的 `~/.git-clone-init` 规则设置新克隆仓库的本地姓名、邮箱和签名指纹，不覆盖已有身份，也不会在每次 Git 操作时重新选钥。
 
 这份 dotfiles 只部署配置和 macOS 的 `~/.Brewfile`。配置部署完成后显式运行 `stool apple brew install --dry-run` 预览，再运行 `stool apple brew install` 安装清单内软件（含 GPG Suite）；该命令会先确保 Homebrew 可用。Homebrew 初始化也可在克隆前独立运行 `stool apple brew init`。安装完成后按输出执行 shellenv 指引，再检查 `gpg`。macOS 偏好可由基础 `stool init` 设置，也可单独运行 `stool apple init`；apply/update 不再安装软件或设置 Dock。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
 
@@ -179,7 +179,7 @@ gpg --list-secret-keys --fingerprint \
   98A56F40C2A502230AC6635435DF2F117D3233C5
 ```
 
-GPG Suite/pinentry 可能另行要求私钥原口令。已在最开始恢复全部密钥时无需再次恢复。实际签名检查、备份参数及失败重试见 [离线密钥说明](docs/key-backup.md)。后续配置更新运行 `stool dotfile update`；密钥变化时另行创建新的离线备份。
+GPG Suite/pinentry 可能另行要求私钥原口令。已在最开始恢复全部密钥时无需再次恢复。实际签名检查、备份参数及失败重试见[密钥离线备份与恢复](#密钥离线备份与恢复)。后续配置更新运行 `stool dotfile update`；密钥变化时另行创建新的离线备份。
 
 ## 从源码构建
 
@@ -193,13 +193,13 @@ stool dotfile apply
 stool dotfile update
 ```
 
-Rust 最低版本为 1.74。默认使用系统 Git；`init --builtin` 使用内置 gix。HTTPS、`ssh://`、`git@host:path`、绝对 `file://` URL 均可使用。私有仓库复用凭据助手或 SSH 配置，URL 不接受嵌入密码。`dotfile init` 可省略 URL，读取全局 `dotfile.url`；显式 URL 优先且不改写全局默认。`--branch` 选择分支。新 source 默认递归初始化和更新子模块；`--no-recurse-submodules` 关闭，原 `--recurse-submodules` 保留用于显式开启，两个开关互斥。重复 init 未传开关时保留本机选择，update 沿用已保存值；关闭选项不会删除已有子模块内容。内置后端通过 gix 克隆、校验和快进更新普通仓库；SSH 需要 SSH 客户端，子模块及 Git LFS 使用系统 Git 工具。
+Rust 最低版本为 1.74。默认使用系统 Git；`init --builtin` 使用内置 gix。HTTPS、`ssh://`、`git@host:path`、绝对 `file://` URL 均可使用。私有仓库复用凭据助手或 SSH 配置，URL 不接受嵌入密码、裸用户名或 `user/repo` 简写。`dotfile init` 可省略 URL，读取全局 `dotfile.url`；显式 URL 优先且不改写全局默认。`--branch` 选择分支。新 source 默认递归初始化和更新子模块；`--no-recurse-submodules` 关闭，原 `--recurse-submodules` 保留用于显式开启，两个开关互斥。重复 init 未传开关时保留本机选择，update 沿用已保存值；关闭选项不会删除已有子模块内容。内置后端通过 gix 克隆、校验和快进更新普通仓库；SSH 需要 SSH 客户端，子模块及 Git LFS 使用系统 Git 工具。
 
 `init` 在克隆前检查系统 Git 是否可用。缺失时停止并显示当前系统的安装命令：macOS 使用 `xcode-select --install` 安装包含 Git 的 Command Line Tools，Windows 提示 Git for Windows / winget，Linux 提示发行版包管理器。安装完成后运行 `git --version`，再重试原命令；检查失败不会创建 source、保存初始化配置或部署文件。macOS 的 `/usr/bin/git` 占位程序不会被当作已安装的 Git，也不会自动弹出安装窗口。普通 HTTPS 仓库使用 `--builtin` 时无需这个检查；本地 `file://` 传输仍需服务端辅助程序 `git-upload-pack`。显式 `--builtin --recurse-submodules` 在克隆前检查系统 Git，默认递归的内置克隆则在实际发现 `.gitmodules` 时要求系统 Git。Homebrew / 软件包安装由基础 `stool init` 或独立 `stool apple brew` 管理，不由 apply 执行，也不能替代首次克隆前的 Git 安装。
 
 ## 日常命令
 
-详细说明见[产品概览](docs/dotfile-overview.md)、[实现说明](docs/dotfile-internals.md)和[设计文档](docs/dotfile-design.md)。
+常用操作如下；完整命令参数见 `stool --help`、`stool dotfile --help` 及子命令帮助。
 
 ```bash
 stool dotfile init <git-url> --apply
@@ -232,7 +232,7 @@ stool dotfile diff
 stool dotfile apply
 ```
 
-`init` 保存目录，后续可直接使用。命令行覆盖仅对本次有效。控制目录为 `~/.stool/dotfile/`：`source/`、`config.toml`、`state/`、`backups/`、`cache/`。文件基线按 source/destination 配对隔离，脚本成功状态保存在 redb。并发写操作互斥。
+`init` 保存目录，后续可直接使用。命令行覆盖仅对本次有效。控制目录为 `~/.stool/dotfile/`：`source/`、`config.toml`、`state/`、`backups/`、`cache/`。其中 `config.toml` 保存来源、分支、目录和本机数据，`state/<namespace>.json` 保存文件基线，`state/scripts.redb` 保存脚本成功记录；基线按 source/destination 配对隔离。并发写操作互斥。全局 `~/.stool` 受目标路径保护，部署和显式删除规则不能覆盖初始化配置或控制状态。
 
 ## 仓库路径协议
 
@@ -258,6 +258,7 @@ dotfiles/
 | `readonly_` / `executable_` | 去掉写权限 / 增加执行权限 |
 | `empty_` | 保留空文件；未带此属性的空普通 source 文件表示目标应不存在 |
 | `literal_` / `.literal` | 将保留前缀 / 后缀当作字面文件名 |
+| `encrypted_`（`.age` / `.asc`） | 按本机加密配置解密内容，可叠加 `.tmpl` |
 | `.tmpl` | 渲染 MiniJinja 模板 |
 | `symlink_` | source 文件内容为符号链接目标 |
 | `create_` | 目标存在时完整保留，只创建缺失项 |
@@ -278,7 +279,9 @@ Unix 默认文件 0644、目录/可执行文件 0755。Windows 使用 DACL 实�
 - `.stool.toml.tmpl`：初始化本机配置。
 - `external.{toml,json,yaml,yml}[.tmpl]` / `externals/`：外部资源定义。
 
-现有模块目录和 `*.symlink` 仓库需先迁移。`szwathub/dotfiles` 的当前配置见[设计文档](docs/dotfile-design.md)；本项目不会自动修改远端仓库。
+以上条目均带 `.stool` 前缀，例如 `.stoolignore`、`.stooldata.toml` 和 `.stooltemplates/`；未知的保留控制项会报错。
+
+现有模块目录和 `*.symlink` 仓库需先迁移，旧后缀没有特殊映射含义。普通 source 的原生符号链接被拒绝，应使用 `symlink_` 文件；`external_` 字面子树按其条目处理。不自动转换其他仓库格式或模板语言，也不修改远端仓库。
 
 ## 模板与本机配置
 
@@ -336,21 +339,77 @@ GPG/SSH 私钥由独立 `stool key` 命令离线备份与恢复，不接入部�
 
 ## 密钥离线备份与恢复
 
+`stool key` 独立于 dotfiles，不读取部署配置或状态；安装当前构建后即可手动转入离线包并恢复，无需先初始化仓库。新机器的分阶段顺序见[基础初始化](#基础初始化)和[新 Mac 流程](#新-mac-初始化私有-dotfiles)。
+
+### 命令与范围
+
 ```bash
-# 先进入仓库外目录，输出默认位于当前目录，文件名自动带时间戳
+# 在仓库外运行；输出默认位于当前目录，文件名自动带 Unix 时间戳
 mkdir -p "$HOME/Backups/stool"
 cd "$HOME/Backups/stool"
 stool key backup
+# 也可指定新文件，不覆盖已有备份
+stool key backup --output /Volumes/Backup/my-keys.tar.age
 
 # 默认恢复包内全部 GPG 和 SSH 密钥到 HOME
 stool key restore --input /Volumes/Backup/my-keys.tar.age
+# 尚未安装 GPG 时，先恢复 SSH；安装 GPG 后再补齐
+stool key restore --ssh --input /Volumes/Backup/my-keys.tar.age
+stool key restore --gpg --input /Volumes/Backup/my-keys.tar.age
 ```
 
-`--gpg`、`--ssh`、`--all` 互斥，无开关默认全部。backup 的 `--input` 是可选源用户目录，`--output` 是可选新文件；restore 的 `--input` 是必需加密文件，`--output` 是可选目标用户目录，默认 HOME。SSH 单独备份/恢复可在没有 Git/GPG 的机器运行。
+| 参数 | backup | restore |
+|---|---|---|
+| 无选择开关 / `--all` | 全部可备份类别 | 包内全部类别 |
+| `--gpg` / `--ssh` | 只备份指定类别 | 只恢复指定类别 |
+| `--input` | 可选源用户目录；默认 HOME，GPG 尊重 GNUPGHOME | 必须指定加密包文件 |
+| `--output` | 可选新文件；默认当前目录的 `stool-keys-<Unix 时间戳>.tar.age` | 可选目标用户目录；默认 HOME |
+| `--passphrase-file` | 仓库外的 0600 密码文件；另支持继承的管道描述符 | 仓库外的 0600 密码文件 |
 
-一个密码加密的 tar.age 文件包含完整 GPG 私钥、公钥、ownertrust、已有撤销证书、SSH 私钥及配对公钥和清单；GPG 缺失/硬件材料、SSH agent-only/硬件及 `.ssh` 之外文件有明确范围限制。备份隐藏输入并确认密码，恢复隐藏输入一次，原私钥口令不改变。密码与完整包均留在 Git 仓库外，已有同名输出或不同内容的目标文件不覆盖。
+三个选择开关互斥。显式类别没有密钥时失败；默认全部只要至少一类非空即可备份，并提示缺少类别。显式 `backup --input /path/to/user` 从该目录的 `.gnupg` 和 `.ssh` 读取，覆盖 GNUPGHOME；恢复的 GPG 目录始终为目标用户目录下的 `.gnupg`。SSH 单独备份/恢复无需 Git 或 GPG，GPG 始终通过 PATH 中的 `gpg` 调用。
 
-备份范围、路径和权限防护、密码文件/管道、格式、验证步骤和失败重试见 [离线密钥说明](docs/key-backup.md)。dotfiles 只管理配置和签名指纹，不包含公钥、私钥密文或自动恢复声明。`dotfile verify` 不检查密钥是否已手动恢复。
+### 包内内容与限制
+
+一个密码加密的二进制 age 容器包含 tar 数据和版本化 JSON 清单，记录完整指纹、私钥材料标记和文件 SHA-256。公钥与清单也加密，不另留公开副本。
+
+| 类别 | 备份内容与边界 |
+|---|---|
+| GPG | 全部可导出的本地主/子私钥、对应公钥、这些主密钥的 ownertrust 和已有撤销证书；保留过期、撤销但仍可导出的材料，用于历史数据 |
+| SSH | `.ssh` 内递归发现的真实私钥文件，不限 `id_*` 名称；保留原字节、文件名和原口令，配对公钥保留原字节，缺失时提取生成 |
+
+GPG 只有公钥的组不纳入；离线主密钥下的本地私有子密钥可以备份，缺失或智能卡中的秘密无法导出。完全不可导出的组跳过并提示；导出前后清单变化、部分公私钥导出或可用子密钥遗漏均拒绝生成备份。不复制整份 `.gnupg` 数据库、agent/pinentry 配置、操作系统钥匙串或第三方凭据。
+
+SSH 不复制 `config`、`known_hosts`、socket 或 agent 状态，不跟随符号链接；只存在于 agent、硬件或 `.ssh` 之外的私钥无法从包中恢复。当前用户设置了 SSH_AUTH_SOCK 时会提示 agent 中未纳入的身份，显式源目录不借用当前用户 agent。硬件 key handle 仍需原硬件，外部 IdentityFile 与 config Include 不递归追踪。传统 PEM 私钥通过 PATH 中的 `ssh-keygen` 提取公钥；OpenSSH 格式可直接提取嵌入公钥，无需解开原私钥口令。
+
+### 密码、权限与失败重试
+
+备份隐藏输入密码并确认，恢复隐藏输入一次。原 GPG/SSH 私钥口令不改变，也不能代替外层备份密码。密码和离线包应分开保存，并另留异地副本；密码不要写入命令参数、环境变量、日志或仓库。
+
+备份输出、恢复目标和密码文件拒绝位于 Git 工作区。新包自检通过后才以不覆盖方式保存，大小上限为 64 MiB；拒绝路径穿越、符号链接、特殊归档项、重复或大小写冲突及文件/目录碰撞。目录使用 0700，密钥、包和密码文件使用 0600；Windows 使用当前用户、SYSTEM 和管理员的受限 DACL。
+
+恢复先验证 age 认证、清单、全部摘要和 SSH 配对，再检查选定类别的文件冲突；GPG 专项校验需可用 `gpg`，检查完整公私钥指纹及 keyring 链接。错误密码、损坏数据或目标冲突会停止；已有相同内容的 SSH/撤销证书跳过并收紧权限，不同内容不覆盖。顶层 init 预检包内全部类别，且在保存默认 URL 前检查密码和文件冲突。
+
+独立的全部恢复先导入并验证 GPG，再写 SSH 和撤销证书；GPG 失败时不继续写 SSH。顶层 init 缺少 GPG 时先恢复 SSH，后续 GPG 失败不会撤销已恢复的 SSH。GPG 导入和多文件写入没有整体回滚，中途失败可能保留已完成内容；修复依赖、权限或冲突后重跑对应恢复命令，相同内容可复用。无需为补齐 GPG 再运行 init。
+
+密码和中间私钥明文在受控内存与进程管道中处理，不生成明文 tar 或导出私钥临时文件；恢复后最终的 `.ssh` 和 `.gnupg` 是用户要求写入的目标。GPG、agent、系统缓存和交换区行为由系统管理。恢复不会启动 SSH agent、上传公钥或增加 GitHub 权限。
+
+只支持当前密码加密离线格式，不兼容旧四文件 GPG 备份、独立 age 身份加密包或旧 `dotfile gpg`。dotfiles 只管理配置和签名指纹，不含公钥、私钥密文或自动恢复声明；删除仓库中的旧备份不会撤回已下载的历史副本。
+
+### 恢复验收
+
+`stool dotfile verify` 只检查配置，不检查密钥可用性。查看指纹后，应分别用个人和 Work 密钥签名并验签；以下使用示例仓库的两把完整指纹：
+
+```bash
+stool_check_dir=$(mktemp -d)
+printf 'stool offline restore check\n' > "$stool_check_dir/message.txt"
+for stool_check_key in 2BF609784E75AAC78CB67A7E465799B005224003 98A56F40C2A502230AC6635435DF2F117D3233C5; do
+  gpg --local-user "$stool_check_key" --armor --detach-sign \
+    --output "$stool_check_dir/$stool_check_key.asc" "$stool_check_dir/message.txt" &&
+  gpg --verify "$stool_check_dir/$stool_check_key.asc" "$stool_check_dir/message.txt"
+done
+```
+
+两次均应显示对应身份的 Good signature；GPG Suite/pinentry 可能另行要求原私钥口令。SSH 可对每把恢复的私钥运行 `ssh-keygen -y -f <private-file>`，将输出的公钥与配对 `.pub` 比较。
 
 ## 外部资源与归档
 
@@ -391,6 +450,15 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo +1.74.0 test --locked --all-targets
 ```
 
-测试使用临时 Git 远端、HTTP 服务、模拟秘密 CLI、隔离 HOME 和目标目录。age 使用真实加解密；第三方认证服务不使用真实凭据。macOS 本机验证，Linux/Windows 和最低 Rust 版本由 CI 矩阵持续验证。
+测试使用临时 Git 远端、HTTP 服务、模拟秘密 CLI、隔离 HOME 和目标目录。age 使用真实加解密；第三方认证服务不使用真实凭据。macOS 本机验证，Linux/Windows 和最低 Rust 版本由 [Check 工作流](https://github.com/szwathub/stool/blob/develop/.github/workflows/ci.yml)与 [Release 工作流](https://github.com/szwathub/stool/blob/develop/.github/workflows/release.yml)持续验证。
+
+安装器与原生密钥测试另行运行：
+
+```bash
+python3 -m unittest discover -s tests -p 'test_installer.py' -v
+STOOL_BIN=target/debug/stool python3 -m unittest discover -s tests -p 'test_keys_native.py' -v
+```
+
+原生密钥测试需要先构建 binary 并安装 GPG，只生成一次性测试身份，验证签名、解密、ownertrust、撤销证书、SSH 配对和原口令，不使用用户私钥。Unix 原生验证不代表已完成 Windows 真实账户级 GPG 验收；模拟第三方 CLI 与 LFS 测试也不代表所有真实服务已认证。
 
 MIT · Zhiwei Sun (@szwathub) · szwathub@gmail.com

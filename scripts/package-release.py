@@ -39,9 +39,9 @@ def main():
         package.mkdir()
         shutil.copy2(binary, package / binary_name)
         (package / binary_name).chmod(0o755)
-        for filename in ('README.md', 'LICENSE'):
+        for filename in ('README.md', 'RELEASE_NOTES.md', 'LICENSE'):
             shutil.copy2(root / filename, package / filename)
-        for directory in ('completions', 'man-page', 'docs'):
+        for directory in ('completions', 'man-page'):
             shutil.copytree(root / directory, package / directory,
                             ignore=shutil.ignore_patterns('.DS_Store', '__pycache__', '*.pyc'))
         if args.target.endswith('-windows-msvc'):
