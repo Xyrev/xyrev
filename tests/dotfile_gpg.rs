@@ -128,6 +128,36 @@ impl Fixture {
 }
 
 #[test]
+fn backup_and_restore_use_gpg_from_path_by_default() {
+    let f = Fixture::new();
+    let bin = f.s.root.join("GPG on PATH with spaces");
+    fs::create_dir(&bin).unwrap();
+    fs::copy(
+        fake_gpg(),
+        bin.join(if cfg!(windows) { "gpg.exe" } else { "gpg" }),
+    )
+    .unwrap();
+    let mut paths = vec![bin];
+    paths.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    let path = std::env::join_paths(paths).unwrap();
+    for operation in ["backup", "restore"] {
+        success(
+            f.command()
+                .env("PATH", &path)
+                .args(["gpg", operation, "--passphrase-file"])
+                .arg(&f.password)
+                .output()
+                .unwrap(),
+        );
+    }
+    let metadata = fs::read_to_string(f.directory().join("backup-metadata.sh")).unwrap();
+    assert!(metadata.contains(&format!("gpg_backup_fingerprints='{PERSONAL} {WORK}'")));
+    assert_eq!(f.imports().lines().count(), 3);
+}
+
+#[test]
 fn default_backup_discovers_complete_secret_groups_and_only_their_public_keys_and_trust() {
     let f = Fixture::new();
     f.backup(&[]);

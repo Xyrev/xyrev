@@ -129,17 +129,17 @@ HTTPS 凭据配置可能使 `~/.gitconfig` 在首次 apply 时出现冲突；先
 
 下载期间管理员权限可能过期；重新 `sudo -v` 后再运行 `stool dotfile apply`。若安装器仍需交互，可先在 Terminal 安装 Homebrew 或执行 `brew install --cask gpg-suite`，再重试。失败阶段不记录成功，已完成阶段保留。仓库认证失败应先修复 SSH/PAT 权限并重跑 `git ls-remote`；GPG 密码错误只需重跑 `apply`，不用重新初始化。
 
-部署检查通过后，可核验两把私钥并各做一次签名。使用 Suite 绝对路径，避免 PATH 中其他 `gpg`；这里生成的只是临时消息和公开签名，不导出密钥：
+部署检查通过后，可核验两把私钥并各做一次签名。通过 PATH 调用 `gpg`；这里生成的只是临时消息和公开签名，不导出密钥：
 
 ```bash
-/usr/local/MacGPG2/bin/gpg --list-secret-keys --keyid-format long --fingerprint \
+gpg --list-secret-keys --keyid-format long --fingerprint \
   2BF609784E75AAC78CB67A7E465799B005224003 98A56F40C2A502230AC6635435DF2F117D3233C5
 stool_gpg_check_dir=$(mktemp -d "${TMPDIR:-/tmp}/stool-gpg-check.XXXXXX")
 printf 'stool GPG restore check\n' > "$stool_gpg_check_dir/message.txt"
 for stool_gpg_key in 2BF609784E75AAC78CB67A7E465799B005224003 98A56F40C2A502230AC6635435DF2F117D3233C5; do
-  /usr/local/MacGPG2/bin/gpg --local-user "$stool_gpg_key" --armor --detach-sign \
+  gpg --local-user "$stool_gpg_key" --armor --detach-sign \
     --output "$stool_gpg_check_dir/$stool_gpg_key.asc" "$stool_gpg_check_dir/message.txt" &&
-  /usr/local/MacGPG2/bin/gpg --verify "$stool_gpg_check_dir/$stool_gpg_key.asc" "$stool_gpg_check_dir/message.txt"
+  gpg --verify "$stool_gpg_check_dir/$stool_gpg_key.asc" "$stool_gpg_check_dir/message.txt"
 done
 rm -r -- "$stool_gpg_check_dir"
 ```
@@ -322,7 +322,7 @@ stool dotfile gpg backup --fingerprint PERSONAL_PRIMARY_FINGERPRINT --fingerprin
 
 覆盖时既要保留既有清单中的主密钥，也要保留旧 `public.asc` 中的主/子指纹，使用 `--fingerprint` 不能缩减既有备份。若既有组当前含有缺失或硬件私钥组件，旧格式无法证明原私钥材料会完整保留，因此拒绝覆盖。部分私钥组可首次备份到新目录；再次备份时保留旧备份并使用全新的 `--output` 目录，工具不会合并旧私钥密文。
 
-恢复前校验 SHA-256、公私钥的完整主指纹集合和 ownertrust；集合不符、混入未选密钥、密码错误或数据损坏都会在真实导入之前失败。备份只导出密钥和所选组的 ownertrust，不复制整个 `~/.gnupg`。`--gpg-program` 可指定 GPG 可执行文件；macOS 优先使用已安装的 GPG Suite。
+恢复前校验 SHA-256、公私钥的完整主指纹集合和 ownertrust；集合不符、混入未选密钥、密码错误或数据损坏都会在真实导入之前失败。备份只导出密钥和所选组的 ownertrust，不复制整个 `~/.gnupg`。默认通过 PATH 调用 `gpg`，与终端和 Git 使用同一套程序；`--gpg-program` 或声明中的 `program` 仍可显式指定其他 GPG 可执行文件。
 
 仓库可用 `.stoolgpg.toml` 或 `.stoolgpg.toml.tmpl` 声明自动恢复（两者只能存在一个）：
 

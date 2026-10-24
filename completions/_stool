@@ -338,7 +338,7 @@ _arguments "${_arguments_options[@]}" : \
 '--output=[Backup directory (defaults to .stooltemplates/gpg in the source)]:OUTPUT:_files' \
 '(--passphrase-file)--identity=[Separate age identity kept outside the repository]:IDENTITY:_files' \
 '--passphrase-file=[Read the password from private external storage or an inherited pipe]:PASSPHRASE_FILE:_files' \
-'--gpg-program=[GPG executable (GPG Suite is detected on macOS)]:GPG_PROGRAM:_files' \
+'--gpg-program=[GPG executable (defaults to gpg on PATH)]:GPG_PROGRAM:_files' \
 '--source=[Local source repository (saved by init)]:SOURCE:_files' \
 '--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
 '*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \
@@ -353,7 +353,7 @@ _arguments "${_arguments_options[@]}" : \
 '--input=[Backup directory (defaults to .stooltemplates/gpg in the source)]:INPUT:_files' \
 '(--passphrase-file)--identity=[Separate age identity for identity-encrypted backups]:IDENTITY:_files' \
 '--passphrase-file=[Read the password from a private file outside the repository]:PASSPHRASE_FILE:_files' \
-'--gpg-program=[GPG executable (GPG Suite is detected on macOS)]:GPG_PROGRAM:_files' \
+'--gpg-program=[GPG executable (defaults to gpg on PATH)]:GPG_PROGRAM:_files' \
 '--source=[Local source repository (saved by init)]:SOURCE:_files' \
 '--destination=[Destination directory (defaults to the user'\''s home)]:DESTINATION:_files' \
 '*--data=[Override template data (key=value; JSON values are accepted)]:DATA:_default' \

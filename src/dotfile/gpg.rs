@@ -366,10 +366,6 @@ fn program(settings: &Settings, home: &Path) -> PathBuf {
     if let Some(program) = &settings.program {
         return storage::expand_home(program, home);
     }
-    #[cfg(target_os = "macos")]
-    if Path::new("/usr/local/MacGPG2/bin/gpg").is_file() {
-        return "/usr/local/MacGPG2/bin/gpg".into();
-    }
     "gpg".into()
 }
 
@@ -395,9 +391,9 @@ fn capture(mut command: Command, input: Option<&[u8]>) -> Result<SecretVec<u8>> 
         })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = command
-        .spawn()
-        .context("Start GPG; install GPG Suite or configure gpg_program")?;
+    let mut child = command.spawn().context(
+        "Start GPG; install GnuPG and make gpg available on PATH, or configure gpg_program",
+    )?;
     let output = std::thread::scope(|scope| -> Result<_> {
         let writer = input.map(|bytes| {
             let mut stdin = child.stdin.take().unwrap();

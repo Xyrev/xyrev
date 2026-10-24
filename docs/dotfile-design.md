@@ -208,7 +208,7 @@ stool dotfile verify
 `verify` 检查文件部署计划和已记录的 GPG 恢复摘要，不会执行恢复、测试签名或保证 keyring 中的密钥未被之后手动删除；待执行脚本看 `status`。另用 GPG 列出两把私钥：
 
 ```bash
-/usr/local/MacGPG2/bin/gpg --list-secret-keys --keyid-format LONG --fingerprint \
+gpg --list-secret-keys --keyid-format LONG --fingerprint \
   2BF609784E75AAC78CB67A7E465799B005224003 \
   98A56F40C2A502230AC6635435DF2F117D3233C5
 ```
@@ -227,9 +227,9 @@ for stool_gpg_key in \
   2BF609784E75AAC78CB67A7E465799B005224003 \
   98A56F40C2A502230AC6635435DF2F117D3233C5
 do
-  /usr/local/MacGPG2/bin/gpg --local-user "$stool_gpg_key" --detach-sign \
+  gpg --local-user "$stool_gpg_key" --detach-sign \
     --output "$stool_gpg_check_dir/$stool_gpg_key.sig" "$stool_gpg_check_dir/message.txt" &&
-  /usr/local/MacGPG2/bin/gpg --verify "$stool_gpg_check_dir/$stool_gpg_key.sig" "$stool_gpg_check_dir/message.txt"
+  gpg --verify "$stool_gpg_check_dir/$stool_gpg_key.sig" "$stool_gpg_check_dir/message.txt"
 done
 ```
 
@@ -322,7 +322,7 @@ Git clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出�
 
 可选的 `--fingerprint` 只接受完整主指纹，可重复筛选多个主密钥组；不存在或完全不可导出的显式选择会失败。覆盖时拒绝遗漏已有清单中的主密钥及旧 `public.asc` 中的主/子指纹，筛选不能用于缩减既有备份。若既有组当前含有缺失或硬件私钥组件，旧格式未记录私钥可用性，无法证明原私钥材料不丢失，会保守拒绝覆盖。部分私钥组可首次备份到新目录；重复备份需保留旧备份并使用全新 `--output` 目录，不读取旧密码或合并旧私钥密文。
 
-默认隐藏输入和确认 age 备份密码；原私钥口令由 GPG/pinentry 管理。支持仓库外的私有密码文件、独立 age 身份文件和 GPG 路径覆盖。备份也支持读取继承的管道描述符；恢复的密码文件要求为仓库外、非链接的私有普通文件。新密码模式不依赖 agekey，旧身份文件模式仍需其独立身份文件。
+默认隐藏输入和确认 age 备份密码；原私钥口令由 GPG/pinentry 管理。支持仓库外的私有密码文件、独立 age 身份文件和 GPG 路径覆盖。默认在所有平台通过 PATH 调用 `gpg`；显式的 `--gpg-program` 或 `program` 配置优先，不探测固定安装路径。备份也支持读取继承的管道描述符；恢复的密码文件要求为仓库外、非链接的私有普通文件。新密码模式不依赖 agekey，旧身份文件模式仍需其独立身份文件。
 
 恢复先验证三份数据的 SHA-256、清单字段、公私钥完整主指纹集合及 ownertrust 的指纹/值范围，再导入真实 HOME keyring。支持历史单/多主指纹、密码模式、身份模式与缺省模式的旧清单。SHA-256 是一致性校验，不是独立的来源身份认证；仓库与配置仍须可信。
 

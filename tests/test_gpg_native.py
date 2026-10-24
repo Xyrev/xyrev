@@ -64,11 +64,10 @@ class NativeGpgTests(unittest.TestCase):
         if not binary.is_file():
             raise unittest.SkipTest('Build stool or set STOOL_BIN')
         cls.binary = str(binary.resolve())
-        suite = Path('/usr/local/MacGPG2/bin/gpg')
-        cls.gpg_program = str(suite if suite.is_file() else shutil.which('gpg') or '')
+        cls.gpg_program = shutil.which('gpg')
         if not cls.gpg_program:
             raise unittest.SkipTest('Install GPG to run real disposable-key integration')
-        cls.gpgconf = str(Path(cls.gpg_program).with_name('gpgconf'))
+        cls.gpgconf = shutil.which('gpgconf')
 
     def setUp(self):
         # Short socket paths are necessary for gpg-agent on macOS.
@@ -108,7 +107,7 @@ class NativeGpgTests(unittest.TestCase):
         self.personal = self.generate('Native Personal <personal@example.invalid>')
 
     def kill_agent(self, home):
-        if Path(self.gpgconf).is_file():
+        if self.gpgconf:
             subprocess.run([self.gpgconf, '--homedir', str(home), '--kill', 'all'],
                            env=dict(self.env, GNUPGHOME=str(home)),
                            capture_output=True, timeout=15)
@@ -148,7 +147,7 @@ class NativeGpgTests(unittest.TestCase):
         return result
 
     def backup(self, keys=(), identity=False, ok=True):
-        args = ['gpg', 'backup', '--gpg-program', self.gpg_program]
+        args = ['gpg', 'backup']
         for key in keys:
             args += ['--fingerprint', key]
         args += ['--identity', str(self.identity)] if identity else [
@@ -156,7 +155,7 @@ class NativeGpgTests(unittest.TestCase):
         return self.stool(*args, ok=ok)
 
     def restore(self, identity=False, ok=True):
-        args = ['gpg', 'restore', '--gpg-program', self.gpg_program]
+        args = ['gpg', 'restore']
         args += ['--identity', str(self.identity)] if identity else [
             '--passphrase-file', str(self.password_file)]
         return self.stool(*args, ok=ok)

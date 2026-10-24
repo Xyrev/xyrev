@@ -168,7 +168,7 @@ pub struct GpgBackupArgs {
     /// Read the password from private external storage or an inherited pipe
     #[arg(long)]
     pub passphrase_file: Option<PathBuf>,
-    /// GPG executable (GPG Suite is detected on macOS)
+    /// GPG executable (defaults to gpg on PATH)
     #[arg(long)]
     pub gpg_program: Option<PathBuf>,
 }
@@ -184,7 +184,7 @@ pub struct GpgRestoreArgs {
     /// Read the password from a private file outside the repository
     #[arg(long)]
     pub passphrase_file: Option<PathBuf>,
-    /// GPG executable (GPG Suite is detected on macOS)
+    /// GPG executable (defaults to gpg on PATH)
     #[arg(long)]
     pub gpg_program: Option<PathBuf>,
 }
