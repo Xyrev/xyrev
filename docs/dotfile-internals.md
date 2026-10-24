@@ -1,6 +1,6 @@
 # stool dotfile 实现说明
 
-> 更新日期：2026-10-24。本文描述当前源码的 Rust 实现、状态与安全边界，离线密钥与 macOS 偏好命令待发布；历史 xyrev v0.5.0 的发行包和行为保持原样。
+> 更新日期：2026-10-24。本文描述当前源码的 Rust 实现、状态与安全边界，离线密钥、macOS 偏好与 Homebrew 命令待发布；历史 xyrev v0.5.0 的发行包和行为保持原样。
 
 产品能力见 [概览](dotfile-overview.md)，协议与新机器流程见 [设计文档](dotfile-design.md)，命令参数见 [README](../README.md) 和 `stool dotfile --help`。
 
@@ -9,6 +9,8 @@
 CLI 入口为 `src/cli/mod.rs`。简单命令使用单文件（`init.rs`），命令组使用 `agent/`、仅 macOS 的 `apple/`、`dotfile/`、`key/` 目录。组内 `mod.rs` 定义子命令和统一导出，具体参数按用途拆分；dotfile 的导入/编辑参数共用 `maintenance.rs`，key 的类别选择由 `selection.rs` 共用。CLI 只定义命令和参数；执行逻辑位于 `src/init.rs`、`src/agent/`、`src/apple/`、`src/dotfile/`、`src/key/`，由 `main.rs` 分发。业务模块仍通过 `cli::dotfile` / `cli::key` 导入参数类型。
 
 `src/apple/preferences.rs` 独立读取和设置当前用户的 Dock 偏好，通过 `/usr/bin/defaults` 参数调用执行。仅识别退出码 1 与确切 domain/key 的缺失诊断为未设置；其他读取错误会停止。写入后重新读取验证，预览不写入；不加载 dotfile 配置、锁或成功数据库，也不自动重启 Dock。
+
+`src/cli/apple/brew/` 定义 init/install、prefix、dry-run 与非交互参数；`src/apple/homebrew.rs` 负责发现、前置、私有临时安装器和安装后校验，`packages.rs` 先读取 Brewfile 再确保 Homebrew 可用并显式安装，`process.rs` 管理子进程输入和退出状态。Homebrew/包操作不使用 dotfile 的 Paths、锁或 once/onchange 数据库；预览不下载或执行清单 Ruby。模拟执行器覆盖完整初始化失败链，CLI 测试使用隔离的假 brew，不运行本机安装器。
 
 当前 dotfile 代码位于同一 Rust crate 中：
 

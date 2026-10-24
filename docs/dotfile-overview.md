@@ -1,6 +1,6 @@
 # stool dotfile 产品概览
 
-> 更新日期：2026-10-24。描述当前源码，包含待发布的离线密钥与 macOS 偏好命令；旧 tag 和发行包行为不变。
+> 更新日期：2026-10-24。描述当前源码，包含待发布的离线密钥、macOS 偏好与 Homebrew 命令；旧 tag 和发行包行为不变。
 
 `stool dotfile` 从 Git URL 获取配置仓库，按 stool 路径协议和 MiniJinja 模板计算目标文件，预览后部署到用户目录，并保护后续本地修改。`stool key` 独立处理仓库外密钥备份，不依赖 dotfiles。
 
@@ -25,6 +25,7 @@
 | 维护 | diff/status/managed/apply、add/edit/unmanaged、verify/doctor/data/execute-template/cd |
 | 脚本 | run/once/onchange、before/during/after、成功记账、失败重试 |
 | 加密与秘密 | 普通配置的内部 age/GPG、加密导入/编辑/部署、已认证秘密服务适配 |
+| macOS 与 Homebrew | 独立 apple init 与 apple brew init/install，按需设置偏好并显式安装清单 |
 | 离线密钥 | `stool key backup/restore`，默认全部 GPG/SSH、密码加密单文件、手动恢复 |
 | 资源与归档 | SHA-256、TTL 缓存、过滤和路径检查；tar/tgz/zip |
 | 冲突 | 三方比较、冲突预检、覆盖前备份、单文件原子替换、部分成功记录 |
@@ -39,7 +40,7 @@
 
 ## 新机器流程
 
-安装包含 `stool key` 的构建 → 手动转入离线包 → 恢复 SSH（已有 GPG 可恢复全部）→ 完成 Git SSH 或 HTTPS 认证 → init/diff/apply/verify → 如需要再手动恢复 GPG。macOS 的 GPG Suite 可由软件包钩子安装。完整命令见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
+安装包含 `stool key` 的构建 → 手动转入离线包 → 恢复 SSH（已有 GPG 可恢复全部）→ 完成 Git SSH 或 HTTPS 认证 → init/diff/apply/verify → 如需要再手动恢复 GPG。macOS 在配置部署后显式运行 `stool apple brew install` 安装 ~/.Brewfile（含 GPG Suite），再恢复 GPG。完整命令见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
 
 macOS 偏好由 `stool apple init --dry-run` 预览、`stool apple init` 应用，安装当前构建后即可独立运行；不再由示例 dotfiles 的 apply/update 设置。具体行为见 [README](../README.md#macos-偏好初始化)。
 

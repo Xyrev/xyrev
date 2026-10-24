@@ -4,7 +4,7 @@
 
 ## 当前源码与版本边界
 
-项目、Cargo package/bin 和仓库统一为 `stool` / `szwathub/stool`，当前 Cargo 版本为 0.6.0。本次 `stool key` 和 macOS 的 `stool apple init` 属于待发布改动，历史 tag 与发行包不因此改变；先确认 `stool key --help`，需要时[从源码构建](#从源码构建)。
+项目、Cargo package/bin 和仓库统一为 `stool` / `szwathub/stool`，当前 Cargo 版本为 0.6.0。本次 `stool key` 和 macOS 的 `stool apple init` / `stool apple brew` 属于待发布改动，历史 tag 与发行包不因此改变；先确认 `stool key --help`，需要时[从源码构建](#从源码构建)。
 
 控制项、模板数据/指令、环境变量和默认目录使用 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*` 和 `~/.stool`。不自动读取旧命名，也不复制旧状态。旧环境需重新初始化并检查 source、资源引用、待执行脚本和目标冲突。
 
@@ -38,7 +38,33 @@ stool apple init
 
 通过 macOS 自带的 `/usr/bin/defaults` 执行，无需 sudo；命令不会自动重启 Dock，必要时自行重启 Dock 或退出登录后重新进入。读取、写入或回读验证失败返回非零，错误包含具体偏好及系统诊断。
 
-原 `run_onchange_after_20-macos.sh.tmpl` 和 `configure_macos` 已从示例 dotfiles 移除；旧本机 `[data].configure_macos` 不再生效，可手动删除。移除钩子不撤销已有 Dock 设置，后续 `stool dotfile apply/update` 也不自动调用 `apple init`。Homebrew/软件包钩子与离线密钥流程保持独立。
+原 `run_onchange_after_20-macos.sh.tmpl` 和 `configure_macos` 已从示例 dotfiles 移除；旧本机 `[data].configure_macos` 不再生效，可手动删除。移除钩子不撤销已有 Dock 设置，后续 `stool dotfile apply/update` 也不自动调用 `apple init`。Homebrew/软件包安装及离线密钥操作均显式调用独立命令。
+
+## Homebrew 与软件包
+
+仅 macOS 提供，需使用包含 `apple brew` 的当前源码构建；本次只提交推送，不改变旧发行包。
+
+```bash
+stool apple brew init --dry-run
+stool apple brew init
+# 按输出执行 shellenv，使当前终端可以找到 brew、gpg 等程序
+stool apple brew install --dry-run
+stool apple brew install
+# 也可选择其他可信清单
+stool apple brew install --file /path/to/Brewfile
+```
+
+`init` 不依赖 dotfiles。发现已有 Homebrew 时检查版本和实际 prefix 并复用；缺失时先检查 Xcode/Command Line Tools、系统 Git 和 curl，再通过 HTTPS 下载官方安装器到私有临时文件，以 `/bin/bash` 执行，完成后验证可执行文件、版本与 prefix。缺失前置会停止并给出修复指引，不自动弹出 CLT 安装器；`xcode-select --install` 完成后重试。下载、安装或验证失败均返回非零，临时安装器始终清理；已有损坏的 Homebrew 报错后需先修复。
+
+选择顺序为 `--prefix <绝对目录>`、`HOMEBREW_PREFIX`、PATH 中的 brew、当前二进制架构的默认目录（Apple Silicon `/opt/homebrew`，Intel `/usr/local`）。例如 `stool apple brew init --prefix /custom/homebrew`；install 同样支持该选项。安装后输出实际路径对应的 zsh/bash shellenv 命令，由用户在当前终端执行；工具不改写 shell 配置。dotfiles 的 `brew_prefix` 仍供 Fish 配置使用，应与实际安装一致。
+
+默认继承终端输入，官方安装器和 cask 可正常请求授权。没有终端时实际安装须显式加 `--non-interactive`，并事先准备所需权限；不使用 sudo 启动整个 stool。详情见 [官方安装说明](https://docs.brew.sh/Installation)。
+
+`install` 默认读取 `~/.Brewfile`，也可用 `--file` 指定。文件缺失、不可读或不是普通文件时，在任何安装动作前失败；成功读取后确保 Homebrew 可用，再执行 `brew bundle install --no-upgrade --file <文件>`。保留禁用自动更新、常规升级与自动清理的行为；依赖安装仍由 Homebrew 决定，不提供版本锁定。失败保留已完成安装，修复后重新运行。每次显式调用都检查真实状态，不以清单摘要或 dotfile 脚本记录跳过，所以清单新增或手动卸载软件后可重新安装。
+
+严格预览仅检查 Homebrew/前置、读取并展示清单和计划，不下载、不创建安装器、不安装，也不执行 `brew bundle check`。Brewfile 可包含 Ruby；实际安装只用于可信清单，预览不会执行其中的代码，也不承诺准确列出所有缺失包。见 [Homebrew Bundle 说明](https://docs.brew.sh/Brew-Bundle-and-Brewfile)。
+
+示例 dotfiles 将 `dot_Brewfile` 部署到 macOS 的 `~/.Brewfile`，保留 GPG Suite，移除两个 Homebrew/软件包钩子及共享 `macos-hook.sh`。旧 `install_homebrew` / `install_packages` 本机数据可手动删除；配置 apply/update/verify 不再安装软件，清单更新后需显式运行 `stool apple brew install`。Git/Fish 仍使用 `quote` 宏，Fish 的 `brew_prefix` 保留。
 
 ## 从旧环境迁移
 
@@ -48,7 +74,7 @@ stool apple init
 
 `szwathub/stool` 公开，`szwathub/dotfiles` 私有。Git 认证、外层离线备份密码、各 GPG/SSH 私钥原口令和管理员密码分别管理。
 
-以下命令在 macOS 的 zsh 中执行。先安装包含 `stool key` 的构建，并确认 `stool key --help` 可用；本次离线密钥功能属于待发布源码，旧 tag 的安装器和 binary 不会自动获得这些命令。当前可[从源码构建](#从源码构建)，正式发布包安装不需要 Rust。
+以下命令在 macOS 的 zsh 中执行。先安装包含 `stool key` 的构建，并确认 `stool key --help` 可用；本次离线密钥和 Apple 命令属于待发布源码，旧 tag 的安装器和 binary 不会自动获得这些命令。当前可[从源码构建](#从源码构建)，正式发布包安装不需要 Rust。
 
 ### 先转入离线备份并恢复
 
@@ -89,18 +115,20 @@ Username 输入 GitHub 用户名，Password 输入 PAT。GitHub 账户密码不�
 ```bash
 stool dotfile init https://github.com/szwathub/dotfiles.git --recurse-submodules
 stool dotfile diff
-sudo -v
 stool dotfile apply
 stool dotfile verify
 ```
 
 init 核对 Git 姓名、邮箱、签名指纹和 Homebrew prefix。`--data git_signing_key=...` 仅覆盖个人 Git 签名默认值，不是下载或恢复前置。个人与 Work 身份仍按 clone URL 规则选择；签名私钥需手动恢复。
 
-这份 dotfiles 的完整 HOME 部署依次初始化 Homebrew、安装 Brewfile（含 GPG Suite）、部署配置。macOS 偏好单独运行 `stool apple init --dry-run` 预览，再运行 `stool apple init` 应用；安装包含该命令的 stool 构建后即可执行，无需先克隆 dotfiles。配置 apply/update 不再设置 Dock。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
+这份 dotfiles 只部署配置和 macOS 的 `~/.Brewfile`。配置部署完成后显式运行 `stool apple brew install --dry-run` 预览，再运行 `stool apple brew install` 安装清单内软件（含 GPG Suite）；该命令会先确保 Homebrew 可用。Homebrew 初始化也可在克隆前独立运行 `stool apple brew init`。安装完成后按输出执行 shellenv 指引，再检查 `gpg`。macOS 偏好单独运行 `stool apple init`；apply/update 不再安装软件或设置 Dock。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
 
-若第一步仅恢复了 SSH，软件包安装后确认 PATH 中有 `gpg`，再手动导入 GPG：
+若第一步仅恢复了 SSH，先显式安装软件包，再按 Homebrew 输出配置当前终端 PATH，确认 `gpg` 可用后手动导入：
 
 ```bash
+stool apple brew install --dry-run
+stool apple brew install
+# 按上述输出执行当前 Homebrew prefix 对应的 shellenv 命令
 command -v gpg
 gpg --version
 stool key restore --gpg --input /Volumes/Backup/my-keys.tar.age
@@ -125,7 +153,7 @@ stool dotfile update
 
 Rust 最低版本为 1.74。默认使用系统 Git；`init --builtin` 使用内置 gix。HTTPS、`ssh://`、`git@host:path`、绝对 `file://` URL 均可使用。私有仓库复用凭据助手或 SSH 配置，URL 不接受嵌入密码。`--branch` 选择分支，`--recurse-submodules` 初始化并持续更新子模块。内置后端通过 gix 克隆、校验和快进更新普通仓库；SSH 需要 SSH 客户端，子模块及 Git LFS 使用系统 Git 工具。
 
-`init` 在克隆前检查系统 Git 是否可用。缺失时停止并显示当前系统的安装命令：macOS 使用 `xcode-select --install` 安装包含 Git 的 Command Line Tools，Windows 提示 Git for Windows / winget，Linux 提示发行版包管理器。安装完成后运行 `git --version`，再重试原命令；检查失败不会创建 source、保存初始化配置或部署文件。macOS 的 `/usr/bin/git` 占位程序不会被当作已安装的 Git，也不会自动弹出安装窗口。普通仓库使用 `--builtin` 时无需这个检查；`--builtin --recurse-submodules` 仍需要系统 Git。仓库中的 Homebrew / 软件包脚本在后续 apply 阶段执行，不能替代首次克隆前的 Git 安装。
+`init` 在克隆前检查系统 Git 是否可用。缺失时停止并显示当前系统的安装命令：macOS 使用 `xcode-select --install` 安装包含 Git 的 Command Line Tools，Windows 提示 Git for Windows / winget，Linux 提示发行版包管理器。安装完成后运行 `git --version`，再重试原命令；检查失败不会创建 source、保存初始化配置或部署文件。macOS 的 `/usr/bin/git` 占位程序不会被当作已安装的 Git，也不会自动弹出安装窗口。普通仓库使用 `--builtin` 时无需这个检查；`--builtin --recurse-submodules` 仍需要系统 Git。Homebrew / 软件包安装由独立 `stool apple brew` 管理，不由 apply 执行，也不能替代首次克隆前的 Git 安装。
 
 ## 日常命令
 

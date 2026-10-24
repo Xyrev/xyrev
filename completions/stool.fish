@@ -29,7 +29,7 @@ complete -c stool -n "__fish_stool_needs_command" -s h -l help -d 'Print help'
 complete -c stool -n "__fish_stool_needs_command" -s V -l version -d 'Print version'
 complete -c stool -n "__fish_stool_needs_command" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
 complete -c stool -n "__fish_stool_needs_command" -f -a "agent"
-complete -c stool -n "__fish_stool_needs_command" -f -a "apple" -d 'Manage macOS preferences independently of dotfiles'
+complete -c stool -n "__fish_stool_needs_command" -f -a "apple" -d 'Manage macOS preferences and Homebrew independently of dotfiles'
 complete -c stool -n "__fish_stool_needs_command" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
 complete -c stool -n "__fish_stool_needs_command" -f -a "key" -d 'Back up and restore GPG and SSH keys independently of dotfiles'
 complete -c stool -n "__fish_stool_needs_command" -f -a "completions" -d 'Generate shell completions from the current command definitions'
@@ -55,14 +55,22 @@ complete -c stool -n "__fish_stool_using_subcommand agent; and __fish_seen_subco
 complete -c stool -n "__fish_stool_using_subcommand agent; and __fish_seen_subcommand_from help" -f -a "init"
 complete -c stool -n "__fish_stool_using_subcommand agent; and __fish_seen_subcommand_from help" -f -a "copilot"
 complete -c stool -n "__fish_stool_using_subcommand agent; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
-complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init help" -s v -l verbose -d 'Show more debugging information'
-complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init help" -s h -l help -d 'Print help'
-complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init help" -f -a "init" -d 'Set the current user\'s Dock minimization animation to suck'
-complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init brew help" -s v -l verbose -d 'Show more debugging information'
+complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init brew help" -s h -l help -d 'Print help'
+complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init brew help" -f -a "init" -d 'Set the current user\'s Dock minimization animation to suck'
+complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init brew help" -f -a "brew" -d 'Initialize Homebrew and install software from a Brewfile'
+complete -c stool -n "__fish_stool_using_subcommand apple; and not __fish_seen_subcommand_from init brew help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from init" -l dry-run -d 'Show current preferences and planned changes without writing'
 complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from init" -s v -l verbose -d 'Show more debugging information'
 complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from init" -s h -l help -d 'Print help'
+complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from brew" -l prefix -d 'Select a Homebrew prefix instead of HOMEBREW_PREFIX, PATH or the native default' -r -F
+complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from brew" -s v -l verbose -d 'Show more debugging information'
+complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from brew" -s h -l help -d 'Print help'
+complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from brew" -f -a "init" -d 'Reuse Homebrew or install it with the official installer'
+complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from brew" -f -a "install" -d 'Ensure Homebrew is available, then install a trusted Brewfile without routine upgrades'
+complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from brew" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from help" -f -a "init" -d 'Set the current user\'s Dock minimization animation to suck'
+complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from help" -f -a "brew" -d 'Initialize Homebrew and install software from a Brewfile'
 complete -c stool -n "__fish_stool_using_subcommand apple; and __fish_seen_subcommand_from help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -l source -d 'Local source repository (saved by init)' -r -F
 complete -c stool -n "__fish_stool_using_subcommand dotfile; and not __fish_seen_subcommand_from init diff status apply update managed add edit unmanaged verify doctor archive execute-template data keygen cd help" -l destination -d 'Destination directory (defaults to the user\'s home)' -r -F
@@ -234,7 +242,7 @@ complete -c stool -n "__fish_stool_using_subcommand man" -s v -l verbose -d 'Sho
 complete -c stool -n "__fish_stool_using_subcommand man" -s h -l help -d 'Print help'
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "init" -d 'Create a new configuration folder or reinitialize the existing one'
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "agent"
-complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "apple" -d 'Manage macOS preferences independently of dotfiles'
+complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "apple" -d 'Manage macOS preferences and Homebrew independently of dotfiles'
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "dotfile" -d 'Manage dotfiles from a Git repository'
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "key" -d 'Back up and restore GPG and SSH keys independently of dotfiles'
 complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_subcommand_from init agent apple dotfile key completions man help" -f -a "completions" -d 'Generate shell completions from the current command definitions'
@@ -243,6 +251,7 @@ complete -c stool -n "__fish_stool_using_subcommand help; and not __fish_seen_su
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from agent" -f -a "init"
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from agent" -f -a "copilot"
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from apple" -f -a "init" -d 'Set the current user\'s Dock minimization animation to suck'
+complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from apple" -f -a "brew" -d 'Initialize Homebrew and install software from a Brewfile'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "init" -d 'Clone a Git URL and save configuration'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "diff" -d 'Preview content and permission changes without writing'
 complete -c stool -n "__fish_stool_using_subcommand help; and __fish_seen_subcommand_from dotfile" -f -a "status" -d 'List pending changes and conflicts'

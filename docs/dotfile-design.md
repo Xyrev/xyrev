@@ -1,6 +1,6 @@
 # stool dotfile：实现规范、兼容边界与新机器流程
 
-> 校订日期：2026-10-24。Cargo 当前版本为 0.6.0，本文按待发布源码描述，新增离线密钥与 macOS 偏好命令不回填旧 tag。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
+> 校订日期：2026-10-24。Cargo 当前版本为 0.6.0，本文按待发布源码描述，新增离线密钥、macOS 偏好与 Homebrew 命令不回填旧 tag。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
 >
 > 本文记录 stool 的产品协议、新机器流程、实现证据与长期规划。[产品概览](dotfile-overview.md) 说明能力和边界，[实现说明](dotfile-internals.md) 说明当前 Rust 模块和状态处理。当前使用入口另见 [README](../README.md)，命令选项以 `stool dotfile --help` 及子命令帮助为准。
 >
@@ -24,7 +24,7 @@ stool 在现有单一 Rust crate 中提供 `stool dotfile`：通过完整 Git UR
 | 维护与诊断 | add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs) |
 | 脚本 | run/once/onchange、before/during/after 顺序；成功才持久化，失败可重试，onchange 的 A→B→A 再执行 | [scripts.rs](../src/dotfile/scripts.rs)、[钩子测试](../tests/dotfile_crypto_hooks.rs) |
 | 普通文件加密 | 内置 age；本机 GPG 子进程；通过 add --encrypt 导入、edit 编辑、apply 解密部署；保留内部 age 密码处理 | [crypto.rs](../src/dotfile/crypto.rs)、[加密文件测试](../tests/dotfile_advanced.rs) |
-| macOS 偏好 | 独立 apple init、只读预览、按实际值幂等应用 Dock 设置与回读验证 | [src/apple/](../src/apple/mod.rs)、[CLI 测试](../tests/apple_cli.rs) |
+| macOS 与 Homebrew | 独立 apple init；apple brew init/install 检查、初始化与显式安装清单；严格预览 | [src/apple/](../src/apple/mod.rs)、[CLI 测试](../tests/apple_cli.rs)、[Brew 测试](../tests/apple_brew_cli.rs) |
 | 离线 GPG/SSH 密钥 | 独立 key backup/restore、默认全部、单文件密码加密、仓库外保存和手动恢复 | [src/key/](../src/key/mod.rs)、[命令测试](../tests/key_backup.rs)、[真实密钥测试](../tests/test_keys_native.py) |
 | 秘密提供器 | 1Password、Bitwarden、pass/gopass、Vault、Keyring、KeePassXC、LastPass、Doppler、AWS、Azure 及通用命令适配；进程内缓存 | [secrets.rs](../src/dotfile/secrets.rs)、[高级测试](../tests/dotfile_advanced.rs) |
 | 外部资源与归档 | 文件、归档、归档中单文件、Git 资源；TTL、SHA-256、过滤、路径保护；tar/tgz/zip 导出 | [external.rs](../src/dotfile/external.rs)、[archive.rs](../src/dotfile/archive.rs) |
@@ -36,6 +36,8 @@ stool 在现有单一 Rust crate 中提供 `stool dotfile`：通过完整 Git UR
 
 ```text
 stool apple init [--dry-run]  # macOS only
+stool apple brew init [--prefix <dir>] [--dry-run] [--non-interactive]
+stool apple brew install [--file <Brewfile>] [--prefix <dir>] [--dry-run] [--non-interactive]
 stool dotfile init <git-url> [--branch <branch>] [--recurse-submodules] [--apply] [--builtin]
 stool dotfile diff
 stool dotfile status
@@ -127,7 +129,7 @@ Git 来源要求完整 HTTPS、`ssh://`、`git@host:path` 或绝对 `file://` UR
 
 ## 3. 新 Mac：从公开安装到私有仓库恢复
 
-以下命令在 macOS 的 zsh 中执行。先安装包含 `stool key` 的构建，并确认 `stool key --help` 可用；本次离线密钥功能属于待发布源码，旧 tag 的安装器和 binary 不会自动获得这些命令。当前可[从源码构建](../README.md#从源码构建)，正式发布包安装不需要 Rust。
+以下命令在 macOS 的 zsh 中执行。先安装包含 `stool key` 的构建，并确认 `stool key --help` 可用；本次离线密钥和 Apple 命令属于待发布源码，旧 tag 的安装器和 binary 不会自动获得这些命令。当前可[从源码构建](../README.md#从源码构建)，正式发布包安装不需要 Rust。
 
 ### 先转入离线备份并恢复
 
@@ -168,18 +170,20 @@ Username 输入 GitHub 用户名，Password 输入 PAT。GitHub 账户密码不�
 ```bash
 stool dotfile init https://github.com/szwathub/dotfiles.git --recurse-submodules
 stool dotfile diff
-sudo -v
 stool dotfile apply
 stool dotfile verify
 ```
 
 init 核对 Git 姓名、邮箱、签名指纹和 Homebrew prefix。`--data git_signing_key=...` 仅覆盖个人 Git 签名默认值，不是下载或恢复前置。个人与 Work 身份仍按 clone URL 规则选择；签名私钥需手动恢复。
 
-这份 dotfiles 的完整 HOME 部署依次初始化 Homebrew、安装 Brewfile（含 GPG Suite）、部署配置。macOS 偏好单独运行 `stool apple init --dry-run` 预览，再运行 `stool apple init` 应用；安装包含该命令的 stool 构建后即可执行，无需先克隆 dotfiles。配置 apply/update 不再设置 Dock。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
+这份 dotfiles 只部署配置和 macOS 的 `~/.Brewfile`。配置部署完成后显式运行 `stool apple brew install --dry-run` 预览，再运行 `stool apple brew install` 安装清单内软件（含 GPG Suite）；该命令会先确保 Homebrew 可用。Homebrew 初始化也可在克隆前独立运行 `stool apple brew init`。安装完成后按输出执行 shellenv 指引，再检查 `gpg`。macOS 偏好单独运行 `stool apple init`；apply/update 不再安装软件或设置 Dock。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
 
-若第一步仅恢复了 SSH，软件包安装后确认 PATH 中有 `gpg`，再手动导入 GPG：
+若第一步仅恢复了 SSH，先显式安装软件包，再按 Homebrew 输出配置当前终端 PATH，确认 `gpg` 可用后手动导入：
 
 ```bash
+stool apple brew install --dry-run
+stool apple brew install
+# 按上述输出执行当前 Homebrew prefix 对应的 shellenv 命令
 command -v gpg
 gpg --version
 stool key restore --gpg --input /Volumes/Backup/my-keys.tar.age
@@ -201,10 +205,10 @@ GPG Suite/pinentry 可能另行要求私钥原口令。已在最开始恢复全�
 | `dot_config/fish/external_functions/` | 固定提交的 HTTPS 子模块，初始化保留 `--recurse-submodules` |
 | `private_dot_ssh/private_config` | SSH 连接配置及 IdentityFile 路径 |
 | `dot_vimrc`、`dot_vim/colors/solarized.vim` | 基础 Vim 与配色，不安装插件管理器或插件 |
-| `.stooltemplates/Brewfile` | 包含 GPG Suite，避免重复声明 gnupg/pinentry-mac |
+| `dot_Brewfile` | macOS 的 ~/.Brewfile，包含 GPG Suite，独立 apple brew install 安装 |
 | `private_dot_gnupg/` | GPG/agent 配置，不包含 keyring |
 
-两个系统钩子是 `run_once_before_00-homebrew.sh.tmpl`、`run_onchange_before_10-packages.sh.tmpl`，继续共用 `.stooltemplates/macos-hook.sh` 的系统与 HOME 目标检查。数字决定同阶段排序；配置部署不会自动恢复密钥或修改 Dock。macOS 偏好改由独立 `stool apple init [--dry-run]` 管理，具体行为见 [README](../README.md#macos-偏好初始化)。旧 `configure_macos` 不再使用，现有设置和旧脚本成功记录无需迁移。
+示例仓库不再包含 run 安装钩子。Homebrew 初始化与软件包安装分别由 `stool apple brew init/install` 显式执行，macOS 偏好由 `stool apple init` 管理。配置部署不会自动安装软件、恢复密钥或修改 Dock；旧 install_homebrew/install_packages/configure_macos 不再生效，旧脚本状态无需迁移。brew_prefix 与 quote 宏仍供 Fish/Git 配置使用。行为和预览边界见 [README](../README.md#homebrew-与软件包)。
 
 Git clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出的规则，设置仓库本地 `user.name`、`user.email`、`user.signingkey`。GitHub 使用个人数据，Gitee/工作域名使用 Work 配置；它不覆盖已有仓库身份，也不是每次操作实时重新选钥。HTTPS 和 SSH 的 URL 模式都在规则内。
 

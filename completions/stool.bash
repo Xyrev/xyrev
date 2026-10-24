@@ -58,17 +58,47 @@ _stool() {
             stool__agent__help,init)
                 cmd="stool__agent__help__init"
                 ;;
+            stool__apple,brew)
+                cmd="stool__apple__brew"
+                ;;
             stool__apple,help)
                 cmd="stool__apple__help"
                 ;;
             stool__apple,init)
                 cmd="stool__apple__init"
                 ;;
+            stool__apple__brew,help)
+                cmd="stool__apple__brew__help"
+                ;;
+            stool__apple__brew,init)
+                cmd="stool__apple__brew__init"
+                ;;
+            stool__apple__brew,install)
+                cmd="stool__apple__brew__install"
+                ;;
+            stool__apple__brew__help,help)
+                cmd="stool__apple__brew__help__help"
+                ;;
+            stool__apple__brew__help,init)
+                cmd="stool__apple__brew__help__init"
+                ;;
+            stool__apple__brew__help,install)
+                cmd="stool__apple__brew__help__install"
+                ;;
+            stool__apple__help,brew)
+                cmd="stool__apple__help__brew"
+                ;;
             stool__apple__help,help)
                 cmd="stool__apple__help__help"
                 ;;
             stool__apple__help,init)
                 cmd="stool__apple__help__init"
+                ;;
+            stool__apple__help__brew,init)
+                cmd="stool__apple__help__brew__init"
+                ;;
+            stool__apple__help__brew,install)
+                cmd="stool__apple__help__brew__install"
                 ;;
             stool__dotfile,add)
                 cmd="stool__dotfile__add"
@@ -202,8 +232,17 @@ _stool() {
             stool__help__agent,init)
                 cmd="stool__help__agent__init"
                 ;;
+            stool__help__apple,brew)
+                cmd="stool__help__apple__brew"
+                ;;
             stool__help__apple,init)
                 cmd="stool__help__apple__init"
+                ;;
+            stool__help__apple__brew,init)
+                cmd="stool__help__apple__brew__init"
+                ;;
+            stool__help__apple__brew,install)
+                cmd="stool__help__apple__brew__install"
                 ;;
             stool__help__dotfile,add)
                 cmd="stool__help__dotfile__add"
@@ -412,7 +451,7 @@ _stool() {
             return 0
             ;;
         stool__apple)
-            opts="-v -h --verbose --help init help"
+            opts="-v -h --verbose --help init brew help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -425,9 +464,165 @@ _stool() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        stool__apple__help)
-            opts="init help"
+        stool__apple__brew)
+            opts="-v -h --prefix --verbose --help init install help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --prefix)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__brew__help)
+            opts="init install help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__brew__help__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__brew__help__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__brew__help__install)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__brew__init)
+            opts="-v -h --dry-run --non-interactive --prefix --verbose --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --prefix)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__brew__install)
+            opts="-v -h --file --dry-run --non-interactive --prefix --verbose --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --file)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --prefix)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__help)
+            opts="init brew help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__help__brew)
+            opts="init install"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__help__brew__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__help__brew__install)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1274,8 +1469,50 @@ _stool() {
             return 0
             ;;
         stool__help__apple)
-            opts="init"
+            opts="init brew"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__help__apple__brew)
+            opts="init install"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__help__apple__brew__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__help__apple__brew__install)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi

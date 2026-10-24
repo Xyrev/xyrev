@@ -60,7 +60,7 @@ GPG 始终通过 PATH 中的 `gpg` 调用。恢复先在隔离 keyring 检查完
 
 ## 新机器与验收
 
-推荐顺序：安装包含 `stool key` 的版本 → 手动转入离线包 → 恢复 SSH（已有 GPG 可直接恢复全部）→ Git 认证 → 初始化、预览及部署 dotfiles → 若此前只恢复 SSH，再手动恢复 GPG。完整 macOS 命令见 [README](../README.md#新-mac-初始化私有-dotfiles)。Linux/Windows 先按本机方式安装 GPG；这份 dotfiles 的 Homebrew 钩子仅在 macOS HOME 部署运行。
+推荐顺序：安装包含 `stool key` 的版本 → 手动转入离线包 → 恢复 SSH（已有 GPG 可直接恢复全部）→ Git 认证 → 初始化、预览及部署 dotfiles → macOS 显式 apple brew install 安装 GPG Suite → 若此前只恢复 SSH，再手动恢复 GPG。完整 macOS 命令见 [README](../README.md#新-mac-初始化私有-dotfiles)。Linux/Windows 先按本机方式安装 GPG；这份 dotfiles 仅在 macOS 部署 ~/.Brewfile，软件安装由独立 stool apple brew install 执行，不由 apply/update 触发。
 
 除查看指纹外，可用隔离目录对两把 GPG 分别做签名和验签：
 

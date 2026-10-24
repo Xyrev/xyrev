@@ -1,5 +1,7 @@
 # 待发布
 
+新增 macOS 的 `stool apple brew init/install`，独立初始化 Homebrew 并安装默认 ~/.Brewfile 或 --file 清单；支持 prefix、严格只读预览与显式无人值守模式。示例 dotfiles 将 Brewfile 改为受管理文件，删除 Homebrew/软件包钩子、共享安装模板与开关；apply/update 不再安装软件。当前仅源码构建可用。
+
 新增 macOS 专用 `stool apple init [--dry-run]`，将示例 dotfiles 的 Dock 最小化动画设置迁入 stool。按实际值比较、按需写入并回读验证；预览只读，无需先克隆仓库。示例 dotfiles 删除 macOS 偏好钩子和 `configure_macos` 开关，配置 apply/update 不再修改 Dock。新命令尚未发布，使用包含该命令的源码构建。
 
 GPG 与 SSH 改为独立 `stool key backup/restore`：默认全部类别、单个密码加密 tar.age 文件、默认当前目录备份和 HOME 手动恢复。离线包、公钥、私钥和密码均在 Git 仓库外；SSH 可先于 Git/GPG 和 dotfiles 初始化恢复。完整参数及范围见 [离线说明](docs/key-backup.md)。
