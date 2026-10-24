@@ -1,5 +1,4 @@
-mod common;
-use common::*;
+use crate::common::*;
 
 #[test]
 fn git_url_init_preview_apply_update_and_idempotency() {

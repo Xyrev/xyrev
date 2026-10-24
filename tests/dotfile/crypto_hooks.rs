@@ -1,5 +1,4 @@
-mod common;
-use common::*;
+use crate::common::*;
 use fs2::FileExt;
 
 #[test]

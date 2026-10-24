@@ -1,8 +1,7 @@
 #![cfg(unix)]
 
-mod common;
-use common::gpg::{fake_gpg, private_write};
-use common::{decrypt_age_fixture, Sandbox};
+use crate::common::gpg::{fake_gpg, private_write};
+use crate::common::{decrypt_age_fixture, Sandbox};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, RawFd};

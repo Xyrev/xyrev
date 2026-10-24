@@ -1,6 +1,7 @@
 use super::crypto;
-use super::storage::{digest, Fingerprint, Paths};
+use super::storage::{Fingerprint, Paths};
 use super::template::{self, Engine};
+use crate::common::fs as filesystem;
 use anyhow::{bail, Context, Result};
 use globset::{GlobBuilder, GlobMatcher};
 use std::collections::{BTreeMap, BTreeSet};
@@ -38,7 +39,7 @@ impl Entry {
         match &self.content {
             Content::Directory => Some(Fingerprint::Directory { mode: self.mode }),
             Content::File(data) | Content::Create(data) => Some(Fingerprint::File {
-                hash: digest(data),
+                hash: filesystem::digest(data),
                 mode: self.mode,
             }),
             Content::Symlink(target) => Some(Fingerprint::Symlink {
@@ -560,7 +561,7 @@ fn walk(
                 0o644
             };
             if literal_children {
-                mode = super::storage::mode(&meta);
+                mode = filesystem::mode(&meta);
             }
             if attr.private {
                 mode &= 0o700;
@@ -667,32 +668,5 @@ pub fn known_control(name: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn attributes_preserve_literal_names_and_validate_order() {
-        assert_eq!(
-            attributes("dot_gitconfig", false).unwrap().name,
-            ".gitconfig"
-        );
-        assert_eq!(attributes("private_dot_ssh", true).unwrap().name, ".ssh");
-        assert_eq!(
-            attributes("literal_dot_name.tmpl.literal", false)
-                .unwrap()
-                .name,
-            "dot_name.tmpl"
-        );
-        assert!(attributes("literal_name.tmpl", false).unwrap().template);
-        assert!(attributes("dot_private_name", false).is_err());
-        assert!(attributes("executable_dir", true).is_err());
-        assert!(attributes("dot_", false).is_err());
-        assert!(attributes("literal_..", false).is_err());
-        let script = attributes("run_once_before_setup.sh.tmpl", false).unwrap();
-        assert!(
-            matches!(script.kind, Kind::Script(Condition::Once, Order::Before)) && script.template
-        );
-        let encrypted = attributes("encrypted_private_dot_config.tmpl.age", false).unwrap();
-        assert!(encrypted.encrypted && encrypted.private && encrypted.template);
-        assert_eq!(encrypted.name, ".config");
-    }
-}
+#[path = "../../tests/unit/dotfile/source.rs"]
+mod tests;

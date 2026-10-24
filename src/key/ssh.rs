@@ -1,4 +1,9 @@
-use super::{add, capture, checked, read, relative, Files};
+use super::{
+    archive::add,
+    paths::{checked, read, relative},
+    process::capture,
+    Files,
+};
 use age::secrecy::{ExposeSecret, SecretString, SecretVec};
 use anyhow::{bail, Context, Result};
 use base64::{

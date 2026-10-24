@@ -30,7 +30,7 @@ class NativeKeyTests(unittest.TestCase):
     def setUpClass(cls):
         if os.name != 'posix':
             raise unittest.SkipTest('Disposable native GPG/OpenSSH suite uses Unix keyrings')
-        binary = Path(os.environ.get('STOOL_BIN', str(Path(__file__).resolve().parents[1] / 'target/debug/stool')))
+        binary = Path(os.environ.get('STOOL_BIN', str(Path(__file__).resolve().parents[2] / 'target/debug/stool')))
         if not binary.is_file() or not shutil.which('gpg') or not shutil.which('ssh-keygen'):
             raise unittest.SkipTest('Build stool and install GPG/OpenSSH')
         cls.binary = str(binary.resolve())

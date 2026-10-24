@@ -1,5 +1,4 @@
-mod common;
-use common::*;
+use crate::common::*;
 
 fn init_command(sandbox: &Sandbox, path: &Path) -> Command {
     let mut command = sandbox.command();

@@ -13,7 +13,7 @@ import tempfile
 import unittest
 import zipfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 VERSION = 'v0.6.0'
 DOWNLOAD = r'''
 import json, os, pathlib, shutil, sys

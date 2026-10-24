@@ -1,6 +1,7 @@
 use super::source::{Content, Entry, Order, Script, Tree};
 use super::storage::{self, Fingerprint, Paths, State};
 use super::{process, scripts};
+use crate::common::fs as filesystem;
 use anyhow::{bail, Context, Result};
 use similar::TextDiff;
 use std::collections::{BTreeMap, BTreeSet};
@@ -49,13 +50,13 @@ fn snapshot(path: &Path) -> Result<Snapshot> {
         }
     } else if meta.is_dir() {
         Fingerprint::Directory {
-            mode: storage::path_mode(path, &meta)?,
+            mode: filesystem::path_mode(path, &meta)?,
         }
     } else if meta.is_file() {
         let data = fs::read(path).with_context(|| format!("Read {}", path.display()))?;
         let value = Fingerprint::File {
-            hash: storage::digest(&data),
-            mode: storage::path_mode(path, &meta)?,
+            hash: filesystem::digest(&data),
+            mode: filesystem::path_mode(path, &meta)?,
         };
         bytes = Some(data);
         value
@@ -264,8 +265,10 @@ impl Plan {
         let mut names = BTreeSet::new();
         let mut changes = Vec::new();
         for entry in entries.values_mut() {
-            entry.mode =
-                storage::normalized_mode(entry.mode, matches!(entry.content, Content::Directory));
+            entry.mode = filesystem::normalized_mode(
+                entry.mode,
+                matches!(entry.content, Content::Directory),
+            );
         }
         for (relative, entry) in &entries {
             storage::relative_path(relative)?;
@@ -415,7 +418,7 @@ impl Plan {
                 let path = paths.destination.join(&change.entry.relative);
                 if let Ok(meta) = fs::symlink_metadata(&path) {
                     if meta.is_dir() && !meta.file_type().is_symlink() {
-                        storage::set_mode(&path, storage::path_mode(&path, &meta)? | 0o200)?;
+                        filesystem::set_mode(&path, filesystem::path_mode(&path, &meta)? | 0o200)?;
                     }
                 }
                 directories.0.push((path, change.entry.mode));
@@ -489,7 +492,7 @@ impl Plan {
             result.with_context(|| format!("Deployment stopped after {applied} change(s); completed writes and backups were retained"))?;
         }
         for (path, mode) in &directories.0 {
-            storage::set_mode(path, *mode)?;
+            filesystem::set_mode(path, *mode)?;
             let relative = path
                 .strip_prefix(&paths.destination)?
                 .to_str()
@@ -528,7 +531,7 @@ struct DirectoryModes(Vec<(PathBuf, u32)>);
 impl Drop for DirectoryModes {
     fn drop(&mut self) {
         for (path, mode) in self.0.iter().rev() {
-            let _ = storage::set_mode(path, *mode);
+            let _ = filesystem::set_mode(path, *mode);
         }
     }
 }
@@ -606,7 +609,7 @@ fn prepare_removal(path: &Path) -> Result<()> {
     if meta.file_type().is_symlink() {
         return Ok(());
     }
-    storage::set_mode(path, if meta.is_dir() { 0o700 } else { 0o600 })?;
+    filesystem::set_mode(path, if meta.is_dir() { 0o700 } else { 0o600 })?;
     if meta.is_dir() {
         for entry in fs::read_dir(path)? {
             prepare_removal(&entry?.path())?;
@@ -618,9 +621,9 @@ fn prepare_removal(path: &Path) -> Result<()> {
 fn prepare_removal(path: &Path) -> Result<()> {
     let meta = fs::symlink_metadata(path)?;
     if meta.is_dir() && !meta.file_type().is_symlink() {
-        let mode = storage::mode(&meta);
+        let mode = filesystem::mode(&meta);
         if mode & 0o700 != 0o700 {
-            storage::set_mode(path, mode | 0o700)?;
+            filesystem::set_mode(path, mode | 0o700)?;
         }
         for entry in fs::read_dir(path)? {
             prepare_removal(&entry?.path())?;
@@ -659,7 +662,7 @@ fn write_entry(change: &Change, target: &Path) -> Result<()> {
                 remove_leaf(target)?;
             }
             fs::create_dir_all(target)?;
-            storage::set_mode(
+            filesystem::set_mode(
                 target,
                 if change.entry.mode & 0o222 == 0 {
                     change.entry.mode | 0o200
@@ -668,7 +671,7 @@ fn write_entry(change: &Change, target: &Path) -> Result<()> {
                 },
             )?;
         }
-        Content::File(bytes) => storage::atomic_write(target, bytes, change.entry.mode)?,
+        Content::File(bytes) => filesystem::atomic_write(target, bytes, change.entry.mode)?,
         Content::Symlink(link) => {
             let temporary = tempfile::Builder::new()
                 .prefix(".stool-link-")
@@ -705,7 +708,7 @@ impl Backups {
     ) -> Result<()> {
         if self.directory.is_none() {
             let root = paths.root.join("backups");
-            storage::private_dir(&root)?;
+            filesystem::private_dir(&root)?;
             let directory = tempfile::Builder::new()
                 .prefix("apply-")
                 .tempdir_in(root)?
@@ -725,7 +728,7 @@ impl Backups {
             change.entry.relative.to_str().unwrap().to_owned(),
             actual.clone(),
         );
-        storage::atomic_write(
+        filesystem::atomic_write(
             &root.join("metadata.json"),
             &serde_json::to_vec_pretty(&self.records)?,
             0o600,
@@ -743,7 +746,7 @@ fn copy_entry(source: &Path, target: &Path) -> Result<()> {
             let child = child?;
             copy_entry(&child.path(), &target.join(child.file_name()))?;
         }
-        storage::set_mode(target, storage::mode(&metadata))?;
+        filesystem::set_mode(target, filesystem::mode(&metadata))?;
     } else if metadata.is_file() {
         fs::copy(source, target)?;
     } else {

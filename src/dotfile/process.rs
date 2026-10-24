@@ -1,4 +1,5 @@
-use super::storage::{self, Paths};
+use super::storage::Paths;
+use crate::common::fs as filesystem;
 use anyhow::{bail, Context, Result};
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
@@ -42,7 +43,7 @@ pub fn script(
     } else {
         "script"
     });
-    storage::atomic_write(&path, bytes, 0o700)?;
+    filesystem::atomic_write(&path, bytes, 0o700)?;
     let first = bytes
         .split(|byte| *byte == b'\n')
         .next()

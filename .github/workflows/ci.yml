@@ -19,7 +19,7 @@ jobs:
           python-version: '3.12'
       - name: Test the Unix installer
         if: runner.os != 'Windows'
-        run: python -m unittest discover -s tests -p 'test_installer.py' -v
+        run: python -m unittest discover -s tests/python -p 'test_installer.py' -v
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked --all-targets
@@ -48,7 +48,7 @@ jobs:
         if: runner.os != 'Windows'
         env:
           STOOL_BIN: target/debug/stool
-        run: python -m unittest discover -s tests -p 'test_keys_native.py' -v
+        run: python -m unittest discover -s tests/python -p 'test_keys_native.py' -v
       - name: Check generated CLI assets
         if: runner.os == 'macOS'
         run: |

@@ -1,6 +1,7 @@
 use super::process;
 use super::source::{Condition, Order, Script};
-use super::storage::{self, Paths};
+use super::storage::Paths;
+use crate::common::fs as filesystem;
 use anyhow::{Context, Result};
 use redb::{Database, ReadableTable, TableDefinition};
 use std::collections::BTreeSet;
@@ -43,13 +44,17 @@ impl Store {
         match script.condition {
             Condition::Always => format!("{}:always:{}", self.namespace, script.name),
             Condition::Once => {
-                format!("{}:once:{}", self.namespace, storage::digest(&script.bytes))
+                format!(
+                    "{}:once:{}",
+                    self.namespace,
+                    filesystem::digest(&script.bytes)
+                )
             }
             Condition::OnChange => format!(
                 "{}:onchange:{}:{}",
                 self.namespace,
                 script.name,
-                storage::digest(&script.bytes)
+                filesystem::digest(&script.bytes)
             ),
         }
     }
@@ -65,7 +70,7 @@ impl Store {
             process::script(paths, &script.name, &script.bytes, None, false)?;
             if script.condition != Condition::Always {
                 let directory = paths.root.join("state");
-                storage::private_dir(&directory)?;
+                filesystem::private_dir(&directory)?;
                 let file = directory.join("scripts.redb");
                 let db = Database::create(&file)?;
                 let transaction = db.begin_write()?;
@@ -93,7 +98,7 @@ impl Store {
                     table.insert(key.as_str(), "success")?;
                 }
                 transaction.commit()?;
-                storage::set_mode(&file, 0o600)?;
+                filesystem::set_mode(&file, 0o600)?;
                 self.done.insert(key);
             }
         }

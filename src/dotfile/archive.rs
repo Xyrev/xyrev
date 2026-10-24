@@ -2,6 +2,7 @@ use super::plan::Plan;
 use super::source::{Content, Entry};
 use super::storage;
 use crate::cli::dotfile::ArchiveFormat;
+use crate::common::fs as filesystem;
 use anyhow::{bail, Context, Result};
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
@@ -52,7 +53,7 @@ pub fn export(plan: &Plan, format: ArchiveFormat, output: &Path) -> Result<()> {
         }
     }
     temporary.as_file().sync_all()?;
-    storage::set_mode(temporary.path(), 0o600)?;
+    filesystem::set_mode(temporary.path(), 0o600)?;
     temporary.persist(output).map_err(|error| error.error)?;
     println!("Archive: {}", output.display());
     Ok(())

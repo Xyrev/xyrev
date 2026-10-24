@@ -3,7 +3,7 @@ use crate::cli::{
     key::{RestoreArgs, Selection},
 };
 use crate::common::config::{self, Config};
-use crate::dotfile::{storage, validate_url};
+use crate::common::{fs as filesystem, git::validate_url};
 use crate::key::{self, RestoreSession};
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -173,7 +173,7 @@ pub fn run(args: &InitCommand, verbose: bool) -> Result<()> {
 }
 
 fn local_brewfile(args: &InitCommand, home: &Path) -> Result<Option<PathBuf>> {
-    let file = storage::expand_home(
+    let file = filesystem::expand_home(
         args.brewfile.as_deref().unwrap_or(&home.join(".Brewfile")),
         home,
     );

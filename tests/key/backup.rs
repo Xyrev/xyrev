@@ -1,10 +1,9 @@
-mod common;
-use common::gpg::{fake_gpg, private_write};
-use common::*;
+use crate::common::gpg::{fake_gpg, private_write};
+use crate::common::*;
 
 const A: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-const PRIVATE: &[u8] = include_bytes!("fixtures/offline-keys/test_ed25519");
-const PUBLIC: &[u8] = include_bytes!("fixtures/offline-keys/test_ed25519.pub");
+const PRIVATE: &[u8] = include_bytes!("../fixtures/offline-keys/test_ed25519");
+const PUBLIC: &[u8] = include_bytes!("../fixtures/offline-keys/test_ed25519.pub");
 struct Fixture {
     _temp: tempfile::TempDir,
     root: PathBuf,

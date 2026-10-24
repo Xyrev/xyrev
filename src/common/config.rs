@@ -1,5 +1,5 @@
 //! Defaults shared by top-level initialization and dotfile initialization.
-use crate::dotfile::{storage, validate_url};
+use crate::common::{fs as filesystem, git::validate_url};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -56,7 +56,7 @@ impl Config {
         let root = home.join(".stool");
         // Serialize read/merge/write so unrelated defaults survive concurrent changes.
         Self::load(home)?;
-        let _lock = storage::lock(&root, true)?;
+        let _lock = filesystem::lock(&root, true)?;
         let mut config = Self::load(home)?;
         let table = config
             .value
@@ -70,7 +70,7 @@ impl Config {
             .as_table_mut()
             .context("Global dotfile configuration must be a table")?
             .insert("url".into(), url.into());
-        storage::atomic_write(
+        filesystem::atomic_write(
             &config.path,
             toml::to_string_pretty(&config.value)?.as_bytes(),
             0o600,
@@ -82,5 +82,5 @@ pub fn home() -> Result<PathBuf> {
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .context("Cannot determine user home directory")?;
-    storage::resolve(Path::new(&home))
+    filesystem::resolve(Path::new(&home))
 }

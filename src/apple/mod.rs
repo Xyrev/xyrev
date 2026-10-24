@@ -37,10 +37,6 @@ pub fn run(command: &AppleCommand, verbose: bool) -> Result<()> {
     }
 }
 
-#[cfg(test)]
-#[path = "../../tests/unit/apple_brew.rs"]
-mod brew_tests;
-
 /// Share Homebrew discovery and package installation with top-level initialization.
 pub(crate) fn bootstrap(
     file: Option<&std::path::Path>,
@@ -87,3 +83,7 @@ pub(crate) fn bootstrap(
 pub(crate) fn initialize_preferences(verbose: bool) -> Result<()> {
     preferences::init(false, verbose)
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/apple/brew.rs"]
+mod brew_tests;

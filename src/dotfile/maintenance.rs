@@ -3,6 +3,7 @@ use super::storage::{self, Paths};
 use super::template::Engine;
 use super::{crypto, external};
 use crate::cli::dotfile::{AddArgs, EditArgs};
+use crate::common::fs as filesystem;
 use anyhow::{bail, Context, Result};
 use std::collections::BTreeMap;
 use std::fs;
@@ -10,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub fn target_relative(paths: &Paths, argument: &Path) -> Result<PathBuf> {
-    let expanded = storage::expand_home(argument, &paths.home);
+    let expanded = filesystem::expand_home(argument, &paths.home);
     let relative = if expanded.is_absolute() {
         expanded
             .strip_prefix(&paths.destination)
@@ -109,7 +110,7 @@ pub fn add(paths: &Paths, engine: &Engine, args: &AddArgs) -> Result<()> {
     for (relative, operation) in &imports {
         if let Some(bytes) = &operation.bytes {
             fs::create_dir_all(operation.source.parent().unwrap())?;
-            storage::atomic_write(&operation.source, bytes, 0o600)?;
+            filesystem::atomic_write(&operation.source, bytes, 0o600)?;
             if let Some(old) = &operation.old {
                 if old != &operation.source {
                     fs::remove_file(old)?;
@@ -163,7 +164,7 @@ fn import(
                 .to_str()
                 .context("Source names must be UTF-8")?;
             let mode = fs::metadata(paths.destination.join(&target_parent))
-                .map(|meta| storage::mode(&meta))
+                .map(|meta| filesystem::mode(&meta))
                 .unwrap_or(0o755);
             source_parent.push(format!(
                 "{}{}",
@@ -208,7 +209,7 @@ fn import(
     }
     let encrypted = args.encrypt || previous.as_ref().is_some_and(|attr| attr.encrypted);
     let templated = args.template || previous.as_ref().is_some_and(|attr| attr.template);
-    let mode = storage::path_mode(&target, &metadata)?;
+    let mode = filesystem::path_mode(&target, &metadata)?;
     let mut name = encode(filename, metadata.is_dir());
     let bytes = if metadata.file_type().is_symlink() {
         if encrypted || templated {
@@ -375,7 +376,7 @@ pub fn edit(paths: &Paths, engine: &Engine, args: &EditArgs) -> Result<()> {
                 &fs::read(origin)?,
                 &attr.encryption_extension,
             )?;
-            storage::atomic_write(&plaintext, &bytes, 0o600)?;
+            filesystem::atomic_write(&plaintext, &bytes, 0o600)?;
             let status = Command::new(executable)
                 .args(&argv[1..])
                 .arg(&plaintext)
@@ -392,7 +393,7 @@ pub fn edit(paths: &Paths, engine: &Engine, args: &EditArgs) -> Result<()> {
             }
             .into();
             let encrypted = crypto::encrypt(&settings, &fs::read(plaintext)?)?;
-            storage::atomic_write(origin, &encrypted, 0o600)?;
+            filesystem::atomic_write(origin, &encrypted, 0o600)?;
         } else {
             let status = Command::new(executable)
                 .args(&argv[1..])

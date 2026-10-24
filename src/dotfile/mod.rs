@@ -1,8 +1,8 @@
+use crate::common::fs as filesystem;
 mod archive;
 mod crypto;
 mod external;
 mod git;
-pub(crate) use git::validate_url;
 mod maintenance;
 mod native_git;
 mod plan;
@@ -11,9 +11,9 @@ mod process;
 mod scripts;
 mod secrets;
 mod source;
-pub(crate) mod storage;
+mod storage;
 mod template;
-pub(crate) mod tools;
+mod tools;
 mod ui;
 
 use crate::cli::dotfile::{Commands, DotfileCommand};
@@ -32,7 +32,7 @@ pub fn run(command: &DotfileCommand, verbose: bool) -> Result<()> {
         &command.command,
         Commands::Init(_) | Commands::Update | Commands::Add(_) | Commands::Edit(_)
     ) || matches!(&command.command,Commands::Apply(args) if !args.dry_run);
-    let _lock = storage::lock(&initial.root, write)?;
+    let _lock = filesystem::lock(&initial.root, write)?;
     let mut paths =
         storage::Paths::load(command.source.as_deref(), command.destination.as_deref())?;
     if verbose {

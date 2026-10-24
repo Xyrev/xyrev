@@ -1,12 +1,17 @@
-use super::{add, capture, checked, read, Files};
-use crate::dotfile::storage;
+use super::{
+    archive::add,
+    paths::{checked, read},
+    process::capture,
+    Files,
+};
+use crate::common::fs as filesystem;
 use age::secrecy::{ExposeSecret, SecretVec};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -298,7 +303,7 @@ pub(super) fn validate(inventory: &Inventory, files: &Files) -> Result<()> {
         } else {
             std::env::temp_dir()
         })?;
-    storage::set_mode(temporary.path(), 0o700)?;
+    filesystem::set_mode(temporary.path(), 0o700)?;
     // GPG 2.2 marks show-only secret packets as unavailable in an empty
     // keyring. Compare complete packet fingerprints here; verify actual local
     // private material after import, before reporting successful restoration.
@@ -349,7 +354,7 @@ fn validate_at(
 pub(super) fn preflight(target: &Path) -> Result<()> {
     fn inspect(path: &Path) -> Result<()> {
         checked(path)?;
-        super::outside_git(path)?;
+        super::paths::outside_git(path)?;
         let metadata = match fs::symlink_metadata(path) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -392,9 +397,9 @@ pub(super) fn restore(target: &Path, inventory: &Inventory, files: &Files) -> Re
     preflight(target)?;
     let home = checked(&target.join(".gnupg"))?;
     if !target.exists() {
-        storage::private_dir(target)?;
+        filesystem::private_dir(target)?;
     }
-    storage::private_dir(&home)?;
+    filesystem::private_dir(&home)?;
     for (flag, name) in [
         ("--import", "gpg/public.asc"),
         ("--import", "gpg/secret.asc"),
@@ -418,4 +423,22 @@ pub(super) fn restore(target: &Path, inventory: &Inventory, files: &Files) -> Re
         }
     }
     Ok(())
+}
+
+pub(crate) fn available() -> Result<bool> {
+    let output = match Command::new("gpg")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .output()
+    {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => {
+            return Err(error).context("Cannot execute gpg; repair PATH or executable permissions")
+        }
+    };
+    if !output.status.success() || !output.stdout.starts_with(b"gpg (GnuPG") {
+        bail!("gpg is present but unusable; repair it before restoring GPG keys");
+    }
+    Ok(true)
 }

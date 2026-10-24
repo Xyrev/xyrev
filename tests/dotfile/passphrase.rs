@@ -1,5 +1,4 @@
-mod common;
-use common::*;
+use crate::common::*;
 
 #[test]
 fn legacy_environment_passphrase_deploys_encrypted_source_without_persisting_secrets() {

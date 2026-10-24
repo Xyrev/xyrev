@@ -1,6 +1,7 @@
 //! Built-in Git plumbing. Checkout updates are prepared in a sibling directory,
 //! including preserved local Git metadata, then installed by rename after a clean check.
 use super::storage::{self, Paths};
+use crate::common::fs as filesystem;
 use anyhow::{bail, Context, Result};
 use gix::bstr::ByteSlice;
 use std::collections::BTreeSet;
@@ -12,7 +13,7 @@ pub fn enabled(source: &Path) -> bool {
     source.join(".git/stool-builtin").is_file()
 }
 pub fn mark(source: &Path) -> Result<()> {
-    storage::atomic_write(&source.join(".git/stool-builtin"), b"1\n", 0o600)
+    filesystem::atomic_write(&source.join(".git/stool-builtin"), b"1\n", 0o600)
 }
 
 pub fn clone(url: &str, destination: &Path, branch: Option<&str>) -> Result<()> {
@@ -36,7 +37,7 @@ pub fn clone(url: &str, destination: &Path, branch: Option<&str>) -> Result<()> 
             gix::refs::transaction::PreviousValue::Any,
             "stool clone branch",
         )?;
-        storage::atomic_write(
+        filesystem::atomic_write(
             &repo.git_dir().join("HEAD"),
             format!("ref: {full}\n").as_bytes(),
             0o644,
@@ -64,7 +65,7 @@ fn save_origin_url(repo: &gix::Repository, url: &str) -> Result<()> {
     config.set_raw_value("remote", Some("origin".into()), "url", url)?;
     let mut contents = Vec::new();
     config.write_to(&mut contents)?;
-    storage::atomic_write(&path, &contents, 0o600).context("Save built-in Git origin URL")
+    filesystem::atomic_write(&path, &contents, 0o600).context("Save built-in Git origin URL")
 }
 
 pub fn run(source: &Path, args: &[String]) -> Result<Option<String>> {
@@ -262,43 +263,5 @@ pub fn update(paths: &Paths) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn assert_origin_url_round_trip(url: &str) {
-        let temp = tempfile::tempdir().unwrap();
-        let repo = gix::init(temp.path()).unwrap();
-        save_origin_url(&repo, url).unwrap();
-        let args = ["remote", "get-url", "origin"].map(str::to_owned);
-        assert_eq!(run(temp.path(), &args).unwrap().as_deref(), Some(url));
-        let config = gix::config::File::from_path_no_includes(
-            repo.git_dir().join("config"),
-            gix::config::Source::Local,
-        )
-        .unwrap();
-        assert_eq!(
-            config
-                .string("core", None, "repositoryformatversion")
-                .unwrap()
-                .to_str()
-                .unwrap(),
-            "0"
-        );
-    }
-
-    #[test]
-    fn origin_url_preserves_windows_file_url_spelling() {
-        for url in [
-            "file:///C:/Users/runner/work/dotfiles.git",
-            "file:///C:/Users/runner/work/dotfiles%20repo.git",
-            "file:///C:/Users/runner/work/dotfiles repo.git",
-        ] {
-            assert_origin_url_round_trip(url);
-        }
-    }
-
-    #[test]
-    fn origin_url_round_trip_escapes_git_config_syntax() {
-        assert_origin_url_round_trip("https://example.invalid/a#b;\"c\\d repository.git");
-    }
-}
+#[path = "../../tests/unit/dotfile/native_git.rs"]
+mod tests;

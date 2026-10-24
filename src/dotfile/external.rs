@@ -2,6 +2,7 @@ use super::source::{Content, Entry, Tree};
 use super::storage::Paths;
 use super::template::Engine;
 use super::{archive, git, source, storage, template};
+use crate::common::fs as filesystem;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -88,7 +89,7 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
             &resource.kind
         };
         let ttl = duration(resource.refresh_period.as_deref().unwrap_or("24h"))?;
-        let key = storage::digest(&serde_json::to_vec(&(
+        let key = filesystem::digest(&serde_json::to_vec(&(
             &resource.url,
             kind,
             &resource.branch,
@@ -120,7 +121,7 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
                         fs::remove_dir_all(cache.join("repository"))?;
                     }
                     fs::rename(&checkout, cache.join("repository"))?;
-                    storage::atomic_write(
+                    filesystem::atomic_write(
                         &cache.join("metadata.json"),
                         &serde_json::to_vec(&Cache { fetched_at: now })?,
                         0o600,
@@ -140,14 +141,14 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
             } else {
                 let bytes = download(&resource.url)?;
                 if let Some(expected) = &resource.checksum.sha256 {
-                    if storage::digest(&bytes) != expected.to_lowercase() {
+                    if filesystem::digest(&bytes) != expected.to_lowercase() {
                         bail!("External checksum mismatch: {name}");
                     }
                 }
                 if write_cache {
                     cache_directory(paths, &cache)?;
-                    storage::atomic_write(&cache.join("payload"), &bytes, 0o600)?;
-                    storage::atomic_write(
+                    filesystem::atomic_write(&cache.join("payload"), &bytes, 0o600)?;
+                    filesystem::atomic_write(
                         &cache.join("metadata.json"),
                         &serde_json::to_vec(&Cache { fetched_at: now })?,
                         0o600,
@@ -156,7 +157,7 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
                 bytes
             };
             if let Some(expected) = &resource.checksum.sha256 {
-                if storage::digest(&bytes) != expected.to_lowercase() {
+                if filesystem::digest(&bytes) != expected.to_lowercase() {
                     bail!("External checksum mismatch: {name}");
                 }
             }
@@ -212,9 +213,9 @@ pub fn load(paths: &Paths, engine: &Engine, tree: &mut Tree, write_cache: bool) 
     Ok(())
 }
 fn cache_directory(paths: &Paths, directory: &Path) -> Result<()> {
-    storage::private_dir(&paths.root.join("cache"))?;
-    storage::private_dir(&paths.root.join("cache/external"))?;
-    storage::private_dir(directory)
+    filesystem::private_dir(&paths.root.join("cache"))?;
+    filesystem::private_dir(&paths.root.join("cache/external"))?;
+    filesystem::private_dir(directory)
 }
 fn download(url: &str) -> Result<Vec<u8>> {
     if let Some(path) = url.strip_prefix("file://") {
@@ -321,7 +322,11 @@ fn read_repository(root: &Path, relative: &Path, entries: &mut Vec<Entry>) -> Re
         } else {
             bail!("External repository contains a special file");
         };
-        entries.push(Entry::new(path.clone(), content, storage::mode(&metadata)));
+        entries.push(Entry::new(
+            path.clone(),
+            content,
+            filesystem::mode(&metadata),
+        ));
         if metadata.is_dir() && !metadata.file_type().is_symlink() {
             read_repository(root, &path, entries)?;
         }

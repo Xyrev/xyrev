@@ -1,5 +1,6 @@
 use super::process;
-use super::storage::{self, EncryptionSettings};
+use super::storage::EncryptionSettings;
+use crate::common::fs as filesystem;
 use age::secrecy::ExposeSecret;
 use anyhow::{bail, Context, Result};
 use std::io::{Read, Write};
@@ -85,7 +86,7 @@ pub fn decrypt(
     }
     let mut identities = Vec::<age::x25519::Identity>::new();
     for path in &settings.identities {
-        let path = storage::expand_home(path, home);
+        let path = filesystem::expand_home(path, home);
         for line in std::fs::read_to_string(&path)
             .with_context(|| format!("Read age identity {}", path.display()))?
             .lines()
@@ -135,7 +136,7 @@ pub fn keygen(output: &Path) -> Result<String> {
     }
     let identity = age::x25519::Identity::generate();
     let public = identity.to_public().to_string();
-    storage::atomic_write(
+    filesystem::atomic_write(
         output,
         format!(
             "# public key: {public}\n{}\n",
@@ -148,28 +149,5 @@ pub fn keygen(output: &Path) -> Result<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn age_roundtrip_and_wrong_identity_are_verified() {
-        let temp = tempfile::tempdir().unwrap();
-        let key = temp.path().join("identity");
-        let public = keygen(&key).unwrap();
-        let mut settings = EncryptionSettings {
-            recipients: vec![public],
-            identities: vec![key],
-            ..Default::default()
-        };
-        let plain = b"private\0configuration\n";
-        let cipher = encrypt(&settings, plain).unwrap();
-        assert!(!cipher.windows(plain.len()).any(|part| part == plain));
-        assert_eq!(
-            decrypt(&settings, temp.path(), &cipher, "age").unwrap(),
-            plain
-        );
-        let other = temp.path().join("wrong");
-        keygen(&other).unwrap();
-        settings.identities = vec![other];
-        assert!(decrypt(&settings, temp.path(), &cipher, "age").is_err());
-    }
-}
+#[path = "../../tests/unit/dotfile/crypto.rs"]
+mod tests;

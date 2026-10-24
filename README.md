@@ -2,6 +2,36 @@
 
 开发环境命令行工具。`stool init` 保存 dotfiles URL、准备 Apple 环境并按需分阶段恢复离线密钥；macOS 的 `stool apple init` 独立管理系统偏好；`stool dotfile` 从 Git URL 初始化、预览、部署和更新配置；`stool key` 独立管理仓库外的 GPG 与 SSH 加密离线备份和手动恢复。
 
+## 工程结构
+
+```text
+src/
+  main.rs          命令入口与错误退出
+  cli/             clap 命令和参数
+  common/          全局配置、文件权限、URL 校验与终端输入
+  init/            基础初始化与分阶段密钥恢复编排
+  apple/           macOS 偏好、Homebrew 与软件安装
+  dotfile/         配置仓库、模板、部署计划和状态
+  key/             离线密钥的导出、归档、密码、路径防护和恢复
+  agent/           Agent 初始化与工具安装
+  help.rs          帮助、补全与手册生成
+tests/
+  apple.rs         Apple 集成测试入口 → apple/
+  dotfile.rs       dotfile 集成测试入口 → dotfile/
+  init.rs          基础初始化集成测试
+  key.rs           密钥集成测试入口 → key/
+  common/          集成测试夹具与隔离环境
+  unit/            按业务模块组织的单元测试
+  python/          安装器与原生密钥测试
+  fixtures/        仅供测试的合成数据
+scripts/           CLI 资源生成与发行打包
+completions/       生成的 Shell 补全
+man-page/          生成的命令手册
+.github/workflows/ CI 与发布流程
+```
+
+CLI 层只定义参数，业务代码按功能组织，共享基础工具放在 `common`。单元测试从业务模块中按路径加载，以验证私有实现；集成测试通过实际 binary 验证命令行为。根目录的 `install.sh` 是公开安装入口，README 维护使用说明，RELEASE_NOTES 维护版本变化。
+
 ## 当前源码与版本边界
 
 项目、Cargo package/bin 和仓库统一为 `stool` / `szwathub/stool`，当前 Cargo 版本为 0.6.0。本次 `stool init`、dotfile 默认 URL/递归子模块、`stool key` 和 macOS 的 `stool apple init` / `stool apple brew` 属于待发布改动，历史 tag 与发行包不因此改变；先确认 `stool key --help`，需要时[从源码构建](#从源码构建)。
@@ -445,6 +475,8 @@ exclude = ['README.md']
 
 ```bash
 cargo test --locked --all-targets
+# 只运行某个功能的集成测试
+cargo test --locked --test dotfile
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo +1.74.0 test --locked --all-targets
@@ -455,8 +487,8 @@ cargo +1.74.0 test --locked --all-targets
 安装器与原生密钥测试另行运行：
 
 ```bash
-python3 -m unittest discover -s tests -p 'test_installer.py' -v
-STOOL_BIN=target/debug/stool python3 -m unittest discover -s tests -p 'test_keys_native.py' -v
+python3 -m unittest discover -s tests/python -p 'test_installer.py' -v
+STOOL_BIN=target/debug/stool python3 -m unittest discover -s tests/python -p 'test_keys_native.py' -v
 ```
 
 原生密钥测试需要先构建 binary 并安装 GPG，只生成一次性测试身份，验证签名、解密、ownertrust、撤销证书、SSH 配对和原口令，不使用用户私钥。Unix 原生验证不代表已完成 Windows 真实账户级 GPG 验收；模拟第三方 CLI 与 LFS 测试也不代表所有真实服务已认证。
