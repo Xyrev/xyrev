@@ -1,6 +1,6 @@
 # stool dotfile：实现规范、兼容边界与新机器流程
 
-> 校订日期：2026-10-24。Cargo 当前版本为 0.6.0，本文按待发布源码描述，新增离线命令不回填旧 tag。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
+> 校订日期：2026-10-24。Cargo 当前版本为 0.6.0，本文按待发布源码描述，新增离线密钥与 macOS 偏好命令不回填旧 tag。历史 xyrev v0.5.0 的 tag、资源、固定安装地址与二进制行为不变。
 >
 > 本文记录 stool 的产品协议、新机器流程、实现证据与长期规划。[产品概览](dotfile-overview.md) 说明能力和边界，[实现说明](dotfile-internals.md) 说明当前 Rust 模块和状态处理。当前使用入口另见 [README](../README.md)，命令选项以 `stool dotfile --help` 及子命令帮助为准。
 >
@@ -24,16 +24,18 @@ stool 在现有单一 Rust crate 中提供 `stool dotfile`：通过完整 Git UR
 | 维护与诊断 | add/edit/unmanaged、递归导入、编辑器、root/version、verify/doctor/data/execute-template/cd | [maintenance.rs](../src/dotfile/maintenance.rs)、[tools.rs](../src/dotfile/tools.rs) |
 | 脚本 | run/once/onchange、before/during/after 顺序；成功才持久化，失败可重试，onchange 的 A→B→A 再执行 | [scripts.rs](../src/dotfile/scripts.rs)、[钩子测试](../tests/dotfile_crypto_hooks.rs) |
 | 普通文件加密 | 内置 age；本机 GPG 子进程；通过 add --encrypt 导入、edit 编辑、apply 解密部署；保留内部 age 密码处理 | [crypto.rs](../src/dotfile/crypto.rs)、[加密文件测试](../tests/dotfile_advanced.rs) |
+| macOS 偏好 | 独立 apple init、只读预览、按实际值幂等应用 Dock 设置与回读验证 | [src/apple/](../src/apple/mod.rs)、[CLI 测试](../tests/apple_cli.rs) |
 | 离线 GPG/SSH 密钥 | 独立 key backup/restore、默认全部、单文件密码加密、仓库外保存和手动恢复 | [src/key/](../src/key/mod.rs)、[命令测试](../tests/key_backup.rs)、[真实密钥测试](../tests/test_keys_native.py) |
 | 秘密提供器 | 1Password、Bitwarden、pass/gopass、Vault、Keyring、KeePassXC、LastPass、Doppler、AWS、Azure 及通用命令适配；进程内缓存 | [secrets.rs](../src/dotfile/secrets.rs)、[高级测试](../tests/dotfile_advanced.rs) |
 | 外部资源与归档 | 文件、归档、归档中单文件、Git 资源；TTL、SHA-256、过滤、路径保护；tar/tgz/zip 导出 | [external.rs](../src/dotfile/external.rs)、[archive.rs](../src/dotfile/archive.rs) |
 | 终端和命令文档 | ratatui 冲突确认；由同一 clap 定义生成 shell 补全和递归 man pages | [ui.rs](../src/dotfile/ui.rs)、[CLI 定义](../src/cli/dotfile/mod.rs)、[生成脚本](../scripts/generate-cli-assets.sh) |
 
-源码组织与状态存储见第 5 节；运行环境和验收范围见第 6 节。产品命名统一为 `stool`，配置入口为 `dotfile`，密钥入口为 `key`。
+源码组织与状态存储见第 5 节；运行环境和验收范围见第 6 节。产品命名统一为 `stool`，配置入口为 `dotfile`，密钥入口为 `key`，macOS 偏好入口为 `apple`。
 
 ### 1.2 常用命令
 
 ```text
+stool apple init [--dry-run]  # macOS only
 stool dotfile init <git-url> [--branch <branch>] [--recurse-submodules] [--apply] [--builtin]
 stool dotfile diff
 stool dotfile status
@@ -173,7 +175,7 @@ stool dotfile verify
 
 init 核对 Git 姓名、邮箱、签名指纹和 Homebrew prefix。`--data git_signing_key=...` 仅覆盖个人 Git 签名默认值，不是下载或恢复前置。个人与 Work 身份仍按 clone URL 规则选择；签名私钥需手动恢复。
 
-这份 dotfiles 的完整 HOME 部署依次初始化 Homebrew、安装 Brewfile（含 GPG Suite）、部署配置、设置 macOS 偏好。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
+这份 dotfiles 的完整 HOME 部署依次初始化 Homebrew、安装 Brewfile（含 GPG Suite）、部署配置。macOS 偏好单独运行 `stool apple init --dry-run` 预览，再运行 `stool apple init` 应用；安装包含该命令的 stool 构建后即可执行，无需先克隆 dotfiles。配置 apply/update 不再设置 Dock。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
 
 若第一步仅恢复了 SSH，软件包安装后确认 PATH 中有 `gpg`，再手动导入 GPG：
 
@@ -202,7 +204,7 @@ GPG Suite/pinentry 可能另行要求私钥原口令。已在最开始恢复全�
 | `.stooltemplates/Brewfile` | 包含 GPG Suite，避免重复声明 gnupg/pinentry-mac |
 | `private_dot_gnupg/` | GPG/agent 配置，不包含 keyring |
 
-三个系统钩子是 `run_once_before_00-homebrew.sh.tmpl`、`run_onchange_before_10-packages.sh.tmpl`、`run_onchange_after_20-macos.sh.tmpl`。数字决定同阶段排序；配置部署不会自动恢复密钥。
+两个系统钩子是 `run_once_before_00-homebrew.sh.tmpl`、`run_onchange_before_10-packages.sh.tmpl`，继续共用 `.stooltemplates/macos-hook.sh` 的系统与 HOME 目标检查。数字决定同阶段排序；配置部署不会自动恢复密钥或修改 Dock。macOS 偏好改由独立 `stool apple init [--dry-run]` 管理，具体行为见 [README](../README.md#macos-偏好初始化)。旧 `configure_macos` 不再使用，现有设置和旧脚本成功记录无需迁移。
 
 Git clone 的 `post-checkout` 钩子读取 `dot_git-clone-init.tmpl` 部署出的规则，设置仓库本地 `user.name`、`user.email`、`user.signingkey`。GitHub 使用个人数据，Gitee/工作域名使用 Work 配置；它不覆盖已有仓库身份，也不是每次操作实时重新选钥。HTTPS 和 SSH 的 URL 模式都在规则内。
 

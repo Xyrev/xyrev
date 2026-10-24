@@ -1,5 +1,7 @@
 # 待发布
 
+新增 macOS 专用 `stool apple init [--dry-run]`，将示例 dotfiles 的 Dock 最小化动画设置迁入 stool。按实际值比较、按需写入并回读验证；预览只读，无需先克隆仓库。示例 dotfiles 删除 macOS 偏好钩子和 `configure_macos` 开关，配置 apply/update 不再修改 Dock。新命令尚未发布，使用包含该命令的源码构建。
+
 GPG 与 SSH 改为独立 `stool key backup/restore`：默认全部类别、单个密码加密 tar.age 文件、默认当前目录备份和 HOME 手动恢复。离线包、公钥、私钥和密码均在 Git 仓库外；SSH 可先于 Git/GPG 和 dotfiles 初始化恢复。完整参数及范围见 [离线说明](docs/key-backup.md)。
 
 删除旧 dotfile gpg CLI、自动恢复计划/状态与旧 GPG 格式兼容；普通 dotfile 加密不变。dotfiles 仅保存配置和个人/Work 签名指纹。先备份并隔离验证，再删除仓库中的旧备份。本节属于当前源码，尚未发布新版本；以下保留历史记录及当时的命令。

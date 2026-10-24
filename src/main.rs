@@ -1,4 +1,6 @@
 mod agent;
+#[cfg(target_os = "macos")]
+mod apple;
 mod cli;
 mod common;
 mod dotfile;
@@ -21,7 +23,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
         cli::Commands::Init(cmd) => cmd.run(cli.verbose),
         cli::Commands::Agent(cmd) => cmd.run(cli.verbose),
         #[cfg(target_os = "macos")]
-        cli::Commands::Apple(cmd) => println!("Apple {}", cmd.name),
+        cli::Commands::Apple(cmd) => apple::run(&cmd, cli.verbose)?,
         cli::Commands::Dotfile(cmd) => dotfile::run(&cmd, cli.verbose)?,
         cli::Commands::Key(cmd) => key::run(&cmd)?,
         cli::Commands::Completions { shell } => help::completions(shell),

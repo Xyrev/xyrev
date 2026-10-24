@@ -58,6 +58,18 @@ _stool() {
             stool__agent__help,init)
                 cmd="stool__agent__help__init"
                 ;;
+            stool__apple,help)
+                cmd="stool__apple__help"
+                ;;
+            stool__apple,init)
+                cmd="stool__apple__init"
+                ;;
+            stool__apple__help,help)
+                cmd="stool__apple__help__help"
+                ;;
+            stool__apple__help,init)
+                cmd="stool__apple__help__init"
+                ;;
             stool__dotfile,add)
                 cmd="stool__dotfile__add"
                 ;;
@@ -189,6 +201,9 @@ _stool() {
                 ;;
             stool__help__agent,init)
                 cmd="stool__help__agent__init"
+                ;;
+            stool__help__apple,init)
+                cmd="stool__help__apple__init"
                 ;;
             stool__help__dotfile,add)
                 cmd="stool__help__dotfile__add"
@@ -397,8 +412,64 @@ _stool() {
             return 0
             ;;
         stool__apple)
-            opts="-v -h --verbose --help <NAME>"
+            opts="-v -h --verbose --help init help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__help)
+            opts="init help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__help__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__help__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__apple__init)
+            opts="-v -h --dry-run --verbose --help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1203,8 +1274,22 @@ _stool() {
             return 0
             ;;
         stool__help__apple)
-            opts=""
+            opts="init"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        stool__help__apple__init)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi

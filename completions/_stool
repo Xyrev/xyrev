@@ -118,8 +118,52 @@ _arguments "${_arguments_options[@]}" : \
 '--verbose[Show more debugging information]' \
 '-h[Print help]' \
 '--help[Print help]' \
-':name -- Dotfile name:_default' \
+":: :_stool__apple_commands" \
+"*::: :->apple" \
 && ret=0
+
+    case $state in
+    (apple)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:stool-apple-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+'--dry-run[Show current preferences and planned changes without writing]' \
+'-v[Show more debugging information]' \
+'--verbose[Show more debugging information]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_stool__apple__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:stool-apple-help-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
 ;;
 (dotfile)
 _arguments "${_arguments_options[@]}" : \
@@ -561,7 +605,23 @@ esac
 ;;
 (apple)
 _arguments "${_arguments_options[@]}" : \
+":: :_stool__help__apple_commands" \
+"*::: :->apple" \
 && ret=0
+
+    case $state in
+    (apple)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:stool-help-apple-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
 ;;
 (dotfile)
 _arguments "${_arguments_options[@]}" : \
@@ -693,7 +753,7 @@ _stool_commands() {
     local commands; commands=(
 'init:Create a new configuration folder or reinitialize the existing one' \
 'agent:' \
-'apple:' \
+'apple:Manage macOS preferences independently of dotfiles' \
 'dotfile:Manage dotfiles from a Git repository' \
 'key:Back up and restore GPG and SSH keys independently of dotfiles' \
 'completions:Generate shell completions from the current command definitions' \
@@ -747,8 +807,34 @@ _stool__agent__init_commands() {
 }
 (( $+functions[_stool__apple_commands] )) ||
 _stool__apple_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'init:Set the current user'\''s Dock minimization animation to suck' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
     _describe -t commands 'stool apple commands' commands "$@"
+}
+(( $+functions[_stool__apple__help_commands] )) ||
+_stool__apple__help_commands() {
+    local commands; commands=(
+'init:Set the current user'\''s Dock minimization animation to suck' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'stool apple help commands' commands "$@"
+}
+(( $+functions[_stool__apple__help__help_commands] )) ||
+_stool__apple__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool apple help help commands' commands "$@"
+}
+(( $+functions[_stool__apple__help__init_commands] )) ||
+_stool__apple__help__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool apple help init commands' commands "$@"
+}
+(( $+functions[_stool__apple__init_commands] )) ||
+_stool__apple__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool apple init commands' commands "$@"
 }
 (( $+functions[_stool__completions_commands] )) ||
 _stool__completions_commands() {
@@ -971,7 +1057,7 @@ _stool__help_commands() {
     local commands; commands=(
 'init:Create a new configuration folder or reinitialize the existing one' \
 'agent:' \
-'apple:' \
+'apple:Manage macOS preferences independently of dotfiles' \
 'dotfile:Manage dotfiles from a Git repository' \
 'key:Back up and restore GPG and SSH keys independently of dotfiles' \
 'completions:Generate shell completions from the current command definitions' \
@@ -1000,8 +1086,15 @@ _stool__help__agent__init_commands() {
 }
 (( $+functions[_stool__help__apple_commands] )) ||
 _stool__help__apple_commands() {
-    local commands; commands=()
+    local commands; commands=(
+'init:Set the current user'\''s Dock minimization animation to suck' \
+    )
     _describe -t commands 'stool help apple commands' commands "$@"
+}
+(( $+functions[_stool__help__apple__init_commands] )) ||
+_stool__help__apple__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'stool help apple init commands' commands "$@"
 }
 (( $+functions[_stool__help__completions_commands] )) ||
 _stool__help__completions_commands() {

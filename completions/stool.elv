@@ -26,7 +26,7 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand --version 'Print version'
             cand init 'Create a new configuration folder or reinitialize the existing one'
             cand agent 'agent'
-            cand apple 'apple'
+            cand apple 'Manage macOS preferences independently of dotfiles'
             cand dotfile 'Manage dotfiles from a Git repository'
             cand key 'Back up and restore GPG and SSH keys independently of dotfiles'
             cand completions 'Generate shell completions from the current command definitions'
@@ -85,6 +85,23 @@ set edit:completion:arg-completer[stool] = {|@words|
             cand --verbose 'Show more debugging information'
             cand -h 'Print help'
             cand --help 'Print help'
+            cand init 'Set the current user''s Dock minimization animation to suck'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'stool;apple;init'= {
+            cand --dry-run 'Show current preferences and planned changes without writing'
+            cand -v 'Show more debugging information'
+            cand --verbose 'Show more debugging information'
+            cand -h 'Print help'
+            cand --help 'Print help'
+        }
+        &'stool;apple;help'= {
+            cand init 'Set the current user''s Dock minimization animation to suck'
+            cand help 'Print this message or the help of the given subcommand(s)'
+        }
+        &'stool;apple;help;init'= {
+        }
+        &'stool;apple;help;help'= {
         }
         &'stool;dotfile'= {
             cand --source 'Local source repository (saved by init)'
@@ -386,7 +403,7 @@ set edit:completion:arg-completer[stool] = {|@words|
         &'stool;help'= {
             cand init 'Create a new configuration folder or reinitialize the existing one'
             cand agent 'agent'
-            cand apple 'apple'
+            cand apple 'Manage macOS preferences independently of dotfiles'
             cand dotfile 'Manage dotfiles from a Git repository'
             cand key 'Back up and restore GPG and SSH keys independently of dotfiles'
             cand completions 'Generate shell completions from the current command definitions'
@@ -404,6 +421,9 @@ set edit:completion:arg-completer[stool] = {|@words|
         &'stool;help;agent;copilot'= {
         }
         &'stool;help;apple'= {
+            cand init 'Set the current user''s Dock minimization animation to suck'
+        }
+        &'stool;help;apple;init'= {
         }
         &'stool;help;dotfile'= {
             cand init 'Clone a Git URL and save configuration'

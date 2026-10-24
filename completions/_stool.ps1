@@ -29,7 +29,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('--version', '--version', [CompletionResultType]::ParameterName, 'Print version')
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Create a new configuration folder or reinitialize the existing one')
             [CompletionResult]::new('agent', 'agent', [CompletionResultType]::ParameterValue, 'agent')
-            [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'apple')
+            [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'Manage macOS preferences independently of dotfiles')
             [CompletionResult]::new('dotfile', 'dotfile', [CompletionResultType]::ParameterValue, 'Manage dotfiles from a Git repository')
             [CompletionResult]::new('key', 'key', [CompletionResultType]::ParameterValue, 'Back up and restore GPG and SSH keys independently of dotfiles')
             [CompletionResult]::new('completions', 'completions', [CompletionResultType]::ParameterValue, 'Generate shell completions from the current command definitions')
@@ -97,6 +97,27 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Set the current user''s Dock minimization animation to suck')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'stool;apple;init' {
+            [CompletionResult]::new('--dry-run', '--dry-run', [CompletionResultType]::ParameterName, 'Show current preferences and planned changes without writing')
+            [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('--verbose', '--verbose', [CompletionResultType]::ParameterName, 'Show more debugging information')
+            [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
+            [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
+            break
+        }
+        'stool;apple;help' {
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Set the current user''s Dock minimization animation to suck')
+            [CompletionResult]::new('help', 'help', [CompletionResultType]::ParameterValue, 'Print this message or the help of the given subcommand(s)')
+            break
+        }
+        'stool;apple;help;init' {
+            break
+        }
+        'stool;apple;help;help' {
             break
         }
         'stool;dotfile' {
@@ -443,7 +464,7 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
         'stool;help' {
             [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Create a new configuration folder or reinitialize the existing one')
             [CompletionResult]::new('agent', 'agent', [CompletionResultType]::ParameterValue, 'agent')
-            [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'apple')
+            [CompletionResult]::new('apple', 'apple', [CompletionResultType]::ParameterValue, 'Manage macOS preferences independently of dotfiles')
             [CompletionResult]::new('dotfile', 'dotfile', [CompletionResultType]::ParameterValue, 'Manage dotfiles from a Git repository')
             [CompletionResult]::new('key', 'key', [CompletionResultType]::ParameterValue, 'Back up and restore GPG and SSH keys independently of dotfiles')
             [CompletionResult]::new('completions', 'completions', [CompletionResultType]::ParameterValue, 'Generate shell completions from the current command definitions')
@@ -466,6 +487,10 @@ Register-ArgumentCompleter -Native -CommandName 'stool' -ScriptBlock {
             break
         }
         'stool;help;apple' {
+            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Set the current user''s Dock minimization animation to suck')
+            break
+        }
+        'stool;help;apple;init' {
             break
         }
         'stool;help;dotfile' {

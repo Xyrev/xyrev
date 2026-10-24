@@ -1,10 +1,10 @@
 # stool
 
-开发环境命令行工具。`stool dotfile` 从 Git URL 初始化、预览、部署和更新配置；`stool key` 独立管理仓库外的 GPG 与 SSH 加密离线备份和手动恢复。
+开发环境命令行工具。macOS 的 `stool apple init` 独立管理系统偏好；`stool dotfile` 从 Git URL 初始化、预览、部署和更新配置；`stool key` 独立管理仓库外的 GPG 与 SSH 加密离线备份和手动恢复。
 
 ## 当前源码与版本边界
 
-项目、Cargo package/bin 和仓库统一为 `stool` / `szwathub/stool`，当前 Cargo 版本为 0.6.0。本次 `stool key` 属于待发布改动，历史 tag 与发行包不因此改变；先确认 `stool key --help`，需要时[从源码构建](#从源码构建)。
+项目、Cargo package/bin 和仓库统一为 `stool` / `szwathub/stool`，当前 Cargo 版本为 0.6.0。本次 `stool key` 和 macOS 的 `stool apple init` 属于待发布改动，历史 tag 与发行包不因此改变；先确认 `stool key --help`，需要时[从源码构建](#从源码构建)。
 
 控制项、模板数据/指令、环境变量和默认目录使用 `.stool*`、`stool.*` / `stool:template:`、`STOOL_*` 和 `~/.stool`。不自动读取旧命名，也不复制旧状态。旧环境需重新初始化并检查 source、资源引用、待执行脚本和目标冲突。
 
@@ -23,6 +23,22 @@ stool key --help
 ```
 
 PATH 设置只影响当前终端；zsh 可将 export 加入 `~/.zprofile`，Fish 可用 `fish_add_path ~/.local/bin`。旧 xyrev 固定 tag、资源和 binary 保留其历史行为，不适用于当前新协议。
+
+## macOS 偏好初始化
+
+此命令仅在 macOS 提供，使用包含 `apple init` 的当前源码构建；旧发行包不会自动增加此入口。安装 stool 后即可独立执行，无需 Git、Homebrew 或 dotfiles：
+
+```bash
+stool apple init --help
+stool apple init --dry-run
+stool apple init
+```
+
+当前只设置当前用户的 Dock 最小化动画：`com.apple.dock mineffect` 为字符串 `suck`，沿用原 dotfiles 脚本的值。预览读取当前值并展示计划，不写入；实际运行仅在值不匹配或尚未设置时写入，并回读确认成功。重复运行重新检查真实设置，手动改动后可再次应用，不依赖 dotfile 脚本成功记录。
+
+通过 macOS 自带的 `/usr/bin/defaults` 执行，无需 sudo；命令不会自动重启 Dock，必要时自行重启 Dock 或退出登录后重新进入。读取、写入或回读验证失败返回非零，错误包含具体偏好及系统诊断。
+
+原 `run_onchange_after_20-macos.sh.tmpl` 和 `configure_macos` 已从示例 dotfiles 移除；旧本机 `[data].configure_macos` 不再生效，可手动删除。移除钩子不撤销已有 Dock 设置，后续 `stool dotfile apply/update` 也不自动调用 `apple init`。Homebrew/软件包钩子与离线密钥流程保持独立。
 
 ## 从旧环境迁移
 
@@ -80,7 +96,7 @@ stool dotfile verify
 
 init 核对 Git 姓名、邮箱、签名指纹和 Homebrew prefix。`--data git_signing_key=...` 仅覆盖个人 Git 签名默认值，不是下载或恢复前置。个人与 Work 身份仍按 clone URL 规则选择；签名私钥需手动恢复。
 
-这份 dotfiles 的完整 HOME 部署依次初始化 Homebrew、安装 Brewfile（含 GPG Suite）、部署配置、设置 macOS 偏好。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
+这份 dotfiles 的完整 HOME 部署依次初始化 Homebrew、安装 Brewfile（含 GPG Suite）、部署配置。macOS 偏好单独运行 `stool apple init --dry-run` 预览，再运行 `stool apple init` 应用；安装包含该命令的 stool 构建后即可执行，无需先克隆 dotfiles。配置 apply/update 不再设置 Dock。`apply`、`update`、`diff` 和 `verify` 均不恢复密钥、不询问离线备份密码；`verify` 只检查配置。已有 `~/.gitconfig` 可能冲突，先看 diff，再选择备份覆盖；非交互时检查后才使用 `apply --force`。
 
 若第一步仅恢复了 SSH，软件包安装后确认 PATH 中有 `gpg`，再手动导入 GPG：
 

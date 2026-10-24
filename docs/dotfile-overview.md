@@ -1,6 +1,6 @@
 # stool dotfile 产品概览
 
-> 更新日期：2026-10-24。描述当前源码，包含待发布的离线密钥功能；旧 tag 和发行包行为不变。
+> 更新日期：2026-10-24。描述当前源码，包含待发布的离线密钥与 macOS 偏好命令；旧 tag 和发行包行为不变。
 
 `stool dotfile` 从 Git URL 获取配置仓库，按 stool 路径协议和 MiniJinja 模板计算目标文件，预览后部署到用户目录，并保护后续本地修改。`stool key` 独立处理仓库外密钥备份，不依赖 dotfiles。
 
@@ -40,6 +40,8 @@
 ## 新机器流程
 
 安装包含 `stool key` 的构建 → 手动转入离线包 → 恢复 SSH（已有 GPG 可恢复全部）→ 完成 Git SSH 或 HTTPS 认证 → init/diff/apply/verify → 如需要再手动恢复 GPG。macOS 的 GPG Suite 可由软件包钩子安装。完整命令见 [新 Mac 流程](dotfile-design.md#3-新-mac从公开安装到私有仓库恢复)。
+
+macOS 偏好由 `stool apple init --dry-run` 预览、`stool apple init` 应用，安装当前构建后即可独立运行；不再由示例 dotfiles 的 apply/update 设置。具体行为见 [README](../README.md#macos-偏好初始化)。
 
 安装 binary 不提供私库授权；SSH 公钥仍需 GitHub 账号授权，HTTPS 仍需提前通过 helper 缓存凭据。所有 dotfile 命令均不恢复 GPG/SSH 密钥或询问离线备份密码，密钥操作无需先 init。
 
