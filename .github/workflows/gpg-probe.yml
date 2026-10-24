@@ -17,7 +17,7 @@ jobs:
           with tempfile.TemporaryDirectory(prefix='stool-gpg-probe-') as directory:
               root=pathlib.Path(directory)
               home=root/'home'
-              ring=home/'.gnupg'
+              ring=root/'non-default-keyring'
               ring.mkdir(parents=True,mode=0o700)
               env=dict(os.environ,HOME=str(home),GNUPGHOME=str(ring))
               for name in ('GPG_AGENT_INFO','GPG_TTY','SSH_AUTH_SOCK','SSH_AGENT_PID'):
